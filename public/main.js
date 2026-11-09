@@ -1,7 +1,8 @@
 (function () {
   // Sign in with email and password, connect the Shortcut, then show the spending. The session is kept only on this phone.
-  // The iCloud link for the shared "Log purchase" Shortcut. Empty shows "ask for the link" instead.
-  const SHORTCUT_URL = '';
+  // The iCloud links for the two shared Shortcuts. An empty one shows "ask for the link" instead.
+  const TAP_URL = 'https://www.icloud.com/shortcuts/04786b4e360444da98d91a598daf458c';
+  const NOTIF_URL = 'https://www.icloud.com/shortcuts/2e361ad437a64dd6a9924c721a2731e4';
   const $ = (s) => document.querySelector(s);
   const read = (k) => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
   const write = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } };
@@ -11,7 +12,8 @@
   const installed = () => navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
 
   const show = (which) => {
-    ['#signin', '#onboard', '#app'].forEach((id) => { $(id).hidden = id !== which; });
+    ['#signin', '#tour', '#onboard', '#app'].forEach((id) => { $(id).hidden = id !== which; });
+    if (which !== '#onboard') stopWatch();
     window.scrollTo(0, 0);
   };
   const note = (sel, text) => {
@@ -58,7 +60,7 @@
       $('#auth-invite').value = '';
       try { await window.spendApi('PUT', 'me', { tz: Intl.DateTimeFormat().resolvedOptions().timeZone }); } catch (e) { /* stays on the default */ }
       // First time: connect the Shortcut. Coming back on a new phone: straight to the spending.
-      if (r.isNew) showOnboard();
+      if (r.isNew) showTour(false);
       else {
         write('spend.onboarded', '1');
         startApp();
@@ -79,27 +81,106 @@
   };
 
   // ---- connecting the Shortcut ------------------------------------------------------------------------------
+  // Watches for the first purchase while the setup page is open, so a new person sees it work.
+  let watchTimer = null;
+  function stopWatch() {
+    clearInterval(watchTimer);
+    watchTimer = null;
+  }
+  const watchFirst = async () => {
+    stopWatch();
+    const box = $('#first-status');
+    box.className = 'first-status waiting';
+    $('#first-text').textContent = 'Waiting for your first purchase…';
+    let base = null;
+    const check = async () => {
+      try {
+        const list = await window.spendApi('GET', 'purchases');
+        if (base === null) { base = list.length; return; }
+        if (list.length > base) {
+          const body = String((list[0] && list[0].body) || '');
+          const merchant = /Merchant: (.+)/.exec(body);
+          const amount = /Amount: (.+)/.exec(body);
+          box.className = 'first-status done';
+          $('#first-text').textContent = '✓ It works! Got ' + (merchant && amount ? merchant[1].trim() + ' ' + amount[1].trim() : 'a Wallet notification') + '.';
+          stopWatch();
+        }
+      } catch (e) {
+        if (e && e.kind === 'auth') stopWatch();
+      }
+    };
+    await check();
+    if (document.querySelector('#onboard').hidden === false) watchTimer = setInterval(check, 5000);
+  };
+
   let code = '';
+  const setLink = (a, missing, url) => {
+    a.hidden = !url;
+    missing.hidden = !!url;
+    if (url) a.href = url;
+  };
   const showOnboard = async () => {
-    if (typeof closeSettings === 'function') closeSettings();
     dash.stop();
     show('#onboard');
     note('#onboard-error', '');
-    $('#shortcut-link').hidden = !SHORTCUT_URL;
-    $('#shortcut-missing').hidden = !!SHORTCUT_URL;
-    if (SHORTCUT_URL) $('#shortcut-link').href = SHORTCUT_URL;
+    setLink($('#tap-link'), $('#tap-missing'), TAP_URL);
+    setLink($('#notif-link'), $('#notif-missing'), NOTIF_URL);
+    $('#step-home').hidden = installed();
     $('#copy-code').disabled = true;
     $('#setup-code').textContent = 'Loading…';
     try {
       code = (await window.spendApi('GET', 'setup-code')).code;
       $('#setup-code').textContent = code;
       $('#copy-code').disabled = false;
+      watchFirst();
     } catch (e) {
       if (e && e.kind === 'auth') return signOut('Please sign in again.');
       $('#setup-code').textContent = '—';
       note('#onboard-error', 'Could not load your setup code. Check your connection and try again.');
     }
   };
+
+  // ---- the first-time tour ----
+  const SLIDES = [
+    ['📊', 'Your spending at a glance', 'The big number is what you spent in the last 14 days. Below it, a chart shows each day against your daily average.'],
+    ['🎯', 'Set a daily limit', 'Tap the target button at the top to pick how much you want to spend a day. The chart then shows what is left today.'],
+    ['👆', 'Tap, swipe and expand', 'Tap a category to see only those purchases. Tap a purchase to edit it, or swipe it left to delete it (Undo is always there). The expand button by Purchases shows the last four weeks.'],
+    ['🔔', 'Alerts that keep you on track', 'Get a note each morning with what you can spend, an alert right after a purchase that puts you over your limit, and a reminder each night at 9. Turn them on in Settings, the gear at the top.']
+  ];
+  let slide = 0;
+  let tourReturnsToApp = false;
+  const drawSlide = () => {
+    const [icon, title, text] = SLIDES[slide];
+    $('#tour-icon').textContent = icon;
+    $('#tour-title').textContent = title;
+    $('#tour-text').textContent = text;
+    $('#tour-count').textContent = (slide + 1) + ' of ' + SLIDES.length;
+    $('#tour-back').style.visibility = slide === 0 ? 'hidden' : 'visible';
+    $('#tour-next').textContent = slide === SLIDES.length - 1 ? (tourReturnsToApp ? 'Done' : 'Set up my Shortcuts') : 'Next';
+    const dots = $('#tour-dots');
+    dots.replaceChildren();
+    SLIDES.forEach((_, i) => {
+      const d = document.createElement('span');
+      if (i === slide) d.className = 'on';
+      dots.append(d);
+    });
+  };
+  const finishTour = () => {
+    if (tourReturnsToApp) startApp();
+    else showOnboard();
+  };
+  const showTour = (fromSettings) => {
+    tourReturnsToApp = !!fromSettings;
+    slide = 0;
+    dash.stop();
+    show('#tour');
+    drawSlide();
+  };
+  $('#tour-next').addEventListener('click', () => {
+    if (slide < SLIDES.length - 1) { slide++; drawSlide(); } else finishTour();
+  });
+  $('#tour-back').addEventListener('click', () => { if (slide > 0) { slide--; drawSlide(); } });
+  $('#tour-skip').addEventListener('click', finishTour);
   $('#copy-code').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(code);
@@ -235,6 +316,7 @@
   };
 
   $('#show-code').addEventListener('click', showOnboard);
+  $('#tour-open').addEventListener('click', () => { closeSettings(); showTour(true); });
   $('#sign-out').addEventListener('click', () => signOut('You are signed out.'));
   $('#sign-out-all').addEventListener('click', async () => {
     try {

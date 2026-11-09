@@ -231,6 +231,23 @@ button { font: inherit; color: inherit; }
 .inv-result { display: grid; gap: 10px; margin-top: 6px; }
 #people-sheet .set-group { gap: 10px; }
 #people-sheet .field select { font: inherit; font-size: 16px; padding: 13px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); width: 100%; }
+.tour-top { display: flex; justify-content: space-between; align-items: center; min-height: 28px; }
+.tour-card { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 28px 8px 8px; min-height: 280px; align-content: start; }
+.tour-icon { font-size: 64px; line-height: 1; }
+.tour-card h1 { font-size: 26px; }
+.tour-card p { max-width: 24rem; font-size: 16px; line-height: 1.45; }
+.dots { display: flex; justify-content: center; gap: 8px; }
+.dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--track); }
+.dots span.on { background: var(--accent); }
+.tour-actions { grid-template-columns: 1fr 2fr; }
+.steps .hint { display: block; margin-top: 8px; }
+.steps .fine { display: block; margin-top: 6px; }
+.first-status { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--track); font-size: 14.5px; }
+.first-status.done { background: var(--down-bg); color: var(--down); font-weight: 600; }
+.first-status.done .sp-dot { background: var(--down); }
+.first-status.waiting .sp-dot { background: var(--muted); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .first-status.waiting .sp-dot { animation: none; } }
 body.sheet-open { overflow: hidden; }
 
 button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -256,28 +273,50 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
   <p class="fine">Your purchases are private to your account. Only you can see them, and you can delete your account and all its data any time in the app.</p>
 </section>
 
+<section class="setup" id="tour" hidden aria-label="App tour">
+  <div class="tour-top"><span class="fine" id="tour-count"></span><button type="button" class="link" id="tour-skip">Skip</button></div>
+  <div class="tour-card">
+    <div class="tour-icon" id="tour-icon" aria-hidden="true"></div>
+    <h1 id="tour-title"></h1>
+    <p id="tour-text"></p>
+  </div>
+  <div class="dots" id="tour-dots" aria-hidden="true"></div>
+  <div class="sheet-actions tour-actions">
+    <button type="button" class="btn-plain" id="tour-back">Back</button>
+    <button type="button" class="primary" id="tour-next">Next</button>
+  </div>
+</section>
+
 <section class="setup" id="onboard" hidden>
   <h1>Connect your iPhone</h1>
-  <p>One Shortcut sends each Apple Pay purchase here the moment you pay. This takes about 3 minutes.</p>
+  <p>Two small Shortcuts send each Apple Pay purchase here the moment you pay. It takes about 5 minutes, once.</p>
   <ol class="steps">
     <li>
-      <b>Copy your setup code.</b> It links the Shortcut to your account. Keep it private.
+      <b>Copy your setup code.</b> It links your Shortcuts to your account. Keep it private.
       <div class="code-box"><code id="setup-code">Loading…</code></div>
       <button type="button" class="primary" id="copy-code" disabled>Copy setup code</button>
     </li>
     <li>
-      <b>Add the Shortcut.</b> When it asks, paste your setup code.
-      <a class="primary link-btn" id="shortcut-link" href="#" target="_blank" rel="noopener" hidden>Get the Shortcut</a>
-      <span class="fine" id="shortcut-missing">Ask the person who shared this app for the Shortcut link.</span>
+      <b>Add the tap-to-pay Shortcut.</b> It catches payments when you tap your card or phone.
+      <a class="primary link-btn" id="tap-link" href="#" target="_blank" rel="noopener" hidden>Add &ldquo;Log tap purchase&rdquo;</a>
+      <span class="fine" id="tap-missing">Ask the person who invited you for the link.</span>
     </li>
     <li>
-      <b>Make two automations</b> in the Shortcuts app: tap <b>Automation</b>, then <b>+</b>.
-      <ul>
-        <li><b>Wallet</b>: pick your cards and <b>Run Immediately</b>, then choose <b>Log purchase</b>. This catches tap to pay.</li>
-        <li><b>Notification</b>: pick the <b>Wallet</b> app and <b>Run Immediately</b>, then choose <b>Log purchase</b>. This catches online Apple Pay.</li>
-      </ul>
+      <b>Add the online-payment Shortcut.</b> It catches Apple Pay payments made in apps and websites.
+      <a class="primary link-btn" id="notif-link" href="#" target="_blank" rel="noopener" hidden>Add &ldquo;Log notification purchase&rdquo;</a>
+      <span class="fine" id="notif-missing">Ask the person who invited you for the link.</span>
+      <span class="fine hint">For each one: tap <b>Add Shortcut</b> and paste your setup code when it asks. If it doesn&rsquo;t ask, open the Shortcut and replace the words &ldquo;Paste here&rdquo; in the Text box with your code.</span>
     </li>
-    <li><b>Pay with Apple Pay once.</b> It shows up here within a few seconds.</li>
+    <li>
+      <b>Turn each one on.</b> Open the Shortcut. At the top you&rsquo;ll see a box that says <b>&ldquo;Automation is turned off&rdquo;</b>. Tap it, switch it on, and choose <b>Run Immediately</b> (not &ldquo;Ask Before Running&rdquo;). Do this for both Shortcuts.
+    </li>
+    <li>
+      <b>Make a small Apple Pay purchase.</b> It should show up here within a few seconds.
+      <div class="first-status waiting" id="first-status" role="status"><span class="sp-dot"></span><span id="first-text">Waiting for your first purchase…</span></div>
+    </li>
+    <li id="step-home">
+      <b>For alerts, add this app to your Home Screen.</b> Tap <b>Share</b>, then <b>Add to Home Screen</b>, open it from the new icon, sign in, then turn on alerts in Settings (the gear).
+    </li>
   </ol>
   <button type="button" class="primary" id="onboard-done">Done, show my spending</button>
   <p class="msg" id="onboard-error" hidden></p>
@@ -494,6 +533,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
     <h3 class="set-h" id="set-limit">Spending</h3>
     <button type="button" class="btn-plain set-row" id="settings-limit">Daily limit<span id="settings-limit-val">Not set</span></button>
     <button type="button" class="btn-plain set-row" id="people-open" hidden>People &amp; invites<span aria-hidden="true">&rsaquo;</span></button>
+    <button type="button" class="btn-plain set-row" id="tour-open">App tour<span aria-hidden="true">&rsaquo;</span></button>
     <button type="button" class="btn-plain set-row" id="show-code">Set up the Shortcut again<span aria-hidden="true">&rsaquo;</span></button>
   </section>
 
