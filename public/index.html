@@ -220,6 +220,17 @@ button { font: inherit; color: inherit; }
 .tx-swipe .tx:active { background: var(--track); }
 .tx-swipe:not(.swiping) .tx-del { visibility: hidden; }
 .tx-del { position: absolute; z-index: 0; top: 0; right: 0; bottom: 0; width: 88px; border: 0; border-radius: 0 14px 14px 0; background: var(--up); color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+.person { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.person:last-child { border-bottom: 0; }
+.person-main { min-width: 0; display: grid; gap: 1px; }
+.person-main b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-main span { font-size: 13px; color: var(--muted); }
+.person .mini { flex-shrink: 0; margin: 0; width: auto; padding: 8px 12px; font-size: 14px; }
+.person .mini.danger-mini { background: var(--up-bg); color: var(--up); font-weight: 700; }
+.person.off .person-main b { text-decoration: line-through; opacity: .7; }
+.inv-result { display: grid; gap: 10px; margin-top: 6px; }
+#people-sheet .set-group { gap: 10px; }
+#people-sheet .field select { font: inherit; font-size: 16px; padding: 13px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); width: 100%; }
 body.sheet-open { overflow: hidden; }
 
 button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -236,7 +247,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
   <form id="auth-form" class="setup" novalidate>
     <label class="field">Email<input id="auth-email" type="email" autocomplete="username" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" required></label>
     <label class="field">Password<input id="auth-password" type="password" autocomplete="current-password" minlength="10" required></label>
-    <p class="fine" id="auth-hint" hidden>At least 10 characters.</p>
+    <label class="field" id="invite-field" hidden>Invite code<input id="auth-invite" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="inv_…"></label>
+    <p class="fine" id="auth-hint" hidden>At least 10 characters. You need an invite code from the person who shared this app.</p>
     <button type="submit" class="primary" id="auth-submit">Sign in</button>
     <button type="button" class="link" id="auth-toggle">New here? Create an account</button>
   </form>
@@ -419,6 +431,49 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
   <p class="sub" id="all-summary"></p>
   <div data-draw="all_tx"></div>
 </div>
+<div class="backdrop" id="people-backdrop" hidden></div>
+<div class="sheet tall" id="people-sheet" role="dialog" aria-modal="true" aria-labelledby="people-title" hidden>
+  <div class="grab" aria-hidden="true"></div>
+  <div class="set-head">
+    <h2 id="people-title">People &amp; invites</h2>
+    <button type="button" class="link" id="people-close">Done</button>
+  </div>
+  <p class="msg" id="people-error" hidden></p>
+
+  <section class="set-group" aria-labelledby="inv-h">
+    <h3 class="set-h" id="inv-h">Invite someone</h3>
+    <label class="field"><span>Who is it for? (optional)</span><input id="inv-note" maxlength="60" autocomplete="off" placeholder="Priya"></label>
+    <label class="field"><span>Works for</span>
+      <select id="inv-days"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option></select>
+    </label>
+    <button type="button" class="primary" id="inv-create">Create invite</button>
+    <div class="inv-result" id="inv-result" hidden>
+      <p class="fine">Send this to your friend. It works once.</p>
+      <div class="code-box"><code id="inv-code"></code></div>
+      <div class="sheet-actions">
+        <button type="button" class="btn-plain" id="inv-copy-code">Copy code</button>
+        <button type="button" class="primary" id="inv-share">Copy invite message</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="set-group" aria-labelledby="sign-h">
+    <h3 class="set-h" id="sign-h">New accounts</h3>
+    <button type="button" class="btn-plain set-row" id="signups-toggle">New signups<span id="signups-state">…</span></button>
+    <p>Turn this off to stop anyone creating an account, even with an invite. People who already have an account are not affected.</p>
+  </section>
+
+  <section class="set-group" aria-labelledby="pend-h">
+    <h3 class="set-h" id="pend-h">Waiting to be used</h3>
+    <div id="invites-list"><p class="empty-line">Loading…</p></div>
+  </section>
+
+  <section class="set-group" aria-labelledby="ppl-h">
+    <h3 class="set-h" id="ppl-h">People with access</h3>
+    <div id="people-list"><p class="empty-line">Loading…</p></div>
+    <p class="fine">Removing someone signs them out everywhere and stops their Shortcut. Their data is kept, and you can restore them any time.</p>
+  </section>
+</div>
 <div class="backdrop" id="settings-backdrop" hidden></div>
 <div class="sheet" id="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
   <div class="grab" aria-hidden="true"></div>
@@ -438,6 +493,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
   <section class="set-group" aria-labelledby="set-limit">
     <h3 class="set-h" id="set-limit">Spending</h3>
     <button type="button" class="btn-plain set-row" id="settings-limit">Daily limit<span id="settings-limit-val">Not set</span></button>
+    <button type="button" class="btn-plain set-row" id="people-open" hidden>People &amp; invites<span aria-hidden="true">&rsaquo;</span></button>
     <button type="button" class="btn-plain set-row" id="show-code">Set up the Shortcut again<span aria-hidden="true">&rsaquo;</span></button>
   </section>
 
@@ -464,5 +520,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 <script src="add.js"></script>
 <script src="push.js"></script>
 <script src="settings.js"></script>
+<script src="people.js"></script>
 </body>
 </html>

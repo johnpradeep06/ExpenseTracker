@@ -90,7 +90,39 @@ const signedIn = async (req) => {
   const rows = await q('select * from users where id = $1', [payload.sub]);
   const user = rows[0];
   if (!user || user.session_version !== payload.v) fail(401, 'Please sign in again');
+  if (user.disabled) fail(401, 'Your access was removed by the owner');
   return user;
+};
+
+// ---- owner and invites ------------------------------------------------------------------------------------------
+// The owner is the account whose email is in OWNER_EMAIL. Only the owner can invite people and manage access.
+const ownerEmail = () => env('OWNER_EMAIL').trim().toLowerCase();
+const isOwner = (u) => !!ownerEmail() && String(u.email).toLowerCase() === ownerEmail();
+const ownerOnly = async (req) => {
+  const u = await signedIn(req);
+  if (!isOwner(u)) fail(403, 'Only the owner can do this');
+  return u;
+};
+const ipKey = (req) => sha(String((req.headers && req.headers['x-forwarded-for']) || (req.socket && req.socket.remoteAddress) || '').split(',')[0].trim()).slice(0, 16);
+const TRY_LIMIT = 10;
+const TRY_WINDOW = 15 * 60000;
+const tooManyTries = async (req) => {
+  const rows = await q('select count(*)::int as n from signup_attempts where ip = $1 and at > $2', [ipKey(req), new Date(Date.now() - TRY_WINDOW).toISOString()]);
+  return rows[0].n >= TRY_LIMIT;
+};
+const noteFailedTry = async (req) => {
+  await q('insert into signup_attempts (ip) values ($1)', [ipKey(req)]);
+  await q('delete from signup_attempts where at < $1', [new Date(Date.now() - DAY).toISOString()]);
+};
+const signupsOpen = async () => {
+  const rows = await q("select value from app_settings where key = 'signups_open'");
+  return !rows[0] || rows[0].value !== 'false';
+};
+const makeInvite = async (note, days) => {
+  const code = 'inv_' + crypto.randomBytes(18).toString('base64url');
+  const d = Math.min(90, Math.max(1, Math.round(Number(days)) || 7));
+  const rows = await q('insert into invites (code_hash, note, expires_at) values ($1, $2, $3) returning id, expires_at', [sha(code), clean(note, 60), new Date(Date.now() + d * DAY).toISOString()]);
+  return { id: Number(rows[0].id), code, expires_at: iso(rows[0].expires_at) };
 };
 
 // ---- email and password -----------------------------------------------------------------------------------------
@@ -241,18 +273,29 @@ const routes = {
     const b = await readBody(req);
     const email = String(b.email || '').trim().toLowerCase();
     const password = String(b.password || '');
+    const code = String(b.invite || '').trim();
+    if (!(await signupsOpen())) fail(403, 'New accounts are closed right now.');
+    if (await tooManyTries(req)) fail(429, 'Too many tries. Wait 15 minutes and try again.');
+    // Mistakes in the email or password are reported before the invite is touched, so a typo never uses it up.
     if (!EMAIL_RE.test(email) || email.length > 254) fail(400, 'Enter a valid email address');
     if (password.length < 10) fail(400, 'Use a password of at least 10 characters');
     if (password.length > 200) fail(400, 'That password is too long');
+    const badInvite = async (msg) => { await noteFailedTry(req); fail(403, msg); };
+    if (!/^inv_[A-Za-z0-9_-]{16,64}$/.test(code)) await badInvite('Enter the invite code you were given.');
     if ((await q('select 1 from users where lower(email) = $1', [email])).length) fail(409, 'There is already an account with that email. Sign in instead.');
+    // Claiming is one atomic step, so a code works for exactly one person even if two try at once.
+    const claim = await q('update invites set used_at = now() where code_hash = $1 and used_at is null and revoked_at is null and expires_at > now() returning id', [sha(code)]);
+    if (!claim[0]) await badInvite('That invite code is not valid. It may be already used, expired or cancelled.');
     let rows;
     try {
       rows = await q('insert into users (email, name, pw_hash) values ($1, $2, $3) returning *', [email, String(b.name || '').slice(0, 200), await hashPassword(password)]);
     } catch (e) {
+      await q('update invites set used_at = null where id = $1', [claim[0].id]);
       if (e && e.code === '23505') fail(409, 'There is already an account with that email. Sign in instead.');
       throw e;
     }
     const user = rows[0];
+    await q('update invites set used_by = $2 where id = $1', [claim[0].id, user.id]);
     return { session: await makeSession(user), email: user.email, name: user.name, isNew: true };
   },
 
@@ -271,6 +314,7 @@ const routes = {
       }
       fail(401, 'That email and password do not match');
     }
+    if (user.disabled) fail(403, 'This account no longer has access. Ask the person who invited you.');
     if (user.fail_count || user.locked_until) await q('update users set fail_count = 0, locked_until = null where id = $1', [user.id]);
     return { session: await makeSession(user), email: user.email, name: user.name, isNew: !user.key_hash };
   },
@@ -278,7 +322,7 @@ const routes = {
   'GET me': async (req) => {
     const u = await signedIn(req);
     const devices = await q('select count(*)::int as n from devices where user_id = $1', [u.id]);
-    return { email: u.email, name: u.name, dailyLimit: limitOf(u), tz: u.tz, hasCode: !!u.key_hash, devices: devices[0] ? devices[0].n : 0, vapidPublicKey: env('VAPID_PUBLIC_KEY') };
+    return { email: u.email, name: u.name, isOwner: isOwner(u), dailyLimit: limitOf(u), tz: u.tz, hasCode: !!u.key_hash, devices: devices[0] ? devices[0].n : 0, vapidPublicKey: env('VAPID_PUBLIC_KEY') };
   },
 
   'PUT me': async (req) => {
@@ -357,6 +401,7 @@ const routes = {
     const rows = await q('select * from users where key_hash = $1', [sha(given)]);
     const u = rows[0];
     if (!u) fail(401, 'That setup code is not valid any more. Copy the new one from the app.');
+    if (u.disabled) fail(401, 'This account no longer has access.');
     const p = fromShortcut(b);
     const row = await addPurchase(u, p.title, p.body, new Date().toISOString());
     const after = await afterPurchase(u, row.id).catch(() => ({ message: 'Logged.' }));
@@ -405,7 +450,7 @@ const routes = {
   // The morning and evening notes. Vercel calls this on a schedule with the cron secret.
   'GET cron': async (req) => {
     if (!env('CRON_SECRET') || bearer(req) !== env('CRON_SECRET')) fail(401, 'Not allowed');
-    const users = await q('select u.* from users u where exists (select 1 from devices d where d.user_id = u.id)');
+    const users = await q('select u.* from users u where not u.disabled and exists (select 1 from devices d where d.user_id = u.id)');
     let sent = 0;
     for (const u of users) {
       try {
@@ -422,6 +467,57 @@ const routes = {
     }
     await q("delete from notes_sent where day < $1", [new Date(Date.now() - 10 * DAY).toISOString().slice(0, 10)]);
     return { users: users.length, sent };
+  },
+
+  // ---- owner: invites and who has access ----
+  'GET owner/people': async (req) => {
+    await ownerOnly(req);
+    const people = await q('select id, email, created_at, disabled from users order by created_at');
+    const invites = await q("select id, note, created_at, expires_at from invites where used_at is null and revoked_at is null and expires_at > now() order by created_at desc limit 50");
+    return {
+      signupsOpen: await signupsOpen(),
+      people: people.map((p) => ({ id: p.id, email: p.email, joined: iso(p.created_at), disabled: !!p.disabled, owner: String(p.email).toLowerCase() === ownerEmail() })),
+      invites: invites.map((i) => ({ id: Number(i.id), note: i.note, created_at: iso(i.created_at), expires_at: iso(i.expires_at) }))
+    };
+  },
+
+  'POST owner/invites': async (req) => {
+    await ownerOnly(req);
+    const b = await readBody(req);
+    return makeInvite(b.note, b.days);
+  },
+
+  'DELETE owner/invites/:id': async (req, id) => {
+    await ownerOnly(req);
+    await q('update invites set revoked_at = now() where id = $1 and used_at is null', [id]);
+    return { ok: true };
+  },
+
+  'PUT owner/signups': async (req) => {
+    await ownerOnly(req);
+    const b = await readBody(req);
+    const open = b.open === true || b.open === 'true';
+    await q("insert into app_settings (key, value) values ('signups_open', $1) on conflict (key) do update set value = excluded.value", [open ? 'true' : 'false']);
+    return { signupsOpen: open };
+  },
+
+  // Removing access signs the person out everywhere and blocks their login and Shortcut. Their data is kept, so it can be restored.
+  'POST owner/people/:id/:action': async (req, arg) => {
+    const me = await ownerOnly(req);
+    if (arg.id === me.id) fail(400, 'You cannot remove your own access');
+    const rows = await q('select id, email from users where id = $1', [arg.id]);
+    if (!rows[0]) fail(404, 'That person was not found');
+    if (String(rows[0].email).toLowerCase() === ownerEmail()) fail(400, 'The owner cannot be removed');
+    const off = arg.action === 'remove';
+    await q('update users set disabled = $2, session_version = session_version + 1 where id = $1', [arg.id, off]);
+    return { ok: true, disabled: off };
+  },
+
+  // For the owner of the server, with the admin secret: make an invite without signing in (also used to start a new install).
+  'POST admin/invites': async (req) => {
+    if (!env('ADMIN_SECRET') || bearer(req) !== env('ADMIN_SECRET')) fail(401, 'Not allowed');
+    const b = await readBody(req);
+    return makeInvite(b.note, b.days);
   },
 
   // One-time move of existing purchases into an account, by the owner of this server.
@@ -451,9 +547,17 @@ const handler = async (req, res) => {
     let key = req.method + ' ' + route;
     let arg;
     const m = /^purchases\/(\d{1,18})$/.exec(route);
+    const mi = /^owner\/invites\/(\d{1,18})$/.exec(route);
+    const mp = /^owner\/people\/([0-9a-f-]{36})\/(remove|restore)$/.exec(route);
     if (m) {
       key = req.method + ' purchases/:id';
       arg = m[1];
+    } else if (mi) {
+      key = req.method + ' owner/invites/:id';
+      arg = mi[1];
+    } else if (mp) {
+      key = req.method + ' owner/people/:id/:action';
+      arg = { id: mp[1], action: mp[2] };
     }
     const fn = routes[key];
     if (!fn) return send(res, 404, { error: 'Not found' });

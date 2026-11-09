@@ -32,6 +32,7 @@
     $('#auth-toggle').textContent = up ? 'Already have an account? Sign in' : 'New here? Create an account';
     $('#auth-password').autocomplete = up ? 'new-password' : 'current-password';
     $('#auth-hint').hidden = !up;
+    $('#invite-field').hidden = !up;
     note('#signin-error', '');
   };
   $('#auth-toggle').addEventListener('click', () => setMode(!signingUp));
@@ -45,10 +46,16 @@
     const btn = $('#auth-submit');
     btn.disabled = true;
     try {
-      const r = await window.spendApi('POST', signingUp ? 'auth/signup' : 'auth/login', { email, password });
+      const body = { email, password };
+      if (signingUp) {
+        body.invite = $('#auth-invite').value.trim();
+        if (!body.invite) { note('#signin-error', 'Enter the invite code you were given.'); btn.disabled = false; return; }
+      }
+      const r = await window.spendApi('POST', signingUp ? 'auth/signup' : 'auth/login', body);
       session.set(r.session);
       write('spend.email', r.email || '');
       $('#auth-password').value = '';
+      $('#auth-invite').value = '';
       try { await window.spendApi('PUT', 'me', { tz: Intl.DateTimeFormat().resolvedOptions().timeZone }); } catch (e) { /* stays on the default */ }
       // First time: connect the Shortcut. Coming back on a new phone: straight to the spending.
       if (r.isNew) showOnboard();
@@ -131,6 +138,9 @@
     document.body.classList.add('sheet-open');
     settingsSheet.scrollTop = 0;
     if (window.spendAlertsRender) window.spendAlertsRender();
+    // Only the owner sees "People & invites".
+    $('#people-open').hidden = true;
+    window.spendApi('GET', 'me').then((me) => { $('#people-open').hidden = !(me && me.isOwner); }).catch(() => {});
   };
   $('#settings-open').addEventListener('click', openSettings);
   $('#settings-close').addEventListener('click', closeSettings);
@@ -170,6 +180,9 @@
     });
     sheet.addEventListener('touchcancel', reset);
   };
+
+  window.spendCloseSettings = closeSettings;
+  window.spendSwipeToClose = swipeToClose;
 
   // ---- all purchases (the expand button next to "Purchases") ----
   const allSheet = $('#all-sheet');
@@ -214,6 +227,7 @@
   const signOut = (message) => {
     closeSettings();
     closeAll();
+    if (window.spendClosePeople) window.spendClosePeople();
     session.clear();
     forgetPhone();
     window.spendLimit = 0;
@@ -303,7 +317,16 @@
   // Old GitHub-based copies of this app kept these; they are not used any more.
   ['spend.token', 'spend.repo'].forEach(clear);
 
-  if (!session.get()) showSignIn();
-  else if (!read('spend.onboarded')) showOnboard();
+  const inviteFromLink = new URLSearchParams(location.search).get('invite');
+  if (inviteFromLink) {
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* not important */ }
+  }
+  if (!session.get()) {
+    showSignIn();
+    if (inviteFromLink) {
+      setMode(true);
+      $('#auth-invite').value = inviteFromLink.slice(0, 80);
+    }
+  } else if (!read('spend.onboarded')) showOnboard();
   else startApp();
 })();
