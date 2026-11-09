@@ -402,6 +402,7 @@ const routes = {
     const u = rows[0];
     if (!u) fail(401, 'That setup code is not valid any more. Copy the new one from the app.');
     if (u.disabled) fail(401, 'This account no longer has access.');
+    req._who = String(u.id).slice(0, 8);
     const p = fromShortcut(b);
     const row = await addPurchase(u, p.title, p.body, new Date().toISOString());
     const after = await afterPurchase(u, row.id).catch(() => ({ message: 'Logged.' }));
@@ -562,9 +563,14 @@ const handler = async (req, res) => {
     const fn = routes[key];
     if (!fn) return send(res, 404, { error: 'Not found' });
     const out = await fn(req, arg);
+    if (key === 'POST log') console.log(JSON.stringify({ evt: 'shortcut-log', status: 200, who: req._who || '' }));
     return send(res, 200, out);
   } catch (e) {
-    if (e instanceof HttpError) return send(res, e.status, { error: e.message });
+    if (e instanceof HttpError) {
+      // Shortcut requests are logged (no purchase details, no setup code) so a missing purchase can be traced.
+      if (req.method === 'POST' && /\/log\/?$|route=log\b/.test(String(req.url))) console.log(JSON.stringify({ evt: 'shortcut-log', status: e.status, reason: e.message, who: req._who || '' }));
+      return send(res, e.status, { error: e.message });
+    }
     console.error(e);
     return send(res, 500, { error: 'Something went wrong on the server. Try again.' });
   }
