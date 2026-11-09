@@ -10,8 +10,8 @@
     "test": "TZ=UTC node test/server.test.js"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.2.0",
     "jose": "^6.2.16",
+    "pg": "^8.23.1",
     "web-push": "^4.0.0"
   },
   "devDependencies": {
