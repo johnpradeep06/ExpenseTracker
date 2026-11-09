@@ -340,6 +340,90 @@
     });
   });
 
+  // Swipe a purchase to the left: a red Delete button slides in. Tap it, or keep swiping to delete at once.
+  // (Undo stays on screen afterwards.) Tapping a row that is open just closes it.
+  let openSwipe = null;
+  const REVEAL = 88;
+  document.addEventListener('touchstart', (e) => {
+    if (openSwipe && !openSwipe.wrap.contains(e.target)) openSwipe.close();
+  }, { passive: true });
+  const makeSwipe = (wrap, row, del, onOpenRow, onDelete) => {
+    let x0 = 0;
+    let y0 = 0;
+    let base = 0;
+    let offset = 0;
+    let mode = null;
+    let moved = false;
+    let busy = false;
+    const api = {
+      wrap,
+      close: () => {
+        row.style.transition = '';
+        row.style.transform = '';
+        offset = 0;
+        if (openSwipe === api) openSwipe = null;
+        setTimeout(() => { if (offset === 0) wrap.classList.remove('swiping'); }, 250);
+      }
+    };
+    const setOffset = (v) => {
+      offset = v;
+      if (v < 0) wrap.classList.add('swiping');
+      row.style.transform = 'translateX(' + v + 'px)';
+    };
+    const remove = async () => {
+      if (busy) return;
+      busy = true;
+      row.style.transition = 'transform .18s ease-out';
+      setOffset(-wrap.clientWidth);
+      const done = await onDelete();
+      if (!done) {
+        api.close();
+        busy = false;
+      }
+    };
+    wrap.addEventListener('touchstart', (e) => {
+      if (busy || e.touches.length !== 1) return;
+      if (openSwipe && openSwipe !== api) openSwipe.close();
+      x0 = e.touches[0].clientX;
+      y0 = e.touches[0].clientY;
+      base = openSwipe === api ? -REVEAL : 0;
+      mode = null;
+      moved = false;
+      row.style.transition = 'none';
+    }, { passive: true });
+    wrap.addEventListener('touchmove', (e) => {
+      if (busy || !e.touches.length) return;
+      const dx = e.touches[0].clientX - x0;
+      const dy = e.touches[0].clientY - y0;
+      if (mode === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) mode = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+      if (mode !== 'h') return;
+      moved = true;
+      setOffset(Math.max(-wrap.clientWidth, Math.min(0, base + dx)));
+    }, { passive: true });
+    const finish = () => {
+      if (busy) return;
+      row.style.transition = 'transform .2s ease';
+      if (mode !== 'h') return;
+      if (offset < -Math.min(wrap.clientWidth * 0.6, 240)) {
+        remove();
+      } else if (offset < -REVEAL / 2) {
+        setOffset(-REVEAL);
+        openSwipe = api;
+      } else {
+        api.close();
+      }
+    };
+    // A drag is followed by a stray click on some phones; ignore that click, but never longer than a moment.
+    wrap.addEventListener('touchend', () => { finish(); setTimeout(() => { moved = false; }, 350); });
+    wrap.addEventListener('touchcancel', () => { row.style.transition = 'transform .2s ease'; if (mode === 'h') api.close(); });
+    row.addEventListener('click', () => {
+      if (moved) { moved = false; return; }
+      if (openSwipe === api) { api.close(); return; }
+      onOpenRow();
+    });
+    del.addEventListener('click', remove);
+  };
+
   // Purchases grouped by day with a total per day. Used by the Purchases card and the full list.
   const drawTxRows = (el, rows, shown, onPick) => {
     const todayKey = dayKey(new Date());
@@ -362,12 +446,22 @@
         row.type = 'button';
         row.dataset.key = r.id;
         row.setAttribute('aria-label', 'Edit ' + r.merchant);
-        row.addEventListener('click', () => onPick(r));
         const mid = h('span', 'cat-mid');
         mid.append(h('span', 'cat-name', r.merchant), h('span', 'cat-sub', (r.ts ? clock(new Date(r.ts)) + ' · ' : '') + r.category + (String(r.id).indexOf('p-') === 0 ? ' · not sent yet' : '')));
         const amt = h('span', 'cat-amt' + (r.amount < 0 ? ' in' : ''), r.amount < 0 ? '+' + money(-r.amount) : money(r.amount));
         row.append(chip(icon, color), mid, amt);
-        el.append(row);
+        if (String(r.id).indexOf('p-') === 0) {
+          row.addEventListener('click', () => onPick(r));
+          el.append(row);
+          return;
+        }
+        const wrap = h('div', 'tx-swipe');
+        const del = h('button', 'tx-del', 'Delete');
+        del.type = 'button';
+        del.setAttribute('aria-label', 'Delete ' + r.merchant);
+        wrap.append(del, row);
+        makeSwipe(wrap, row, del, () => onPick(r), () => (window.spendDelete ? window.spendDelete(r) : Promise.resolve(false)));
+        el.append(wrap);
       });
     });
   };

@@ -214,6 +214,11 @@ button { font: inherit; color: inherit; }
 .card-head .sub { margin-bottom: 14px; }
 .icon-btn.small { width: 36px; height: 36px; flex-shrink: 0; background: var(--track); box-shadow: none; }
 .sheet.tall { min-height: 78vh; align-content: start; }
+.tx-swipe { position: relative; overflow: hidden; border-radius: 14px; touch-action: pan-y; }
+.tx-swipe .tx { position: relative; z-index: 1; border-radius: 0; background: var(--card); will-change: transform; }
+.tx-swipe .tx:active { background: var(--track); }
+.tx-swipe:not(.swiping) .tx-del { visibility: hidden; }
+.tx-del { position: absolute; z-index: 0; top: 0; right: 0; bottom: 0; width: 88px; border: 0; border-radius: 0 14px 14px 0; background: var(--up); color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
 body.sheet-open { overflow: hidden; }
 
 button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

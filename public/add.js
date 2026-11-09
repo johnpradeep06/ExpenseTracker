@@ -169,6 +169,28 @@
     }
   });
 
+  // Marks the purchase (and any duplicate it absorbed) closed, then offers Undo.
+  const removeRow = async (row) => {
+    const ids = [row.id].concat(row.dupIds || []);
+    for (const n of ids) await patch(n, { state: 'closed' });
+    showToast('Deleted ' + row.merchant, ids.map((n) => ({ n, body: { state: 'open' } })));
+    if (window.dash) dash.reload();
+  };
+  // Used when swiping a purchase to the left. Returns true when it was deleted.
+  window.spendDelete = async (row) => {
+    if (String(row.id).indexOf('p-') === 0) {
+      showToast('Not sent yet. You can delete it once it has sent.', null);
+      return false;
+    }
+    try {
+      await removeRow(row);
+      return true;
+    } catch (x) {
+      showToast(friendly(x), null);
+      return false;
+    }
+  };
+
   // Delete asks twice: the first tap arms it, the second does it.
   del.addEventListener('click', async () => {
     if (!editing) return;
@@ -177,14 +199,10 @@
       del.textContent = 'Tap again to delete';
       return;
     }
-    const ids = [editing.id].concat(editing.dupIds || []);
-    const name = editing.merchant;
     del.disabled = true;
     try {
-      for (const n of ids) await patch(n, { state: 'closed' });
+      await removeRow(editing);
       closeSheet();
-      showToast('Deleted ' + name, ids.map((n) => ({ n, body: { state: 'open' } })));
-      if (window.dash) dash.reload();
     } catch (x) {
       showError(friendly(x));
       resetDelete();
