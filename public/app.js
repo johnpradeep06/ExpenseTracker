@@ -340,6 +340,38 @@
     });
   });
 
+  // Purchases grouped by day with a total per day. Used by the Purchases card and the full list.
+  const drawTxRows = (el, rows, shown, onPick) => {
+    const todayKey = dayKey(new Date());
+    const yesterdayKey = dayKey(d3.timeDay.offset(d3.timeDay.floor(new Date()), -1));
+    const label = (key) => (key === todayKey ? 'Today' : key === yesterdayKey ? 'Yesterday' : parseDay(key) ? dayLong(parseDay(key)) : key);
+    const groups = [];
+    shown.forEach((r) => {
+      const g = groups[groups.length - 1];
+      if (g && g.day === r.day) g.rows.push(r);
+      else groups.push({ day: r.day, rows: [r] });
+    });
+    groups.forEach((g) => {
+      const total = rows.filter((r) => r.day === g.day).reduce((s, r) => s + r.amount, 0);
+      const head = h('div', 'day-head');
+      head.append(h('span', '', label(g.day)), h('span', 'day-total', money(Math.round(total * 100) / 100)));
+      el.append(head);
+      g.rows.forEach((r) => {
+        const [icon, color] = catMeta(r.category);
+        const row = h('button', 'tx');
+        row.type = 'button';
+        row.dataset.key = r.id;
+        row.setAttribute('aria-label', 'Edit ' + r.merchant);
+        row.addEventListener('click', () => onPick(r));
+        const mid = h('span', 'cat-mid');
+        mid.append(h('span', 'cat-name', r.merchant), h('span', 'cat-sub', (r.ts ? clock(new Date(r.ts)) + ' · ' : '') + r.category + (String(r.id).indexOf('p-') === 0 ? ' · not sent yet' : '')));
+        const amt = h('span', 'cat-amt' + (r.amount < 0 ? ' in' : ''), r.amount < 0 ? '+' + money(-r.amount) : money(r.amount));
+        row.append(chip(icon, color), mid, amt);
+        el.append(row);
+      });
+    });
+  };
+
   // Purchases, grouped by day, newest first.
   dash.draw('tx', (el) => {
     const st = stateOf(['spend']);
@@ -365,35 +397,7 @@
       bar.append(clear);
       el.append(bar);
     }
-    const shown = showAll ? rows : rows.slice(0, TX_LIMIT);
-    const todayKey = dayKey(new Date());
-    const yesterdayKey = dayKey(d3.timeDay.offset(d3.timeDay.floor(new Date()), -1));
-    const label = (key) => (key === todayKey ? 'Today' : key === yesterdayKey ? 'Yesterday' : parseDay(key) ? dayLong(parseDay(key)) : key);
-    const groups = [];
-    shown.forEach((r) => {
-      const g = groups[groups.length - 1];
-      if (g && g.day === r.day) g.rows.push(r);
-      else groups.push({ day: r.day, rows: [r] });
-    });
-    groups.forEach((g) => {
-      const total = rows.filter((r) => r.day === g.day).reduce((s, r) => s + r.amount, 0);
-      const head = h('div', 'day-head');
-      head.append(h('span', '', label(g.day)), h('span', 'day-total', money(Math.round(total * 100) / 100)));
-      el.append(head);
-      g.rows.forEach((r) => {
-        const [icon, color] = catMeta(r.category);
-        const row = h('button', 'tx');
-        row.type = 'button';
-        row.dataset.key = r.id;
-        row.setAttribute('aria-label', 'Edit ' + r.merchant);
-        row.addEventListener('click', () => { if (window.spendEdit) window.spendEdit(r); });
-        const mid = h('span', 'cat-mid');
-        mid.append(h('span', 'cat-name', r.merchant), h('span', 'cat-sub', (r.ts ? clock(new Date(r.ts)) + ' · ' : '') + r.category + (String(r.id).indexOf('p-') === 0 ? ' · not sent yet' : '')));
-        const amt = h('span', 'cat-amt' + (r.amount < 0 ? ' in' : ''), r.amount < 0 ? '+' + money(-r.amount) : money(r.amount));
-        row.append(chip(icon, color), mid, amt);
-        el.append(row);
-      });
-    });
+    drawTxRows(el, rows, showAll ? rows : rows.slice(0, TX_LIMIT), (r) => { if (window.spendEdit) window.spendEdit(r); });
     if (!rows.length) el.append(h('p', 'empty-line', 'Nothing here for the last two weeks.'));
     if (rows.length > TX_LIMIT && !showAll) {
       const more = h('button', 'more', 'Show all ' + rows.length + ' purchases');
@@ -404,6 +408,29 @@
       });
       el.append(more);
     }
+  });
+
+  // The expand button next to "Purchases": every purchase from the last four weeks, in a scrollable panel.
+  dash.draw('all_tx', (el) => {
+    const st = stateOf(['spend']);
+    el.replaceChildren();
+    if (st === 'error') {
+      el.append(failLine());
+      return;
+    }
+    if (st !== 'ok') return;
+    const rows = rowsOf('spend');
+    const total = Math.round(rows.reduce((sum, r) => sum + r.amount, 0) * 100) / 100;
+    const sum = document.querySelector('#all-summary');
+    if (sum) sum.textContent = rows.length ? rows.length + (rows.length === 1 ? ' purchase' : ' purchases') + ' · ' + money(total) + ' in the last 4 weeks' : '';
+    if (!rows.length) {
+      el.append(h('p', 'empty-line', 'No purchases in the last four weeks.'));
+      return;
+    }
+    drawTxRows(el, rows, rows, (r) => {
+      if (window.spendCloseAll) window.spendCloseAll();
+      if (window.spendEdit) window.spendEdit(r);
+    });
   });
 
   document.querySelectorAll('.sp-refresh').forEach((b) => {

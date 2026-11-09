@@ -141,6 +141,28 @@
     if (window.spendOpenLimit) window.spendOpenLimit();
   });
 
+  // ---- all purchases (the expand button next to "Purchases") ----
+  const allSheet = $('#all-sheet');
+  const allBackdrop = $('#all-backdrop');
+  const closeAll = () => {
+    allSheet.hidden = true;
+    allBackdrop.hidden = true;
+    document.body.classList.remove('sheet-open');
+  };
+  window.spendCloseAll = closeAll;
+  $('#all-open').addEventListener('click', () => {
+    const t = $('#toast');
+    if (t) t.hidden = true;
+    dash.render();
+    allBackdrop.hidden = false;
+    allSheet.hidden = false;
+    document.body.classList.add('sheet-open');
+    allSheet.scrollTop = 0;
+  });
+  $('#all-close').addEventListener('click', closeAll);
+  allBackdrop.addEventListener('click', closeAll);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !allSheet.hidden) closeAll(); });
+
   // ---- the app ------------------------------------------------------------------------------------------------
   const startApp = () => {
     show('#app');
@@ -152,6 +174,7 @@
 
   const signOut = (message) => {
     closeSettings();
+    closeAll();
     session.clear();
     forgetPhone();
     window.spendLimit = 0;
