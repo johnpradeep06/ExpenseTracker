@@ -43,7 +43,7 @@ button { font: inherit; color: inherit; }
 /* Header */
 .top { position: sticky; top: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: max(14px, env(safe-area-inset-top)) 0 10px; margin-bottom: 4px; background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
 .top > div:first-child { min-width: 0; }
-.top h1 { margin: 0; font-size: clamp(26px, 7.4vw, 30px); white-space: nowrap; line-height: 1.05; font-weight: 800; letter-spacing: -.025em; }
+.top h1 { margin: 0; overflow: hidden; text-overflow: ellipsis; font-size: clamp(26px, 7.4vw, 30px); white-space: nowrap; line-height: 1.05; font-weight: 800; letter-spacing: -.025em; }
 .top p { margin: 3px 0 0; font-size: 13px; color: var(--muted); min-height: 1.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--card); color: var(--fg); box-shadow: var(--shadow); cursor: pointer; }
 .icon-btn:disabled { color: var(--muted); cursor: default; }
@@ -183,6 +183,7 @@ button { font: inherit; color: inherit; }
 /* Add a payment */
 .top-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .limit-pill.empty { width: 40px; padding: 0; justify-content: center; }
+@media (max-width: 380px) { .top h1 { font-size: 24px; } .top-actions { gap: 5px; } .top .icon-btn { width: 36px; height: 36px; } .limit-pill { height: 36px; padding: 0 10px 0 9px; font-size: 13px; } .limit-pill.empty { width: 36px; padding: 0; } }
 .limit-pill.empty #limit-pill-text { display: none; }
 .backdrop { position: fixed; inset: 0; z-index: 20; background: rgba(0, 0, 0, .42); }
 .sheet { position: fixed; z-index: 21; left: 0; right: 0; bottom: 0; max-width: 34rem; margin-inline: auto; max-height: 92vh; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 12px; padding: 10px 20px max(22px, env(safe-area-inset-bottom)); background: var(--card); border-radius: 26px 26px 0 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, .25); animation: rise .22s ease-out; }

@@ -31,18 +31,9 @@
   // The button at the top: "Daily limit" until one is set, then the amount, like "$30/day".
   const renderPill = () => {
     const v = window.spendLimit;
-    // Set: a small "LIMIT" over the amount, so it stays narrow enough for the top bar. Not set: "Set limit".
+    // Set: just the amount ("$50"), so the top bar never gets crowded. Not set: an icon only (see the CSS).
     pillText.replaceChildren();
-    if (v > 0) {
-      const two = document.createElement('span');
-      two.className = 'pill-two';
-      const small = document.createElement('small');
-      small.textContent = 'Limit a day';
-      two.append(small, document.createTextNode(short(v)));
-      pillText.append(two);
-    } else {
-      pillText.textContent = 'Set limit';
-    }
+    if (v > 0) pillText.textContent = short(v);
     openBtn.classList.toggle('set', v > 0);
     openBtn.classList.toggle('empty', !(v > 0));
     openBtn.setAttribute('aria-label', v > 0 ? 'Daily limit ' + cad.format(v) + '. Change it' : 'Set a daily limit');
