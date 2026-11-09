@@ -69,6 +69,10 @@
     backdrop.hidden = true;
     document.body.classList.remove('sheet-open');
     editing = null;
+    // Opened from the full list: save, delete or cancel all land back on that list.
+    const back = window.spendListReturn;
+    window.spendListReturn = false;
+    if (back && window.spendOpenAll) window.spendOpenAll(true);
   };
 
   // Errors from the server carry a status; a missing connection does not.
@@ -92,7 +96,7 @@
     toastTimer = setTimeout(hideToast, 9000);
   };
 
-  openBtn.addEventListener('click', () => openSheet(null));
+  openBtn.addEventListener('click', () => { window.spendListReturn = false; openSheet(null); });
   window.spendEdit = (row) => {
     if (String(row.id).indexOf('p-') === 0) {
       showToast('Not sent yet. You can edit it once it has sent.', null);

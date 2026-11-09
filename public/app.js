@@ -428,7 +428,11 @@
       return;
     }
     drawTxRows(el, rows, rows, (r) => {
-      if (window.spendCloseAll) window.spendCloseAll();
+      // Purchases not sent yet only show a note, so the list stays open for those.
+      if (String(r.id).indexOf('p-') !== 0 && window.spendCloseAll) {
+        window.spendCloseAll();
+        window.spendListReturn = true;
+      }
       if (window.spendEdit) window.spendEdit(r);
     });
   });

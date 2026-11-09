@@ -141,27 +141,66 @@
     if (window.spendOpenLimit) window.spendOpenLimit();
   });
 
+  // Swipe down on a panel to minimise it: drag from the handle or title, or from anywhere when scrolled to the top.
+  const swipeToClose = (sheet, close) => {
+    let startY = null;
+    let dy = 0;
+    const reset = () => {
+      sheet.style.transition = '';
+      sheet.style.transform = '';
+      startY = null;
+    };
+    sheet.addEventListener('touchstart', (e) => {
+      const onHandle = e.target.closest && e.target.closest('.grab, .set-head');
+      startY = onHandle || sheet.scrollTop <= 0 ? e.touches[0].clientY : null;
+      dy = 0;
+    }, { passive: true });
+    sheet.addEventListener('touchmove', (e) => {
+      if (startY === null) return;
+      dy = e.touches[0].clientY - startY;
+      if (dy > 0 && sheet.scrollTop <= 0) {
+        sheet.style.transition = 'none';
+        sheet.style.transform = 'translateY(' + dy + 'px)';
+      }
+    }, { passive: true });
+    sheet.addEventListener('touchend', () => {
+      const far = startY !== null && dy > 90;
+      reset();
+      if (far) close();
+    });
+    sheet.addEventListener('touchcancel', reset);
+  };
+
   // ---- all purchases (the expand button next to "Purchases") ----
   const allSheet = $('#all-sheet');
   const allBackdrop = $('#all-backdrop');
+  let allScroll = 0;
   const closeAll = () => {
+    allScroll = allSheet.scrollTop;
     allSheet.hidden = true;
     allBackdrop.hidden = true;
     document.body.classList.remove('sheet-open');
   };
-  window.spendCloseAll = closeAll;
-  $('#all-open').addEventListener('click', () => {
-    const t = $('#toast');
-    if (t) t.hidden = true;
+  // keep = coming back from editing a purchase: same scroll spot, and the "Deleted … Undo" note stays visible.
+  const openAll = (keep) => {
+    if (!keep) {
+      const t = $('#toast');
+      if (t) t.hidden = true;
+    }
     dash.render();
     allBackdrop.hidden = false;
     allSheet.hidden = false;
     document.body.classList.add('sheet-open');
-    allSheet.scrollTop = 0;
-  });
+    allSheet.scrollTop = keep ? allScroll : 0;
+  };
+  window.spendCloseAll = closeAll;
+  window.spendOpenAll = openAll;
+  $('#all-open').addEventListener('click', () => openAll(false));
   $('#all-close').addEventListener('click', closeAll);
   allBackdrop.addEventListener('click', closeAll);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !allSheet.hidden) closeAll(); });
+  swipeToClose(allSheet, closeAll);
+  swipeToClose(settingsSheet, closeSettings);
 
   // ---- the app ------------------------------------------------------------------------------------------------
   const startApp = () => {
