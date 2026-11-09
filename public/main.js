@@ -74,6 +74,7 @@
   // ---- connecting the Shortcut ------------------------------------------------------------------------------
   let code = '';
   const showOnboard = async () => {
+    if (typeof closeSettings === 'function') closeSettings();
     dash.stop();
     show('#onboard');
     note('#onboard-error', '');
@@ -112,6 +113,34 @@
     startApp();
   });
 
+  // ---- settings panel (the gear at the top) ----
+  const settingsSheet = $('#settings-sheet');
+  const settingsBackdrop = $('#settings-backdrop');
+  const closeSettings = () => {
+    settingsSheet.hidden = true;
+    settingsBackdrop.hidden = true;
+    document.body.classList.remove('sheet-open');
+  };
+  const openSettings = () => {
+    const lim = window.spendLimit;
+    $('#settings-limit-val').textContent = lim > 0 ? '$' + (Math.round(lim) === lim ? lim : lim.toFixed(2)) + ' a day' : 'Not set';
+    const t = $('#toast');
+    if (t) t.hidden = true;
+    settingsBackdrop.hidden = false;
+    settingsSheet.hidden = false;
+    document.body.classList.add('sheet-open');
+    settingsSheet.scrollTop = 0;
+    if (window.spendAlertsRender) window.spendAlertsRender();
+  };
+  $('#settings-open').addEventListener('click', openSettings);
+  $('#settings-close').addEventListener('click', closeSettings);
+  settingsBackdrop.addEventListener('click', closeSettings);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !settingsSheet.hidden) closeSettings(); });
+  $('#settings-limit').addEventListener('click', () => {
+    closeSettings();
+    if (window.spendOpenLimit) window.spendOpenLimit();
+  });
+
   // ---- the app ------------------------------------------------------------------------------------------------
   const startApp = () => {
     show('#app');
@@ -122,6 +151,7 @@
   };
 
   const signOut = (message) => {
+    closeSettings();
     session.clear();
     forgetPhone();
     window.spendLimit = 0;

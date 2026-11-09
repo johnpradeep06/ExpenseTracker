@@ -44,6 +44,7 @@
       pillText.textContent = 'Set limit';
     }
     openBtn.classList.toggle('set', v > 0);
+    openBtn.classList.toggle('empty', !(v > 0));
     openBtn.setAttribute('aria-label', v > 0 ? 'Daily limit ' + cad.format(v) + '. Change it' : 'Set a daily limit');
   };
 

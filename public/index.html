@@ -44,7 +44,7 @@ button { font: inherit; color: inherit; }
 .top { position: sticky; top: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: max(14px, env(safe-area-inset-top)) 0 10px; margin-bottom: 4px; background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
 .top > div:first-child { min-width: 0; }
 .top h1 { margin: 0; font-size: clamp(26px, 7.4vw, 30px); white-space: nowrap; line-height: 1.05; font-weight: 800; letter-spacing: -.025em; }
-.top p { margin: 3px 0 0; font-size: 13px; color: var(--muted); min-height: 1.1em; }
+.top p { margin: 3px 0 0; font-size: 13px; color: var(--muted); min-height: 1.1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--card); color: var(--fg); box-shadow: var(--shadow); cursor: pointer; }
 .icon-btn:disabled { color: var(--muted); cursor: default; }
 .icon-btn.spin svg { animation: spin 1s linear infinite; }
@@ -181,7 +181,9 @@ button { font: inherit; color: inherit; }
 .danger-plain { margin-top: 10px; padding: 11px 14px; border: 0; border-radius: 12px; background: var(--up-bg); color: var(--up); font-weight: 700; cursor: pointer; }
 
 /* Add a payment */
-.top-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.top-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.limit-pill.empty { width: 40px; padding: 0; justify-content: center; }
+.limit-pill.empty #limit-pill-text { display: none; }
 .backdrop { position: fixed; inset: 0; z-index: 20; background: rgba(0, 0, 0, .42); }
 .sheet { position: fixed; z-index: 21; left: 0; right: 0; bottom: 0; max-width: 34rem; margin-inline: auto; max-height: 92vh; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 12px; padding: 10px 20px max(22px, env(safe-area-inset-bottom)); background: var(--card); border-radius: 26px 26px 0 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, .25); animation: rise .22s ease-out; }
 @keyframes rise { from { transform: translateY(24px); opacity: 0; } }
@@ -199,6 +201,15 @@ button { font: inherit; color: inherit; }
 .tx:active { background: var(--track); }
 .toast { position: fixed; z-index: 30; left: 50%; transform: translateX(-50%); bottom: max(24px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 14px; max-width: calc(100vw - 32px); padding: 12px 16px; border-radius: 16px; background: var(--fg); color: var(--bg); font-size: 14.5px; font-weight: 600; box-shadow: 0 10px 30px rgba(0, 0, 0, .3); }
 .toast .link { color: inherit; text-decoration: underline; padding: 0; }
+.set-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.set-group { display: grid; gap: 2px; padding: 4px 0 8px; border-bottom: 1px solid var(--line); }
+.set-group p { margin: 4px 0 0; font-size: 14.5px; color: var(--muted); }
+.set-group .acct { color: var(--fg); }
+.set-group .btn-plain { margin-top: 8px; width: 100%; text-align: left; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.set-row span { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+#settings-sheet .fine { margin: 0; }
+#settings-sheet .danger-plain { width: 100%; margin-top: 0; }
 body.sheet-open { overflow: hidden; }
 
 button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -267,6 +278,9 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
       <button type="button" class="icon-btn sp-refresh" aria-label="Refresh">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>
       </button>
+      <button type="button" class="icon-btn" id="settings-open" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
   </header>
 
@@ -329,22 +343,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
         <dd>Declined payments, test entries with no amount, and anything not paid with Apple Pay.</dd>
       </dl>
     </details>
-    <details id="settings-details">
-      <summary>Alerts and settings</summary>
-      <h3 class="set-h">Alerts</h3>
-      <p id="alerts-text">Checking…</p>
-      <p class="msg-inline" id="alerts-note" hidden></p>
-      <button type="button" class="btn-plain" id="alerts-on" hidden>Turn on alerts</button>
-      <button type="button" class="btn-plain" id="alerts-off" hidden>Turn off alerts</button>
-      <h3 class="set-h">Your account</h3>
-      <p class="acct">Signed in as <b id="acct-email">…</b></p>
-      <button type="button" class="btn-plain" id="show-code">Set up the Shortcut again</button>
-      <button type="button" class="btn-plain" id="sign-out">Sign out on this phone</button>
-      <button type="button" class="btn-plain" id="sign-out-all">Sign out everywhere</button>
-      <p class="fine" style="margin-top:12px">Your purchases are stored privately on this app's server and only your account can read them. A copy of recent purchases is kept on this phone so the app works offline; signing out deletes that copy.</p>
-      <button type="button" class="danger-plain" id="delete-account">Delete my account and all data</button>
-      <p class="msg-inline" id="acct-note" hidden></p>
-    </details>
   </div>
 </div>
 </div>
@@ -394,6 +392,39 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
   </div>
   <button type="button" class="danger" id="add-delete" hidden>Delete payment</button>
 </form>
+<div class="backdrop" id="settings-backdrop" hidden></div>
+<div class="sheet" id="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+  <div class="grab" aria-hidden="true"></div>
+  <div class="set-head">
+    <h2 id="settings-title">Settings</h2>
+    <button type="button" class="link" id="settings-close">Done</button>
+  </div>
+
+  <section class="set-group" aria-labelledby="set-alerts">
+    <h3 class="set-h" id="set-alerts">Alerts</h3>
+    <p id="alerts-text">Checking…</p>
+    <p class="msg-inline" id="alerts-note" hidden></p>
+    <button type="button" class="btn-plain" id="alerts-on" hidden>Turn on alerts</button>
+    <button type="button" class="btn-plain" id="alerts-off" hidden>Turn off alerts</button>
+  </section>
+
+  <section class="set-group" aria-labelledby="set-limit">
+    <h3 class="set-h" id="set-limit">Spending</h3>
+    <button type="button" class="btn-plain set-row" id="settings-limit">Daily limit<span id="settings-limit-val">Not set</span></button>
+    <button type="button" class="btn-plain set-row" id="show-code">Set up the Shortcut again<span aria-hidden="true">&rsaquo;</span></button>
+  </section>
+
+  <section class="set-group" aria-labelledby="set-account">
+    <h3 class="set-h" id="set-account">Account</h3>
+    <p class="acct">Signed in as <b id="acct-email">…</b></p>
+    <button type="button" class="btn-plain" id="sign-out">Sign out on this phone</button>
+    <button type="button" class="btn-plain" id="sign-out-all">Sign out everywhere</button>
+  </section>
+
+  <p class="fine">Your purchases are stored privately on this app's server and only your account can read them. A copy of recent purchases is kept on this phone so the app works offline; signing out deletes that copy.</p>
+  <button type="button" class="danger-plain" id="delete-account">Delete my account and all data</button>
+  <p class="msg-inline" id="acct-note" hidden></p>
+</div>
 <div class="toast" id="toast" role="status" hidden><span id="toast-text"></span><button type="button" class="link" id="toast-undo">Undo</button></div>
 
 <script src="vendor/d3.min.js"></script>
