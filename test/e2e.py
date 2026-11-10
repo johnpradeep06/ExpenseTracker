@@ -143,6 +143,12 @@ ok('Done' in t('#tour-next'), 'tour from Settings ends with Done')
 pg.click('#tour-next'); pg.wait_for_timeout(900)
 ok(vis('#app') and not vis('#tour'), 'Done returns to the app')
 
+# 7a2. The saving game is switched off for everyone by default
+pg.click('#settings-open'); pg.wait_for_timeout(400); pg.click('.theme-pick button[data-theme=candy]'); pg.wait_for_timeout(300); pg.click('#settings-close'); pg.wait_for_timeout(1500)
+ok(not vis('#game') and not vis('#collect-btn') and not vis('#goal-open'), 'the saving game is hidden (switched off), even in the Fresh theme')
+ok(vis('#pet') and vis('.jar'), 'Penny and the candy jar are still there in Fresh')
+pg.click('#settings-open'); pg.wait_for_timeout(400); pg.click('.theme-pick button[data-theme=clean]'); pg.wait_for_timeout(300); pg.click('#settings-close'); pg.wait_for_timeout(500)
+
 # 7b. Owner tools: invites, people, removing access
 pg3.click('#settings-open'); pg3.wait_for_timeout(500)
 ok(not pg3.locator('#people-open').is_visible(), 'a normal person does not see People & invites')

@@ -6,6 +6,11 @@
   const $ = (s) => document.querySelector(s);
   const zone = $('#game');
   if (!zone || !window.spendApi) return;
+  // The saving game is switched off for now (too much for a first-time user). Everything is kept, and saved game data
+  // stays on the server, so it can come back: change GAME_ON to true. For testing, a phone can force it on by setting
+  // the browser storage key spend.game to 1.
+  const GAME_ON = false;
+  try { if (!GAME_ON && localStorage.getItem('spend.game') !== '1') return; } catch (e) { if (!GAME_ON) return; }
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   const fresh = () => document.documentElement.classList.contains('candy');
   const appShown = () => { const a = $('#app'); return a && !a.hidden; };

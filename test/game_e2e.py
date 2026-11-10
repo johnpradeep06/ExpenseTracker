@@ -1,4 +1,5 @@
 # Browser test of the saving game (Fresh theme) against test/dev.js. Run: python3 test/game_e2e.py
+# The game is switched off in the app (GAME_ON in public/game.js); this test forces it on with the spend.game storage key.
 import json, datetime, urllib.request as u
 from playwright.sync_api import sync_playwright
 BASE='http://127.0.0.1:8790'
@@ -17,7 +18,7 @@ def ok(c,l): res.append(bool(c)); print(('  ok ' if c else '  FAIL ')+l)
 with sync_playwright() as P:
     b = P.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox'])
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, color_scheme='light')
-    ctx.add_init_script("Date.prototype.getHours=function(){return 14}")
+    ctx.add_init_script("Date.prototype.getHours=function(){return 14};try{localStorage.setItem('spend.game','1')}catch(e){}")
     pg = ctx.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)))
     vis=lambda s: pg.locator(s).is_visible(); t=lambda s: pg.inner_text(s)
     pg.goto(BASE+'/?invite='+post('/api/admin/invites',{})['code']); pg.wait_for_timeout(500)
@@ -41,7 +42,7 @@ with sync_playwright() as P:
 
     # the recording: collect coins, level up, golden coin, play with Penny
     v = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, color_scheme='light', storage_state=state)
-    v.add_init_script("Date.prototype.getHours=function(){return 14}")
+    v.add_init_script("Date.prototype.getHours=function(){return 14};try{localStorage.setItem('spend.game','1')}catch(e){}")
     vp = v.new_page(); vp.on('pageerror', lambda e: errs.append(str(e)))
     rec=lambda sec: vp.wait_for_timeout(int(sec*1000))
     vp.goto(BASE+'/'); rec(4.6)                                  # hello, then "Coins waiting!"
