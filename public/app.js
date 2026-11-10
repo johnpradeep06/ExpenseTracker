@@ -122,31 +122,8 @@
     el.textContent = row ? money(row.per_day) + ' a day · ' + whole(row.cur_count) + (row.cur_count === 1 ? ' purchase' : ' purchases') : '—';
   });
 
-  dash.draw('h_pill', (el) => {
-    const st = stateOf(['kpi']);
-    const row = kpiRow();
-    el.className = 'pill';
-    el.replaceChildren();
-    if (!row) {
-      el.hidden = st !== 'loading';
-      if (st === 'loading') el.classList.add('is-loading');
-      return;
-    }
-    el.hidden = false;
-    const c = row.change;
-    if (typeof c !== 'number') {
-      el.classList.add('flat');
-      el.textContent = 'No earlier two weeks to compare';
-      return;
-    }
-    if (c === 0) {
-      el.classList.add('flat');
-      el.textContent = 'Same as the two weeks before';
-      return;
-    }
-    el.classList.add(c > 0 ? 'up' : 'down');
-    el.append(h('span', 'arrow', c > 0 ? '▲' : '▼'), document.createTextNode(' ' + pct(c) + ' vs ' + money(row.prev_total) + ' before'));
-  });
+  // The "vs the two weeks before" pill is switched off: the percentage was misleading when the earlier weeks had little data.
+  dash.draw('h_pill', (el) => { el.hidden = true; el.replaceChildren(); });
 
   // 14-day line graph with the daily average drawn as a dashed line. Touch or hover a day to read it.
   // The note above the graph says how much is left to spend today to stay at or under the average.
