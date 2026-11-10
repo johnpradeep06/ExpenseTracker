@@ -90,3 +90,12 @@ html.candy .pet.act-hop .hx-pet { animation: hop .65s cubic-bezier(.3, 1.6, .5, 
 .hx-card.on .hx-img { animation: hx-wiggle 2.4s ease-in-out infinite; }
 .hx-card:active .hx-img { animation: hop .5s ease-out; }
 @media (prefers-reduced-motion: reduce) { html.candy .pet .hx-pet, .hx-card .hx-img { animation: none !important; } }
+
+/* Frame-by-frame sprites: each sheet is 8 frames across and 5 moves down (idle, power, hit, cheer, sleep). */
+.hx-sp { background-repeat: no-repeat; background-size: 800% 500%; background-position: 0 0; image-rendering: auto; }
+.hx-hero.hx-sp { position: absolute; inset: 0; width: 100%; height: 100%; transform: none; }
+.hx-clone.hx-sp { position: absolute; top: 0; width: 100%; height: 100%; opacity: 0; filter: hue-rotate(40deg) saturate(1.4); animation: hx-clone 1.6s .3s ease-out both; }
+.hx-card .hx-card-sp { width: 104px; height: 104px; }
+html.candy .pet { width: 100px; height: 100px; }
+html.candy .pet .hx-pet.hx-sp { width: 100%; height: 100%; animation: none !important; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .2)); }
+.hx-card .hx-sp { animation: none !important; }

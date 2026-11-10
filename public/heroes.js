@@ -22,24 +22,68 @@
   const DOOM = { id: 'doctor-doom-pig', name: 'Doom Pig', power: 'doom', say: 'DOOMSDAY' };
   const img = (h) => { const i = el('img', 'hx-img'); i.src = 'heroes/' + h.id + '.webp'; i.alt = ''; i.decoding = 'async'; return i; };
 
+  // ---- real frame animation: 8 frames x 5 moves per hero (idle, power, hit, cheer, sleep) ----
+  const ROW = { idle: 0, power: 1, hit: 2, cheer: 3, sleep: 4 };
+  const sprites = new Set();
+  const setFrame = (d) => { d.style.backgroundPosition = (d._f / 7 * 100) + '% ' + (d._row / 4 * 100) + '%'; };
+  const sprite = (h, cls) => {
+    const d = el('div', 'hx-sp ' + (cls || ''));
+    d.style.backgroundImage = 'url(heroes/' + h.id + '-sprite.webp)';
+    d._row = 0; d._base = 0; d._f = 0; d._loop = true; d._done = null;
+    setFrame(d); sprites.add(d);
+    return d;
+  };
+  const anim = (d, name, done) => { if (!d) return; d._row = ROW[name]; d._f = 0; d._loop = false; d._done = done || null; setFrame(d); };
+  const base = (d, name) => { d._base = ROW[name]; if (d._loop) { d._row = ROW[name]; setFrame(d); } };
+  const tick = () => {
+    if (document.hidden || reduce.matches) return;
+    sprites.forEach((d) => {
+      if (!d.isConnected) { if (!d._keep) sprites.delete(d); return; }
+      if (d.offsetParent === null && getComputedStyle(d).position !== 'fixed') return;
+      d._f++;
+      if (d._f > 7) {
+        if (d._loop) d._f = 0;
+        else { const cb = d._done; d._f = 0; d._loop = true; d._row = d._base; d._done = null; if (cb) cb(); }
+      }
+      setFrame(d);
+    });
+  };
+  setInterval(tick, 1000 / 12);
+
   const best = () => Math.max(0, Number(get('spend.best')) || 0);
-  const chosen = () => { const h = HEROES.find((x) => x.id === get('spend.hero')); return h && best() >= h.need ? h : HEROES[0]; };
+  // The owner has every hero unlocked from the start.
+  const allOpen = () => get('spend.owner') === '1';
+  const open_ = (h) => allOpen() || best() >= h.need;
+  const chosen = () => { const h = HEROES.find((x) => x.id === get('spend.hero')); return h && open_(h) ? h : HEROES[0]; };
   const appShown = () => { const a = $('#app'); return a && !a.hidden; };
 
   // ---- your hero lives where Penny used to: on the total card (Fresh look) ----
   const pet = $('#pet');
-  let petImg = null;
+  let petSp = null;
+  const moodRow = () => (pet && pet.dataset.mood === 'sleepy' ? 'sleep' : pet && pet.dataset.mood === 'dizzy' ? 'hit' : 'idle');
   const showPet = () => {
     if (!pet) return;
     const h = chosen();
-    if (!petImg) { petImg = el('img', 'body hx-pet'); petImg.alt = ''; petImg.decoding = 'async'; pet.append(petImg); }
-    if (petImg.dataset.id !== h.id) { petImg.dataset.id = h.id; petImg.src = 'heroes/' + h.id + '.webp'; }
+    if (petSp && petSp.dataset.id === h.id) return;
+    if (petSp) { sprites.delete(petSp); petSp.remove(); }
+    petSp = sprite(h, 'body hx-pet'); petSp._keep = true; petSp.dataset.id = h.id;
+    base(petSp, moodRow());
+    pet.append(petSp);
     pet.dataset.hero = h.id;
   };
   window.spendHeroName = () => chosen().name;
   showPet();
-  // Tap your hero on the total card to see their power.
-  if (pet) pet.addEventListener('click', () => play(chosen()));
+  if (pet) {
+    new MutationObserver(() => { if (petSp) base(petSp, moodRow()); }).observe(pet, { attributes: true, attributeFilter: ['data-mood'] });
+    // Tap your hero on the total card to see their power.
+    pet.addEventListener('click', () => { anim(petSp, 'power'); play(chosen()); });
+    // Every few seconds they do a little trick of their own.
+    const trick = () => {
+      if (petSp && !document.hidden && appShown() && moodRow() === 'idle' && petSp._loop) anim(petSp, Math.random() < .5 ? 'cheer' : 'power');
+      setTimeout(trick, 7000 + Math.random() * 6000);
+    };
+    setTimeout(trick, 5000);
+  }
 
   // ---- the power show ----
   let busy = false;
@@ -47,11 +91,11 @@
     if (busy || reduce.matches || !appShown() || document.hidden) return;
     busy = true;
     const stage = el('div', 'hx-stage hx-' + h.power);
-    const hero = img(h);
-    hero.classList.add('hx-hero');
+    let hero;
+    if (h.power === 'doom') { hero = img(h); hero.classList.add('hx-hero'); } else { hero = sprite(h, 'hx-hero'); anim(hero, 'power'); }
     const fx = el('div', 'hx-fx');
     if (h.power === 'shield') { const d = el('div', 'hx-disk', '$'); fx.append(d); }
-    if (h.power === 'illusion') { [1, 2].forEach((n) => { const c = img(h); c.className = 'hx-img hx-clone c' + n; fx.append(c); }); }
+    if (h.power === 'illusion') { [1, 2].forEach((n) => { const c = sprite(h, 'hx-clone c' + n); anim(c, 'power'); fx.append(c); }); }
     if (h.power === 'repulsor') { fx.append(el('div', 'hx-beam'), el('div', 'hx-core')); }
     if (h.power === 'stealth') { for (let i = 0; i < 4; i++) fx.append(el('div', 'hx-slash s' + i)); }
     if (h.power === 'pounce') { for (let i = 0; i < 3; i++) fx.append(el('div', 'hx-claw k' + i)); }
@@ -77,7 +121,7 @@
       const fresh = rows.filter((r) => !seen.has(String(r.id)) && r.amount > 0);
       rows.forEach((r) => seen.add(String(r.id)));
       if (!ready) { ready = true; return; }
-      if (fresh.length) play(chosen());
+      if (fresh.length) { anim(petSp, 'hit', () => anim(petSp, 'cheer')); play(chosen()); }
     });
   }
   window.addEventListener('spend:streak', (e) => {
@@ -110,14 +154,15 @@
 
   const draw = () => {
     const b = best(), cur = chosen();
-    sub.textContent = 'Your best streak: ' + b + (b === 1 ? ' day' : ' days') + '. Pick who shows up when you spend.';
+    sub.textContent = allOpen() ? 'All heroes are unlocked for you. Pick who shows up when you spend.' : 'Your best streak: ' + b + (b === 1 ? ' day' : ' days') + '. Pick who shows up when you spend.';
     grid.replaceChildren();
     HEROES.forEach((h) => {
-      const locked = b < h.need;
+      const locked = !open_(h);
       const c = el('button', 'hx-card' + (h.id === cur.id ? ' on' : '') + (locked ? ' locked' : ''));
       c.type = 'button';
       c.setAttribute('aria-pressed', String(h.id === cur.id));
-      const i = img(h);
+      const i = sprite(h, 'hx-card-sp');
+      if (h.id === cur.id) base(i, 'cheer');
       c.append(i, el('b', '', h.name), el('span', '', locked ? '🔒 ' + h.need + '-day streak' : h.say));
       c.addEventListener('click', () => {
         if (locked) return;
