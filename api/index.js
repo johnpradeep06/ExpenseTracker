@@ -547,6 +547,14 @@ const routes = {
     return gameState(u);
   },
 
+  // Start over: forget the goal, every collected day and all XP. Purchases are never touched.
+  'DELETE game': async (req) => {
+    const u = await signedIn(req);
+    await q('delete from game_days where user_id = $1', [u.id]);
+    await q('delete from game where user_id = $1', [u.id]);
+    return gameState(u);
+  },
+
   'POST game/collect': async (req) => {
     const u = await signedIn(req);
     const before = await gameState(u);

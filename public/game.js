@@ -232,6 +232,11 @@
     $('#goal-name-input').value = g.name || '';
     $('#goal-amount-input').value = g.amount ? String(g.amount) : '';
     goalError('');
+    const started = !!(state && (state.goal.name || state.xp > 0 || state.daysCollected > 0));
+    $('#goal-reset').hidden = !started;
+    $('#goal-reset-note').hidden = true;
+    resetArmed = false;
+    $('#goal-reset').textContent = 'Start over';
     backdrop.hidden = false;
     sheet.hidden = false;
     document.body.classList.add('sheet-open');
@@ -241,6 +246,30 @@
     backdrop.hidden = true;
     document.body.classList.remove('sheet-open');
   };
+  let resetArmed = false;
+  $('#goal-reset').addEventListener('click', async () => {
+    const btn = $('#goal-reset');
+    if (!resetArmed) {
+      resetArmed = true;
+      btn.textContent = 'Tap again to clear everything';
+      $('#goal-reset-note').hidden = false;
+      setTimeout(() => { if (resetArmed) { resetArmed = false; btn.textContent = 'Start over'; } }, 6000);
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const st = await window.spendApi('DELETE', 'game');
+      clear(OFFER);
+      closeGoal();
+      render(st);
+      penny().act('hop', 650);
+      penny().say('Fresh start! 🌱', 2000);
+    } catch (x) {
+      goalError(x && x.status ? x.message : 'Could not reset. Check your connection and try again.');
+    }
+    resetArmed = false;
+    btn.disabled = false;
+  });
   $('#goal-open').addEventListener('click', openGoal);
   $('#goal-cancel').addEventListener('click', closeGoal);
   backdrop.addEventListener('click', closeGoal);

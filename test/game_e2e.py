@@ -56,7 +56,17 @@ with sync_playwright() as P:
     pet.click(force=True); rec(1.2)                                         # tap: giggle + heart
     pet.dblclick(force=True); rec(1.4)                                      # double tap: spin
     box=pet.bounding_box(); vp.mouse.move(box['x']+40, box['y']+40); vp.mouse.down(); vp.wait_for_timeout(700); vp.mouse.up(); rec(2.6)   # hold: a tip
-    v.close(); b.close()
+    pass
+    # Start over: two taps, then everything is back to the beginning
+    vp.click('#goal-open', force=True); vp.wait_for_timeout(400)
+    ok(vp.locator('#goal-reset').is_visible(), 'Start over is offered once the game has begun')
+    vp.click('#goal-reset'); vp.wait_for_timeout(300)
+    ok('Tap again' in vp.inner_text('#goal-reset') and vp.locator('#goal-sheet').is_visible(), 'the first tap only asks to confirm')
+    vp.click('#goal-reset'); vp.wait_for_timeout(1400)
+    ok(not vp.locator('#goal-sheet').is_visible() and 'Pick something' in vp.inner_text('#goal-name') and vp.inner_text('#lvl-badge')=='Lv 1' and vp.get_attribute('#pet','data-outfit')=='', 'second tap: no goal, level 1, no outfit')
+    ok(vp.locator('#collect-btn').is_visible(), 'the past days can be collected again')
+    vp.click('#goal-open', force=True); vp.wait_for_timeout(400)
+    ok(not vp.locator('#goal-reset').is_visible(), 'nothing to reset after a reset... until you collect again')
     ok(not errs, 'no page errors ' + str(errs))
 print('ALL PASSED' if all(res) else 'SOME FAILED', len(res))
 if not all(res): raise SystemExit(1)
