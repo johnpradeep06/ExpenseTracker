@@ -143,7 +143,7 @@
     const mark = n + '@' + new Date().toDateString();
     if (get('spend.cheered') === mark) return;
     set('spend.cheered', mark);
-    setTimeout(() => celebrate('🎉 ' + n + '-day streak!', 'Penny is so proud of you 🐷💖'), 600);
+    setTimeout(() => celebrate('🎉 ' + n + '-day streak!', ((window.spendHeroName ? window.spendHeroName() : 'Penny') + ' is so proud of you 💖')), 600);
   });
   // ---- Fresh: Penny's little life ----
   const fresh = () => current() === 'candy' && !reduce.matches;

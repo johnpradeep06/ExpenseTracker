@@ -26,6 +26,19 @@
   const chosen = () => { const h = HEROES.find((x) => x.id === get('spend.hero')); return h && best() >= h.need ? h : HEROES[0]; };
   const appShown = () => { const a = $('#app'); return a && !a.hidden; };
 
+  // ---- your hero lives where Penny used to: on the total card (Fresh look) ----
+  const pet = $('#pet');
+  let petImg = null;
+  const showPet = () => {
+    if (!pet) return;
+    const h = chosen();
+    if (!petImg) { petImg = el('img', 'body hx-pet'); petImg.alt = ''; petImg.decoding = 'async'; pet.append(petImg); }
+    if (petImg.dataset.id !== h.id) { petImg.dataset.id = h.id; petImg.src = 'heroes/' + h.id + '.webp'; }
+    pet.dataset.hero = h.id;
+  };
+  window.spendHeroName = () => chosen().name;
+  showPet();
+
   // ---- the power show ----
   let busy = false;
   const play = (h, label) => {
@@ -107,6 +120,7 @@
       c.addEventListener('click', () => {
         if (locked) return;
         set('spend.hero', h.id);
+        showPet();
         draw();
         close();
         setTimeout(() => play(h), 350);

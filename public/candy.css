@@ -72,7 +72,7 @@ html.candy .avg-label { fill: var(--blue); font-family: var(--round); font-weigh
 
 /* Penny the piggy bank sits on the total card and shows how your day is going */
 .pet { display: none; }
-html.candy .pet { display: block; position: absolute; top: 12px; right: 10px; width: 88px; height: 82px; z-index: 3; }
+html.candy .pet { display: block; position: absolute; top: 8px; right: 8px; width: 96px; height: 92px; z-index: 3; }
 html.candy .pet svg { width: 100%; height: 100%; overflow: visible; }
 html.candy .pet .body { transform-origin: 50% 85%; animation: breathe 3.2s ease-in-out infinite; }
 html.candy .pet .eye { transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
