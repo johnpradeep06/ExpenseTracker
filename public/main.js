@@ -1,8 +1,8 @@
 (function () {
   // Sign in with email and password, connect the Shortcut, then show the spending. The session is kept only on this phone.
   // The iCloud links for the two shared Shortcuts. An empty one shows "ask for the link" instead.
-  const TAP_URL = 'https://www.icloud.com/shortcuts/04786b4e360444da98d91a598daf458c';
-  const NOTIF_URL = 'https://www.icloud.com/shortcuts/2e361ad437a64dd6a9924c721a2731e4';
+  const TAP_URL = 'https://www.icloud.com/shortcuts/500cbb0903604c33a92973012fe0b1ed';
+  const NOTIF_URL = 'https://www.icloud.com/shortcuts/b7315a1815c944479b2022f220bb2e3d';
   const $ = (s) => document.querySelector(s);
   const read = (k) => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
   const write = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } };
