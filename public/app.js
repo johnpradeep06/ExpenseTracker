@@ -30,10 +30,10 @@
     'Shopping': ['🛍️', '#A855C7'],
     'Other': ['🧾', '#8C8C8C']
   };
-  // Candy theme: brighter candy colours, one per category.
+  // Fresh theme: bright accent colours, one per category.
   const CANDY = {
-    'Dining & Coffee': '#ff9f6e', 'Subscriptions & Software': '#a78bfa', 'Groceries': '#34d399', 'Transport': '#60a5fa', 'Travel': '#22d3ee',
-    'Health & Personal Care': '#fb7185', 'Bills & Utilities': '#facc15', 'Entertainment': '#f472b6', 'Shopping': '#c084fc', 'Other': '#94a3b8'
+    'Dining & Coffee': '#ff9600', 'Subscriptions & Software': '#ce82ff', 'Groceries': '#58cc02', 'Transport': '#1cb0f6', 'Travel': '#00cd9c',
+    'Health & Personal Care': '#ff4b4b', 'Bills & Utilities': '#ffc800', 'Entertainment': '#ff86d0', 'Shopping': '#2b70c9', 'Other': '#afafaf'
   };
   const catMeta = (c) => {
     const m = CAT[c] || CAT.Other;

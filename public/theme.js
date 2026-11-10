@@ -105,7 +105,7 @@
 
   // A small celebration the first time a streak milestone is reached each day (Candy only).
   const MILESTONES = [3, 7, 14, 30, 60, 100];
-  const COLORS = ['#ff4fa3', '#8b7cf6', '#34d399', '#facc15', '#60a5fa', '#ff9f6e', '#fb7185'];
+  const COLORS = ['#58cc02', '#1cb0f6', '#ffc800', '#ff9600', '#ce82ff', '#ff4b4b', '#89e219'];
   const celebrate = (n) => {
     const box = document.createElement('div');
     box.className = 'confetti';
