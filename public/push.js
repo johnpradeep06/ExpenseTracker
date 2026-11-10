@@ -37,31 +37,34 @@
     const off = $('#alerts-off');
     const note = $('#alerts-note');
     if (!text || !on || !off) return;
-    on.hidden = true;
-    off.hidden = true;
+    // Work everything out first and change the page once, so the panel never jumps while it is being scrolled.
+    let words;
+    let showOn = false;
+    let showOff = false;
+    if (!capable() || (onIOS && !installed())) {
+      words = 'Alerts need this app on your Home Screen. In Safari tap Share, then Add to Home Screen, and open it from the new icon.';
+    } else if (Notification.permission === 'denied') {
+      words = 'Notifications are blocked for this app. Open Settings, then Notifications, then Spending, switch them on, and come back here.';
+    } else {
+      let sub = null;
+      try {
+        const reg = await ready();
+        sub = await reg.pushManager.getSubscription();
+      } catch (e) { /* no worker yet */ }
+      if (read(KEY_DEVICE) && sub && Notification.permission === 'granted') {
+        words = 'Alerts are on. ' + idle;
+        showOff = true;
+      } else {
+        preload();
+        words = idle;
+        showOn = true;
+      }
+    }
+    if (text.textContent !== words) text.textContent = words;
+    on.hidden = !showOn;
+    off.hidden = !showOff;
     note.hidden = !message;
     note.textContent = message;
-    if (!capable() || (onIOS && !installed())) {
-      text.textContent = 'Alerts need this app on your Home Screen. In Safari tap Share, then Add to Home Screen, and open it from the new icon.';
-      return;
-    }
-    if (Notification.permission === 'denied') {
-      text.textContent = 'Notifications are blocked for this app. Open Settings, then Notifications, then Spending, switch them on, and come back here.';
-      return;
-    }
-    let sub = null;
-    try {
-      const reg = await ready();
-      sub = await reg.pushManager.getSubscription();
-    } catch (e) { /* no worker yet */ }
-    if (read(KEY_DEVICE) && sub && Notification.permission === 'granted') {
-      text.textContent = 'Alerts are on. ' + idle;
-      off.hidden = false;
-    } else {
-      preload();
-      text.textContent = idle;
-      on.hidden = false;
-    }
     on.disabled = busy;
     off.disabled = busy;
   };

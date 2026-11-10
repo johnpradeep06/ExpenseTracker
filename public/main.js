@@ -24,7 +24,7 @@
   };
 
   // Everything this app keeps on the phone for one person, removed on sign-out.
-  const forgetPhone = () => ['spend.cache', 'spend.pending', 'spend.limit', 'spend.device', 'spend.email', 'spend.onboarded'].forEach(clear);
+  const forgetPhone = () => ['spend.cache', 'spend.pending', 'spend.limit', 'spend.device', 'spend.email', 'spend.onboarded', 'spend.owner'].forEach(clear);
 
   // ---- sign-in ----------------------------------------------------------------------------------------------
   let signingUp = false;
@@ -219,9 +219,13 @@
     document.body.classList.add('sheet-open');
     settingsSheet.scrollTop = 0;
     if (window.spendAlertsRender) window.spendAlertsRender();
-    // Only the owner sees "People & invites".
-    $('#people-open').hidden = true;
-    window.spendApi('GET', 'me').then((me) => { $('#people-open').hidden = !(me && me.isOwner); }).catch(() => {});
+    // Only the owner sees "People & invites". Shown straight away from the last answer, then checked again.
+    $('#people-open').hidden = read('spend.owner') !== '1';
+    window.spendApi('GET', 'me').then((me) => {
+      const owner = !!(me && me.isOwner);
+      if (owner) write('spend.owner', '1'); else clear('spend.owner');
+      if ($('#people-open').hidden === owner) $('#people-open').hidden = !owner;
+    }).catch(() => {});
   };
   $('#settings-open').addEventListener('click', openSettings);
   $('#settings-close').addEventListener('click', closeSettings);
@@ -232,35 +236,70 @@
     if (window.spendOpenLimit) window.spendOpenLimit();
   });
 
-  // Swipe down on a panel to minimise it: drag from the handle or title, or from anywhere when scrolled to the top.
+  // Swipe down on a panel to minimise it. The gesture is decided once, after the finger has moved 10px:
+  // a clear downward pull that starts on the handle or title, or with the panel already at its very top, drags the
+  // panel (and stops the page's own scroll so the two never fight). Anything else is left to normal scrolling.
   const swipeToClose = (sheet, close) => {
-    let startY = null;
+    let x0 = 0;
+    let y0 = 0;
     let dy = 0;
-    const reset = () => {
-      sheet.style.transition = '';
+    let mode = 'off';
+    let fromHandle = false;
+    const settle = () => {
+      sheet.style.transition = 'transform .2s ease';
       sheet.style.transform = '';
-      startY = null;
+      setTimeout(() => { sheet.style.transition = ''; }, 220);
     };
     sheet.addEventListener('touchstart', (e) => {
-      const onHandle = e.target.closest && e.target.closest('.grab, .set-head');
-      startY = onHandle || sheet.scrollTop <= 0 ? e.touches[0].clientY : null;
       dy = 0;
+      if (!e.touches || e.touches.length !== 1) { mode = 'off'; return; }
+      fromHandle = !!(e.target.closest && e.target.closest('.grab, .set-head'));
+      x0 = e.touches[0].clientX;
+      y0 = e.touches[0].clientY;
+      mode = fromHandle || sheet.scrollTop <= 0 ? 'maybe' : 'off';
     }, { passive: true });
     sheet.addEventListener('touchmove', (e) => {
-      if (startY === null) return;
-      dy = e.touches[0].clientY - startY;
-      if (dy > 0 && sheet.scrollTop <= 0) {
-        sheet.style.transition = 'none';
-        sheet.style.transform = 'translateY(' + dy + 'px)';
+      if (mode === 'off' || !e.touches || !e.touches.length) return;
+      const ddx = e.touches[0].clientX - x0;
+      const ddy = e.touches[0].clientY - y0;
+      if (mode === 'maybe') {
+        if (Math.abs(ddx) < 10 && Math.abs(ddy) < 10) return;
+        mode = ddy > 0 && Math.abs(ddy) > Math.abs(ddx) && (fromHandle || sheet.scrollTop <= 0) ? 'drag' : 'off';
+        if (mode === 'off') return;
       }
-    }, { passive: true });
+      if (e.cancelable) e.preventDefault();
+      dy = Math.max(0, ddy - 10);
+      sheet.style.transition = 'none';
+      sheet.style.transform = 'translateY(' + dy + 'px)';
+    }, { passive: false });
     sheet.addEventListener('touchend', () => {
-      const far = startY !== null && dy > 90;
-      reset();
-      if (far) close();
+      if (mode !== 'drag') { mode = 'off'; return; }
+      mode = 'off';
+      if (dy > 90) {
+        sheet.style.transition = '';
+        sheet.style.transform = '';
+        close();
+      } else {
+        settle();
+      }
     });
-    sheet.addEventListener('touchcancel', reset);
+    sheet.addEventListener('touchcancel', () => { if (mode === 'drag') settle(); mode = 'off'; });
   };
+
+  // While a panel is open, pin the page behind it. On iPhone, overflow:hidden alone does not stop the page
+  // scrolling underneath, which makes the panel judder. One place handles every panel by watching the class.
+  let lockedY = 0;
+  new MutationObserver(() => {
+    const body = document.body;
+    const on = body.classList.contains('sheet-open');
+    if (on && body.style.position !== 'fixed') {
+      lockedY = window.scrollY;
+      Object.assign(body.style, { position: 'fixed', top: -lockedY + 'px', left: '0', right: '0' });
+    } else if (!on && body.style.position === 'fixed') {
+      Object.assign(body.style, { position: '', top: '', left: '', right: '' });
+      window.scrollTo(0, lockedY);
+    }
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
   window.spendCloseSettings = closeSettings;
   window.spendSwipeToClose = swipeToClose;

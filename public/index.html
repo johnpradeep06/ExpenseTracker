@@ -186,7 +186,7 @@ button { font: inherit; color: inherit; }
 @media (max-width: 380px) { .top h1 { font-size: 24px; } .top-actions { gap: 5px; } .top .icon-btn { width: 36px; height: 36px; } .limit-pill { height: 36px; padding: 0 10px 0 9px; font-size: 13px; } .limit-pill.empty { width: 36px; padding: 0; } }
 .limit-pill.empty #limit-pill-text { display: none; }
 .backdrop { position: fixed; inset: 0; z-index: 20; background: rgba(0, 0, 0, .42); }
-.sheet { position: fixed; z-index: 21; left: 0; right: 0; bottom: 0; max-width: 34rem; margin-inline: auto; max-height: 92vh; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 12px; padding: 10px 20px max(22px, env(safe-area-inset-bottom)); background: var(--card); border-radius: 26px 26px 0 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, .25); animation: rise .22s ease-out; }
+.sheet { position: fixed; z-index: 21; left: 0; right: 0; bottom: 0; max-width: 34rem; margin-inline: auto; max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: grid; gap: 12px; padding: 10px 20px max(22px, env(safe-area-inset-bottom)); background: var(--card); border-radius: 26px 26px 0 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, .25); animation: rise .22s ease-out; }
 @keyframes rise { from { transform: translateY(24px); opacity: 0; } }
 .sheet h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
 .sheet .sub { margin: -6px 0 2px; font-size: 14px; color: var(--muted); }
@@ -214,7 +214,7 @@ button { font: inherit; color: inherit; }
 .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .card-head .sub { margin-bottom: 14px; }
 .icon-btn.small { width: 36px; height: 36px; flex-shrink: 0; background: var(--track); box-shadow: none; }
-.sheet.tall { min-height: 78vh; align-content: start; }
+.sheet.tall { min-height: 78vh; min-height: 78dvh; align-content: start; }
 .tx-swipe { position: relative; overflow: hidden; border-radius: 14px; touch-action: pan-y; }
 .tx-swipe .tx { position: relative; z-index: 1; border-radius: 0; background: var(--card); will-change: transform; }
 .tx-swipe .tx:active { background: var(--track); }
@@ -248,7 +248,7 @@ button { font: inherit; color: inherit; }
 .first-status.waiting .sp-dot { background: var(--muted); animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .first-status.waiting .sp-dot { animation: none; } }
-body.sheet-open { overflow: hidden; }
+body.sheet-open { overflow: hidden; overscroll-behavior: none; }
 
 button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .is-loading, .icon-btn.spin svg { animation: none; } .seg-part { transition: none; } }

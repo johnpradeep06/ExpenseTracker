@@ -382,7 +382,7 @@
       }
     };
     wrap.addEventListener('touchstart', (e) => {
-      if (busy || e.touches.length !== 1) return;
+      if (busy || !e.touches || e.touches.length !== 1) return;
       if (openSwipe && openSwipe !== api) openSwipe.close();
       x0 = e.touches[0].clientX;
       y0 = e.touches[0].clientY;
@@ -392,7 +392,7 @@
       row.style.transition = 'none';
     }, { passive: true });
     wrap.addEventListener('touchmove', (e) => {
-      if (busy || !e.touches.length) return;
+      if (busy || !e.touches || !e.touches.length) return;
       const dx = e.touches[0].clientX - x0;
       const dy = e.touches[0].clientY - y0;
       if (mode === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) mode = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
