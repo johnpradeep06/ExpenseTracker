@@ -1,0 +1,123 @@
+/* Retro mode: an 8-bit arcade look. Turned on per phone in Settings; it only adds the class "retro" to <html>.
+   Fonts are bundled with the app (SIL Open Font License, see fonts/). Everything moving stops with Reduce Motion. */
+@font-face { font-family: 'Press Start 2P'; src: url('fonts/press-start-2p-latin-400-normal.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'VT323'; src: url('fonts/vt323-latin-400-normal.woff2') format('woff2'); font-display: swap; }
+
+html.retro {
+  color-scheme: dark;
+  --bg: #120d26; --card: #1d1640; --fg: #f7f3dc; --muted: #a9a2d6; --line: #3f3378; --track: #2c2358;
+  --accent: #41ff94; --up: #ff5a76; --up-bg: rgba(255, 90, 118, .16); --down: #41ff94; --down-bg: rgba(65, 255, 148, .14);
+  --gold: #ffd23f; --shadow: none; --radius: 0px;
+  --pixel: 'Press Start 2P', ui-monospace, monospace;
+  --font: 'VT323', ui-monospace, Menlo, monospace;
+}
+html.retro body { font-size: 20px; line-height: 1.15; letter-spacing: .01em; }
+
+/* Faint CRT scanlines over everything. Static, so it costs nothing while scrolling. */
+html.retro body::after {
+  content: ''; position: fixed; inset: 0; z-index: 50; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .16) 0 1px, transparent 1px 3px);
+}
+
+/* Pixel headings and numbers */
+html.retro h1, html.retro h2, html.retro .hero-label, html.retro .set-h, html.retro .day-head,
+html.retro .cat-amt, html.retro .day-total, html.retro .avg-big, html.retro .primary, html.retro .more,
+html.retro .limit-pill, html.retro .pill, html.retro .tour-count, html.retro .toast { font-family: var(--pixel); letter-spacing: 0; }
+html.retro .top h1 { font-size: 14px; line-height: 1.4; }
+html.retro .card h2 { font-size: 13px; line-height: 1.5; margin-bottom: 6px; }
+html.retro .setup h1 { font-size: 18px; line-height: 1.4; }
+html.retro .sheet h2 { font-size: 15px; }
+html.retro .hero-label, html.retro .set-h, html.retro .day-head { font-size: 10px; letter-spacing: .04em; }
+html.retro .hero-amt { font-family: var(--pixel); font-size: 34px; letter-spacing: 0; margin-top: 12px; color: var(--gold); text-shadow: 3px 3px 0 #000; }
+html.retro .hero-amt .cents { font-size: 18px; color: var(--muted); text-shadow: none; }
+html.retro .cat-amt { font-size: 12px; }
+html.retro .avg-big { font-size: 13px; line-height: 1.6; }
+html.retro .cat-name { font-size: 21px; }
+html.retro .cat-sub, html.retro .avg-small, html.retro .sub, html.retro .fine { font-size: 17px; }
+html.retro .pill { font-size: 10px; padding: 8px 10px; border-radius: 0; }
+html.retro .primary, html.retro .more { font-size: 11px; line-height: 1.6; }
+html.retro .limit-pill { font-size: 11px; }
+
+/* Square pixel boxes with a hard drop shadow */
+html.retro .card, html.retro .foot details, html.retro .sheet, html.retro .msg {
+  border-radius: 0; box-shadow: 0 0 0 3px var(--line), 6px 6px 0 3px #000;
+}
+html.retro .sheet { border-radius: 0; }
+html.retro .stack { gap: 22px; }
+html.retro .primary, html.retro .btn-plain, html.retro .icon-btn, html.retro .limit-pill, html.retro .more,
+html.retro .danger-plain, html.retro .danger, html.retro .chip, html.retro .tx-del, html.retro .field input,
+html.retro .field select, html.retro .code-box, html.retro .first-status, html.retro .tx-swipe {
+  border-radius: 0 !important;
+}
+html.retro .primary, html.retro .btn-plain, html.retro .icon-btn, html.retro .limit-pill, html.retro .more, html.retro .danger-plain {
+  box-shadow: 0 0 0 2px #000, inset -3px -3px 0 rgba(0, 0, 0, .35), inset 3px 3px 0 rgba(255, 255, 255, .12);
+}
+html.retro .primary { background: var(--accent); color: #0d0a1e; }
+html.retro .primary:active, html.retro .btn-plain:active, html.retro .icon-btn:active, html.retro .more:active { transform: translate(2px, 2px); }
+html.retro .top { background: color-mix(in srgb, var(--bg) 90%, transparent); }
+html.retro .dots span { border-radius: 0; }
+
+/* Chart: stepped line, square dots */
+html.retro .line { stroke-width: 3; stroke-linecap: square; stroke-linejoin: miter; }
+html.retro .dot { rx: 0; }
+html.retro .avg-line { stroke: var(--gold); stroke-opacity: .8; stroke-dasharray: 4 4; }
+html.retro .avg-label { font-family: var(--pixel); font-size: 7px; fill: var(--gold); }
+html.retro .bars-axis text { font-family: var(--pixel); font-size: 7px; }
+
+/* HP bar: what is left of today's limit */
+.hp { display: none; }
+html.retro .hp { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; width: 100%; margin: 6px 0 2px; }
+html.retro .hp-label { font-family: var(--pixel); font-size: 10px; color: var(--gold); }
+html.retro .hp-track { height: 16px; background: #000; box-shadow: 0 0 0 2px var(--fg); padding: 2px; }
+html.retro .hp-fill {
+  height: 100%; background: var(--accent);
+  background-image: repeating-linear-gradient(to right, transparent 0 9px, rgba(0, 0, 0, .45) 9px 11px);
+  transition: width .6s steps(8);
+}
+html.retro .hp.low .hp-fill { background-color: var(--gold); }
+html.retro .hp.crit .hp-fill { background-color: var(--up); animation: blink 1s steps(1) infinite; }
+html.retro .hp-num { font-family: var(--pixel); font-size: 9px; color: var(--muted); }
+html.retro .hp.ko .hp-track { animation: shake .5s steps(4) 2; }
+
+/* Streak badge */
+.streak { display: none; }
+html.retro .streak { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; margin-left: 8px; padding: 8px 10px; font-family: var(--pixel); font-size: 10px; color: var(--gold); background: rgba(255, 210, 63, .12); box-shadow: 0 0 0 2px var(--gold); }
+
+/* The little runner on the chart */
+.runner { display: none; }
+html.retro .runner { display: inline; }
+html.retro .runner .legs-a { animation: frame .36s steps(1) infinite; }
+html.retro .runner .legs-b { animation: frame .36s steps(1) infinite; animation-delay: -.18s; }
+html.retro .runner .bob { animation: bob .36s steps(2) infinite; }
+
+/* Pop-ups (Added / Deleted / Saved) become a game dialog box with a spinning coin */
+html.retro .toast {
+  border-radius: 0; background: #000; color: var(--fg); font-size: 10px; line-height: 1.6;
+  box-shadow: 0 0 0 3px var(--fg), 0 0 0 6px #000, 6px 6px 0 6px rgba(0, 0, 0, .5);
+}
+html.retro .toast:not([hidden]) { animation: pop .3s steps(3); }
+html.retro .toast::before {
+  content: ''; flex: none; width: 14px; height: 14px; background: var(--gold);
+  box-shadow: inset -3px -3px 0 #c98f00, inset 3px 3px 0 #fff3b0; animation: coin .8s steps(4) infinite;
+}
+html.retro .toast .link { color: var(--accent); }
+
+/* Damage numbers: a new purchase floats up from the total like a hit in a game */
+.damage {
+  position: fixed; z-index: 45; pointer-events: none; font-family: var(--pixel); font-size: 16px; color: var(--up);
+  text-shadow: 2px 2px 0 #000; transform: translate(-50%, 0); animation: float-up 1.6s steps(12) forwards; white-space: nowrap;
+}
+.damage small { display: block; margin-top: 6px; font-size: 8px; color: var(--fg); text-align: center; }
+
+@keyframes frame { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes bob { 0% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes blink { 50% { opacity: .35; } }
+@keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@keyframes pop { 0% { transform: translateX(-50%) scale(.6); } 100% { transform: translateX(-50%) scale(1); } }
+@keyframes coin { 0% { transform: scaleX(1); } 25% { transform: scaleX(.5); } 50% { transform: scaleX(.15); } 75% { transform: scaleX(.5); } }
+@keyframes float-up { 0% { opacity: 0; transform: translate(-50%, 10px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -70px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  html.retro *, html.retro *::before, html.retro .runner * { animation: none !important; transition: none !important; }
+  .damage { display: none; }
+}

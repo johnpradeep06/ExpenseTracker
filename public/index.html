@@ -254,6 +254,7 @@ body.sheet-open { overflow: hidden; overscroll-behavior: none; }
 button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .is-loading, .icon-btn.spin svg { animation: none; } .seg-part { transition: none; } }
 </style>
+<link rel="stylesheet" href="retro.css">
 </head>
 <body>
 <div class="page">
@@ -534,6 +535,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
     <button type="button" class="btn-plain set-row" id="show-code">Set up the Shortcut again<span aria-hidden="true">&rsaquo;</span></button>
   </section>
 
+  <section class="set-group" aria-labelledby="set-look">
+    <h3 class="set-h" id="set-look">Look</h3>
+    <button type="button" class="btn-plain set-row" id="retro-toggle">Retro mode<span id="retro-state">Off</span></button>
+    <p>An 8-bit arcade look: an HP bar for your daily limit, a little runner on the chart, and game-style pop-ups. Only on this phone.</p>
+  </section>
+
   <section class="set-group" aria-labelledby="set-account">
     <h3 class="set-h" id="set-account">Account</h3>
     <p class="acct">Signed in as <b id="acct-email">…</b></p>
@@ -550,6 +557,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 <script src="vendor/d3.min.js"></script>
 <script src="api.js"></script>
 <script src="runtime.js"></script>
+<script src="retro.js"></script>
 <script src="calcs.js"></script>
 <script src="app.js"></script>
 <script src="loader.js"></script>

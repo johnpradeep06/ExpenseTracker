@@ -156,6 +156,24 @@
         h('span', 'avg-big', left >= 0 ? money(left) + ' left today' : money(-left) + ' over today'),
         h('span', 'avg-small', (spent > 0 ? money(spent) + ' spent so far' : 'Nothing spent yet') + ' · ' + money(avg) + ' ' + word)
       );
+      const ratio = Math.max(0, Math.min(1, left / avg));
+      const hp = h('div', 'hp' + (left < 0 ? ' ko crit' : ratio < 0.25 ? ' crit' : ratio < 0.5 ? ' low' : ''));
+      const track = h('div', 'hp-track');
+      const fill = h('div', 'hp-fill');
+      fill.style.width = (ratio * 100) + '%';
+      track.append(fill);
+      hp.append(h('span', 'hp-label', 'HP'), track, h('span', 'hp-num', left < 0 ? 'K.O.' : money(left)));
+      note.append(hp);
+      // Days in a row at or under the line, counting back from yesterday (today is still being played).
+      const firstDay = data.length ? parseDay(data[0].day) : null;
+      let streak = 0;
+      if (firstDay) {
+        for (let d = d3.timeDay.offset(today, -1); d >= firstDay; d = d3.timeDay.offset(d, -1)) {
+          if (amountOf(d) <= avg) streak++;
+          else break;
+        }
+      }
+      if (streak > 0) note.append(h('span', 'streak', '🔥 ' + streak + '-DAY STREAK'));
       const edit = h('button', 'link set-limit', limit ? 'Change limit' : 'Set your own limit');
       edit.type = 'button';
       edit.addEventListener('click', () => window.spendOpenLimit && window.spendOpenLimit());
@@ -180,10 +198,12 @@
     grad.append('stop').attr('offset', '100%').attr('class', 'grad-bot');
 
     svg.append('line').attr('class', 'base').attr('x1', 0).attr('x2', plotEnd).attr('y1', y(0)).attr('y2', y(0));
+    const retro = !!(window.spendRetro && window.spendRetro());
+    const curve = retro ? d3.curveStep : d3.curveMonotoneX;
     svg.append('path').attr('class', 'area').attr('fill', 'url(#sp-area)')
-      .attr('d', d3.area().x(px).y0(y(0)).y1((d) => y(amountOf(d))).curve(d3.curveMonotoneX)(days));
-    svg.append('path').attr('class', 'line')
-      .attr('d', d3.line().x(px).y((d) => y(amountOf(d))).curve(d3.curveMonotoneX)(days));
+      .attr('d', d3.area().x(px).y0(y(0)).y1((d) => y(amountOf(d))).curve(curve)(days));
+    svg.append('path').attr('class', 'line').attr('id', 'sp-line-path')
+      .attr('d', d3.line().x(px).y((d) => y(amountOf(d))).curve(curve)(days));
 
     if (avg > 0) {
       const ay = y(avg);
@@ -201,6 +221,31 @@
       .attr('cx', px)
       .attr('cy', (d) => y(amountOf(d)))
       .attr('r', radius);
+
+    if (retro) {
+      const NS = 'http://www.w3.org/2000/svg';
+      const runner = svg.append('g').attr('class', 'runner').attr('aria-hidden', 'true');
+      const art = runner.append('g').attr('class', 'bob').attr('transform', 'translate(-9,-17)');
+      const paint = (g, rows) => rows.forEach((row, ry) => [...row].forEach((c, rx) => {
+        const fillOf = { G: '#ffd23f', K: '#120d26', W: '#fff3b0' }[c];
+        if (fillOf) g.append('rect').attr('x', rx * 2).attr('y', ry * 2).attr('width', 2).attr('height', 2).attr('fill', fillOf);
+      }));
+      paint(art, ['..GGGGG..', '.GGGGGGG.', '.GKGGGKG.', '.GGGGGGG.', 'GGGWWWGGG', '.GGGGGGG.']);
+      paint(art.append('g').attr('class', 'legs-a').attr('transform', 'translate(0,12)'), ['.GG...GG.', 'GG.....GG']);
+      paint(art.append('g').attr('class', 'legs-b').attr('transform', 'translate(0,12)'), ['..GG.GG..', '..GG.GG..']);
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        runner.attr('transform', 'translate(' + px(today) + ',' + y(amountOf(today)) + ')');
+      } else {
+        const move = document.createElementNS(NS, 'animateMotion');
+        move.setAttribute('dur', Math.max(6, days.length * 0.6) + 's');
+        move.setAttribute('repeatCount', 'indefinite');
+        const mp = document.createElementNS(NS, 'mpath');
+        mp.setAttribute('href', '#sp-line-path');
+        mp.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#sp-line-path');
+        move.append(mp);
+        runner.node().append(move);
+      }
+    }
 
     const axis = svg.append('g').attr('class', 'bars-axis');
     axis.append('text').attr('x', 2).attr('y', H - 4).attr('text-anchor', 'start').text(dayShort(days[0]));
