@@ -77,7 +77,6 @@
     if (b.bottom > 0 && b.top < window.innerHeight) {
       const coin = document.createElement('div');
       coin.className = 'coin-drop';
-      coin.textContent = '🪙';
       coin.style.left = (b.left + b.width / 2 - 12) + 'px';
       coin.style.top = (b.top + b.height * 0.55) + 'px';
       document.body.append(coin);

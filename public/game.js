@@ -121,8 +121,7 @@
     let landed = 0;
     for (let i = 0; i < count; i++) {
       const c = document.createElement('div');
-      c.className = 'fly-coin' + (gold ? ' gold' : '');
-      c.textContent = '🪙';
+      c.className = 'coin3d fly-coin' + (gold ? ' gold' : '');
       const sx = from.x + (gold ? 0 : Math.random() * 40 - 20);
       c.style.left = (sx - 12) + 'px';
       c.style.top = (from.y - 12) + 'px';
