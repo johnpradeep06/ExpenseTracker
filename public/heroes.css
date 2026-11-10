@@ -71,3 +71,22 @@ html.candy .pet svg { display: none; }
 html.candy .pet .hx-pet { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .22)); }
 html.candy .pet[data-mood="sleepy"] .hx-pet { filter: saturate(.6) brightness(.9) drop-shadow(0 4px 4px rgba(0, 0, 0, .22)); }
 html.candy .pet[data-mood="worried"] .hx-pet { filter: saturate(.85) drop-shadow(0 4px 4px rgba(0, 0, 0, .22)); }
+
+/* Make them clearly alive: a steady bob and sway, small idle tricks, and a lively picker. */
+html.candy .pet .hx-pet { animation: hx-idle 2.4s ease-in-out infinite; }
+html.candy .pet[data-mood="dizzy"] .hx-pet { animation: woozy 1.6s ease-in-out infinite; }
+html.candy .pet[data-mood="sleepy"] .hx-pet { animation: hx-idle 5s ease-in-out infinite; }
+html.candy .pet.act-wag .hx-pet { animation: hx-wiggle .9s ease-in-out; }
+html.candy .pet.act-look .hx-pet { animation: hx-lean 1.4s ease-in-out; }
+html.candy .pet.act-ear .hx-pet { animation: hx-pop .7s ease-out; }
+html.candy .pet.act-hop .hx-pet { animation: hop .65s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes hx-idle { 0%, 100% { transform: translateY(0) rotate(-2deg) scale(1); } 50% { transform: translateY(-6px) rotate(2deg) scale(1.04, .98); } }
+@keyframes hx-wiggle { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-10deg); } 40% { transform: rotate(10deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(6deg); } }
+@keyframes hx-lean { 0%, 100% { transform: translateX(0) rotate(0); } 35%, 65% { transform: translateX(-8px) rotate(-8deg) scale(1.06); } }
+@keyframes hx-pop { 0% { transform: scale(1); } 40% { transform: scale(1.18) rotate(4deg); } 100% { transform: scale(1); } }
+.hx-card:not(.locked) .hx-img { animation: hx-idle 2.6s ease-in-out infinite; }
+.hx-card:nth-child(2n):not(.locked) .hx-img { animation-delay: -.8s; }
+.hx-card:nth-child(3n):not(.locked) .hx-img { animation-delay: -1.5s; }
+.hx-card.on .hx-img { animation: hx-wiggle 2.4s ease-in-out infinite; }
+.hx-card:active .hx-img { animation: hop .5s ease-out; }
+@media (prefers-reduced-motion: reduce) { html.candy .pet .hx-pet, .hx-card .hx-img { animation: none !important; } }

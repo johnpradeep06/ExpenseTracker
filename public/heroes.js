@@ -38,6 +38,8 @@
   };
   window.spendHeroName = () => chosen().name;
   showPet();
+  // Tap your hero on the total card to see their power.
+  if (pet) pet.addEventListener('click', () => play(chosen()));
 
   // ---- the power show ----
   let busy = false;
