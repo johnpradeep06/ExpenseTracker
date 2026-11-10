@@ -64,7 +64,7 @@
 
   let activeCat = null;
   let showAll = false;
-  const TX_LIMIT = 25;
+  const TX_LIMIT = 6;
 
   // Headline: total, change pill, per-day line.
   dash.draw('h_amt', (el) => {
@@ -279,36 +279,11 @@
         activeCat = activeCat === r.category ? null : r.category;
         showAll = false;
         dash.render();
+        if (activeCat) {
+          const card = document.querySelector('#latest');
+          if (card) card.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+        }
       });
-      el.append(row);
-    });
-  });
-
-  // Ways to cut back, worked out from the same numbers.
-  dash.draw('tips', (el) => {
-    const st = stateOf(['kpi', 'by_cat']);
-    el.replaceChildren();
-    el.classList.toggle('is-loading', st === 'loading');
-    if (st === 'error') {
-      el.append(failLine());
-      return;
-    }
-    if (st !== 'ok') return;
-    const k = rowsOf('kpi')[0];
-    const cats = rowsOf('by_cat');
-    if (!k || !cats.length) return;
-    const tips = [];
-    const top = cats[0];
-    const save = Math.round(top.amount * 0.15 * 100) / 100;
-    tips.push(['✂️', top.category + ' is ' + share(top.share) + ' of what you spent. Cutting it by 15% would save about ' + money(save) + ' every two weeks.']);
-    const riser = cats
-      .filter((c) => c.category !== top.category && typeof c.change === 'number' && c.change >= 0.25 && c.amount - c.prev_amount >= 5)
-      .sort((a, b) => (b.amount - b.prev_amount) - (a.amount - a.prev_amount))[0];
-    if (riser) tips.push(['📈', riser.category + ' is up ' + pct(riser.change) + ', ' + money(riser.amount - riser.prev_amount) + ' more than the two weeks before.']);
-    if (k.cur_total > 0) tips.push(['🎯', 'A goal for the next two weeks: ' + money(Math.round(k.cur_total * 0.9 * 100) / 100) + ', which is 10% under this period.']);
-    tips.forEach(([icon, text]) => {
-      const row = h('div', 'tip');
-      row.append(h('span', 'tip-icon', icon), h('p', 'tip-text', text));
       el.append(row);
     });
   });
@@ -497,6 +472,7 @@
       const more = h('button', 'more', 'Show all ' + rows.length + ' purchases');
       more.type = 'button';
       more.addEventListener('click', () => {
+        if (!activeCat && window.spendOpenAll) { window.spendOpenAll(false); return; }
         showAll = true;
         dash.render();
       });

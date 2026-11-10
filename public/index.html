@@ -248,6 +248,7 @@ button { font: inherit; color: inherit; }
 .first-status.waiting .sp-dot { background: var(--muted); animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .first-status.waiting .sp-dot { animation: none; } }
+#latest { scroll-margin-top: 84px; }
 body.sheet-open { overflow: hidden; overscroll-behavior: none; }
 
 button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -362,30 +363,11 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
       </div>
     </section>
 
-    <section class="card sp-js-full" id="by-category">
-      <h2>Categories</h2>
-      <p class="sub">Tap one to see just those purchases.</p>
-      <div class="seg" data-draw="seg" aria-hidden="true"></div>
-      <div data-draw="cats"></div>
-    </section>
-
-    <section class="card sp-js-full" id="tips-card">
-      <h2>Ways to cut back</h2>
-      <p class="sub">Worked out from your own numbers.</p>
-      <div data-draw="tips"></div>
-    </section>
-
-    <section class="card sp-js-full" id="top-merchants">
-      <h2>Biggest merchants</h2>
-      <p class="sub">Where the most money went.</p>
-      <div data-draw="merch"></div>
-    </section>
-
     <section class="card sp-js-full" id="latest">
       <div class="card-head">
         <div>
           <h2>Purchases</h2>
-          <p class="sub">Newest first. Tap one to edit it.</p>
+          <p class="sub">Newest first. Tap one to edit it, swipe left to delete.</p>
         </div>
         <button type="button" class="icon-btn small" id="all-open" aria-label="See all purchases">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M10 20H4v-6"/><path d="M20 4l-7 7"/><path d="M4 20l7-7"/></svg>
@@ -393,6 +375,21 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
       </div>
       <div data-draw="tx"></div>
     </section>
+
+    <section class="card sp-js-full" id="by-category">
+      <h2>Categories</h2>
+      <p class="sub">Tap one to see just those purchases.</p>
+      <div class="seg" data-draw="seg" aria-hidden="true"></div>
+      <div data-draw="cats"></div>
+    </section>
+
+
+    <section class="card sp-js-full" id="top-merchants">
+      <h2>Biggest merchants</h2>
+      <p class="sub">Where the most money went.</p>
+      <div data-draw="merch"></div>
+    </section>
+
   </div>
 
   <div class="foot">
