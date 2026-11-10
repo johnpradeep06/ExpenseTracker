@@ -361,9 +361,9 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
           <g class="body">
             <rect x="28" y="64" width="11" height="16" rx="5.5" fill="#ff9cc6"/>
             <rect x="61" y="64" width="11" height="16" rx="5.5" fill="#ff9cc6"/>
-            <path d="M25 30 L20 8 L42 20 Z" fill="#ff9cc6"/>
-            <path d="M75 30 L80 8 L58 20 Z" fill="#ff9cc6"/>
-            <path d="M83 46 q9 -5 5 3 q-4 6 3 7" stroke="#ff9cc6" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path class="ear-l" d="M25 30 L20 8 L42 20 Z" fill="#ff9cc6"/>
+            <path class="ear-r" d="M75 30 L80 8 L58 20 Z" fill="#ff9cc6"/>
+            <path class="tail" d="M83 46 q9 -5 5 3 q-4 6 3 7" stroke="#ff9cc6" stroke-width="3" fill="none" stroke-linecap="round"/>
             <ellipse cx="50" cy="47" rx="34" ry="30" fill="#ffb8d6"/>
             <ellipse cx="41" cy="33" rx="15" ry="8" fill="#ffd6e8"/>
             <rect x="42" y="18" width="16" height="4" rx="2" fill="#e85d9e"/>
@@ -382,10 +382,19 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
               <ellipse cx="50" cy="67" rx="3.2" ry="2.6" fill="#c2185b"/>
               <path class="sweat" d="M82 26 q4 6 0 9 q-4 -3 0 -9z" fill="#7cc8ff"/>
             </g>
+            <g class="mood m-sleepy">
+              <path d="M32 43 q5 4 10 0 M58 43 q5 4 10 0" stroke="#3d1b3a" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+              <ellipse cx="50" cy="67" rx="2.6" ry="2" fill="#c2185b"/>
+              <text class="zzz z1" x="80" y="24">z</text><text class="zzz z2" x="88" y="14">z</text><text class="zzz z3" x="96" y="4">Z</text>
+            </g>
             <g class="mood m-dizzy">
               <path d="M33 38 l8 8 M41 38 l-8 8 M59 38 l8 8 M67 38 l-8 8" stroke="#3d1b3a" stroke-width="2.6" stroke-linecap="round"/>
               <path d="M41 67 q2.2 -3 4.5 0 t4.5 0 t4.5 0 t4.5 0" stroke="#c2185b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
             </g>
+            <g class="acc acc-hat"><path d="M26 22 L34 -4 L44 20 Z" fill="#1cb0f6"/><path d="M29 14 L41 12" stroke="#ffc800" stroke-width="3" stroke-linecap="round"/><circle cx="34" cy="-5" r="4" fill="#ffc800"/></g>
+            <g class="acc acc-shades"><rect x="28" y="36" width="18" height="11" rx="4.5" fill="#1b1b2f"/><rect x="54" y="36" width="18" height="11" rx="4.5" fill="#1b1b2f"/><path d="M46 40 h8" stroke="#1b1b2f" stroke-width="2.6"/><path d="M31 39 l5 0" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".7"/></g>
+            <g class="acc acc-bow"><path d="M63 10 L71 17 L63 24 Z M79 10 L71 17 L79 24 Z" fill="#ff4fa3"/><circle cx="71" cy="17" r="3.4" fill="#ff8cc6"/></g>
+            <g class="acc acc-crown"><path d="M30 20 L32 5 L39 13 L45 2 L51 13 L58 5 L60 20 Z" fill="#ffc800" stroke="#e0a800" stroke-width="1.5" stroke-linejoin="round"/><circle cx="45" cy="15" r="2.4" fill="#ff4b4b"/><circle cx="36" cy="16" r="1.8" fill="#1cb0f6"/><circle cx="54" cy="16" r="1.8" fill="#58cc02"/></g>
           </g>
         </svg>
       </div>
@@ -393,6 +402,27 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
       <div class="hero-amt" data-draw="h_amt">—</div>
       <div class="hero-sub" data-draw="h_sub">—</div>
       <div class="pill" data-draw="h_pill" hidden></div>
+      <div class="game" id="game" hidden>
+        <button type="button" class="goal-row" id="goal-open">
+          <span class="goal-emoji" id="goal-emoji" aria-hidden="true">🎯</span>
+          <span class="goal-main">
+            <span class="goal-name" id="goal-name">Pick something to save for</span>
+            <span class="goal-bar" aria-hidden="true"><span class="goal-fill" id="goal-fill"></span></span>
+            <span class="goal-sub" id="goal-sub">Penny saves every dollar you don't spend</span>
+          </span>
+        </button>
+        <div class="lvl-row">
+          <span class="lvl-badge" id="lvl-badge">Lv 1</span>
+          <span class="xp-bar" aria-hidden="true"><span class="xp-fill" id="xp-fill"></span></span>
+          <span class="xp-num" id="xp-num">0 / 100 XP</span>
+        </div>
+        <button type="button" class="collect-btn" id="collect-btn" hidden>🪙 Collect <span id="collect-amt"></span></button>
+        <div class="real-offer" id="real-offer" hidden>
+          <p id="real-text">Move it to your savings account for real, then tap for a golden coin.</p>
+          <button type="button" class="real-btn" id="real-btn">I moved it ✓</button>
+          <button type="button" class="link" id="real-skip">Not now</button>
+        </div>
+      </div>
       <div class="bars sp-js-full">
         <div data-draw="days"></div>
         <p class="scrub" aria-live="polite"></p>
@@ -492,6 +522,22 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
     <button type="submit" class="primary" id="add-save">Add payment</button>
   </div>
   <button type="button" class="danger" id="add-delete" hidden>Delete payment</button>
+</form>
+<div class="backdrop" id="goal-backdrop" hidden></div>
+<form class="sheet" id="goal-sheet" role="dialog" aria-modal="true" aria-labelledby="goal-title" hidden novalidate>
+  <div class="grab" aria-hidden="true"></div>
+  <div class="set-head">
+    <h2 id="goal-title">What are you saving for?</h2>
+    <button type="button" class="link" id="goal-cancel">Cancel</button>
+  </div>
+  <p class="sub">Every dollar you don't spend under your daily limit becomes coins for Penny, and they fill this goal.</p>
+  <div class="emoji-pick" id="emoji-pick" role="group" aria-label="Pick an icon"></div>
+  <label class="field"><span>Name</span><input id="goal-name-input" maxlength="40" autocomplete="off" placeholder="Japan trip"></label>
+  <label class="field"><span>Amount</span>
+    <span class="money-input"><span aria-hidden="true">$</span><input id="goal-amount-input" type="number" inputmode="decimal" min="1" step="any" placeholder="1000"></span>
+  </label>
+  <p class="msg" id="goal-error" hidden></p>
+  <button type="submit" class="primary" id="goal-save">Save my goal</button>
 </form>
 <div class="backdrop" id="all-backdrop" hidden></div>
 <div class="sheet tall" id="all-sheet" role="dialog" aria-modal="true" aria-labelledby="all-title" hidden>
@@ -605,5 +651,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 <script src="push.js"></script>
 <script src="settings.js"></script>
 <script src="people.js"></script>
+<script src="game.js"></script>
 </body>
 </html>

@@ -14,7 +14,7 @@ const webpushMod = async () => {
   return webpushLib;
 };
 const { q } = require('../lib/db');
-const { numbers } = require('../lib/compute');
+const { numbers, inZone } = require('../lib/compute');
 const notes = require('../lib/notes');
 
 const env = (k) => process.env[k] || '';
@@ -146,6 +146,66 @@ const DUMMY_HASH = 's1$AAAAAAAAAAAAAAAAAAAAAA==$' + Buffer.alloc(64).toString('b
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@.][^\s@]{0,250}\.[^\s@.]{2,}$/;
 const MAX_TRIES = 5;
 const LOCK_MS = 15 * 60000;
+
+// ---- the saving game (Penny) ------------------------------------------------------------------------------------
+// Every day you stay under your daily limit, what is left becomes coins you feed to Penny. The coins fill a goal you
+// name, and earn XP: 10 per day collected plus 1 per dollar, and 1 more per dollar if you move the money to savings
+// for real. Days can be collected for the last week, and today from 8 PM. If more is spent on a collected day later,
+// that day counts for less (never more).
+const COLLECT_BACK = 7;
+const COLLECT_HOUR = 20;
+const levelXp = (lv) => 50 * lv * (lv - 1);
+const levelOf = (xp) => { let lv = 1; while (levelXp(lv + 1) <= xp) lv++; return lv; };
+const outfitOf = (lv) => (lv >= 6 ? 'gold' : ['', '', 'hat', 'shades', 'bow', 'crown'][lv] || '');
+const r2 = (v) => Math.round(v * 100) / 100;
+const pastDays = (tz, n) => inZone(tz, () => {
+  const p = (x) => (x < 10 ? '0' : '') + x;
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    out.push(d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()));
+  }
+  return out;
+});
+
+const gameState = async (u) => {
+  const g = (await q('select * from game where user_id = $1', [u.id]))[0] || { goal_name: '', goal_emoji: '', goal_amount: 0, xp: 0 };
+  const n = await numbersFor(u);
+  const spentOn = {};
+  n.spend.forEach((r) => { spentOn[r.day] = (spentOn[r.day] || 0) + r.amount; });
+  const first = Object.keys(spentOn).sort()[0] || null;
+  const limit = limitOf(u);
+  const recent = pastDays(u.tz, COLLECT_BACK + 1);
+  const done = await q('select day, saved, limit_at, real from game_days where user_id = $1', [u.id]);
+  const doneSet = new Set(done.map((d) => d.day));
+  const worth = (d) => {
+    const saved = Number(d.saved);
+    if (d.day !== n.today && !recent.includes(d.day)) return saved;
+    return r2(Math.max(0, Math.min(saved, Number(d.limit_at) - (spentOn[d.day] || 0))));
+  };
+  const saved = r2(done.reduce((sum, d) => sum + worth(d), 0));
+  const realSaved = r2(done.filter((d) => d.real).reduce((sum, d) => sum + worth(d), 0));
+  const candidates = (n.hour >= COLLECT_HOUR ? [n.today] : []).concat(recent.slice(0, COLLECT_BACK));
+  const collectible = limit > 0 && first
+    ? candidates.filter((day) => day >= first && !doneSet.has(day))
+      .map((day) => ({ day, amount: r2(Math.min(limit, limit - (spentOn[day] || 0))) }))
+      .filter((c) => c.amount > 0)
+    : [];
+  const xp = Number(g.xp) || 0;
+  const level = levelOf(xp);
+  return {
+    goal: { name: g.goal_name, emoji: g.goal_emoji, amount: Number(g.goal_amount) || 0, saved },
+    xp, level, levelXp: levelXp(level), nextXp: levelXp(level + 1), outfit: outfitOf(level),
+    limit, daysCollected: done.length, realSaved, collectible, started: g.created_at ? iso(g.created_at) : null,
+    coins: r2(collectible.reduce((sum, c) => sum + c.amount, 0))
+  };
+};
+const addXp = async (u, gain) => {
+  const rows = await q(`insert into game (user_id, xp) values ($1, $2)
+                        on conflict (user_id) do update set xp = game.xp + excluded.xp returning xp`, [u.id, gain]);
+  return Number(rows[0].xp);
+};
 
 // ---- the Shortcut's setup code ----------------------------------------------------------------------------------
 // Kept hashed for checking, and encrypted so the app can show it again for setting up another automation.
@@ -468,6 +528,55 @@ const routes = {
     }
     await q("delete from notes_sent where day < $1", [new Date(Date.now() - 10 * DAY).toISOString().slice(0, 10)]);
     return { users: users.length, sent };
+  },
+
+  // ---- the saving game ----
+  'GET game': async (req) => gameState(await signedIn(req)),
+
+  'PUT game/goal': async (req) => {
+    const u = await signedIn(req);
+    const b = await readBody(req);
+    const name = clean(b.name, 40);
+    const emoji = String(b.emoji || '').slice(0, 8);
+    const amount = Math.round(Number(b.amount) * 100) / 100;
+    if (!name) fail(400, 'Give your goal a name, like "Japan trip"');
+    if (!(amount >= 1) || amount > 1000000) fail(400, 'The goal must be between $1 and $1,000,000');
+    await q(`insert into game (user_id, goal_name, goal_emoji, goal_amount) values ($1, $2, $3, $4)
+             on conflict (user_id) do update set goal_name = excluded.goal_name, goal_emoji = excluded.goal_emoji, goal_amount = excluded.goal_amount`,
+    [u.id, name, emoji, amount]);
+    return gameState(u);
+  },
+
+  'POST game/collect': async (req) => {
+    const u = await signedIn(req);
+    const before = await gameState(u);
+    const days = [];
+    for (const c of before.collectible) {
+      const ins = await q('insert into game_days (user_id, day, saved, limit_at) values ($1, $2, $3, $4) on conflict do nothing returning day',
+        [u.id, c.day, c.amount, before.limit]);
+      if (ins.length) days.push(c);
+    }
+    const coins = r2(days.reduce((sum, c) => sum + c.amount, 0));
+    const xpGain = days.reduce((sum, c) => sum + 10 + Math.floor(c.amount), 0);
+    if (xpGain) await addXp(u, xpGain);
+    const after = await gameState(u);
+    return { ...after, gained: { days, coins, xp: xpGain, levelUp: after.level > before.level ? after.level : 0 } };
+  },
+
+  // "I moved it to my savings for real": a golden coin, worth 1 more XP per dollar.
+  'POST game/real': async (req) => {
+    const u = await signedIn(req);
+    const b = await readBody(req);
+    const want = (Array.isArray(b.days) ? b.days : []).map(String).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 10);
+    const before = await gameState(u);
+    const rows = want.length
+      ? await q('update game_days set real = true where user_id = $1 and day = any($2::text[]) and real = false returning saved', [u.id, want])
+      : [];
+    const coins = r2(rows.reduce((sum, r) => sum + Number(r.saved), 0));
+    const xpGain = rows.reduce((sum, r) => sum + Math.floor(Number(r.saved)), 0);
+    if (xpGain) await addXp(u, xpGain);
+    const after = await gameState(u);
+    return { ...after, gained: { coins, xp: xpGain, levelUp: after.level > before.level ? after.level : 0 } };
   },
 
   // ---- owner: invites and who has access ----

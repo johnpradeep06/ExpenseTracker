@@ -237,6 +237,50 @@ const assert = require('assert');
   ok(r.status === 429, 'too many wrong invite guesses are blocked, even for a good code');
   await pg.query('delete from signup_attempts');
 
+  // ---- the saving game ----
+  const gm = (await call('POST', 'auth/signup', { body: { email: 'gamer@example.com', password: 'gamer-password-1', invite: await invite('Gamer', 7) } })).data.session;
+  await call('PUT', 'me', { auth: gm, body: { tz: 'UTC' } });
+  r = await call('GET', 'game', { auth: gm });
+  ok(r.status === 200 && r.data.xp === 0 && r.data.level === 1 && r.data.collectible.length === 0, 'new player: level 1, nothing to collect yet');
+  const dk = (i) => new Date(Date.now() - i * 86400e3).toISOString().slice(0, 10);
+  const buy = (i, amt, merchant) => ({ title: 'Spending - $' + amt + ' - ' + dk(i) + ' - Other', body: 'Date: ' + dk(i) + 'T12:00:00Z\nMerchant: ' + merchant + '\nAmount: $' + amt + '\nCard: Visa\nCategory: Other', created_at: dk(i) + 'T12:00:00Z' });
+  await call('POST', 'admin/import', { auth: 'admin-secret', body: { email: 'gamer@example.com', issues: [buy(4, '10.00', 'A'), buy(2, '60.00', 'B'), buy(1, '20.00', 'C')] } });
+  r = await call('GET', 'game', { auth: gm });
+  ok(r.data.collectible.length === 0, 'no coins without a daily limit');
+  await call('PUT', 'limit', { auth: gm, body: { dailyLimit: 50 } });
+  r = await call('GET', 'game', { auth: gm });
+  const late = new Date().getUTCHours() >= 20;
+  const want = (late ? [[dk(0), 50]] : []).concat([[dk(1), 30], [dk(3), 50], [dk(4), 40]]);
+  ok(JSON.stringify(r.data.collectible.map((c) => [c.day, c.amount])) === JSON.stringify(want),
+    'coins waiting: under-limit days only, none before the first purchase, the over-limit day skipped, a $0 day worth the full limit' + (late ? ', and today after 8 PM' : ''));
+  const totalCoins = want.reduce((sum, w) => sum + w[1], 0);
+  ok(r.data.coins === totalCoins, 'total coins waiting: $' + totalCoins);
+  r = await call('POST', 'game/collect', { auth: gm });
+  const wantXp = want.reduce((sum, w) => sum + 10 + w[1], 0);
+  ok(r.status === 200 && r.data.gained.coins === totalCoins && r.data.gained.xp === wantXp && r.data.xp === wantXp, 'collecting feeds Penny: +' + wantXp + ' XP');
+  ok(r.data.level === 2 && r.data.gained.levelUp === 2 && r.data.outfit === 'hat', 'level up to 2 unlocks the party hat');
+  ok(r.data.goal.saved === totalCoins && r.data.collectible.length === 0, 'goal total counts the coins; nothing left to collect');
+  r = await call('POST', 'game/collect', { auth: gm });
+  ok(r.data.gained.coins === 0 && r.data.gained.xp === 0, 'collecting twice gives nothing');
+  r = await call('POST', 'game/real', { auth: gm, body: { days: [dk(1)] } });
+  ok(r.data.gained.xp === 30 && r.data.realSaved === 30, 'moving it to savings for real: a golden coin, +30 XP');
+  r = await call('POST', 'game/real', { auth: gm, body: { days: [dk(1)] } });
+  ok(r.data.gained.xp === 0, 'the golden coin only counts once');
+  await call('POST', 'admin/import', { auth: 'admin-secret', body: { email: 'gamer@example.com', issues: [buy(1, '25.00', 'D')] } });
+  r = await call('GET', 'game', { auth: gm });
+  ok(r.data.goal.saved === totalCoins - 25, 'spending more on a collected day lowers what it is worth ($30 -> $5)');
+  r = await call('PUT', 'game/goal', { auth: gm, body: { name: '', amount: 1000 } });
+  ok(r.status === 400, 'a goal needs a name');
+  r = await call('PUT', 'game/goal', { auth: gm, body: { name: 'Japan trip', emoji: '✈️', amount: 0 } });
+  ok(r.status === 400, 'a goal needs an amount');
+  r = await call('PUT', 'game/goal', { auth: gm, body: { name: 'Japan trip', emoji: '✈️', amount: 1000 } });
+  ok(r.status === 200 && r.data.goal.name === 'Japan trip' && r.data.goal.emoji === '✈️' && r.data.goal.amount === 1000 && r.data.xp === wantXp + 30, 'goal saved, XP kept');
+  r = await call('GET', 'game');
+  ok(r.status === 401, 'the game needs a sign-in');
+  r = await call('DELETE', 'account', { auth: gm });
+  const leftRows = await pg.query("select count(*)::int as n from game_days d left join users u on u.id = d.user_id where u.id is null");
+  ok(leftRows.rows[0].n === 0, 'deleting the account deletes the game too');
+
   r = await call('GET', 'nope');
   ok(r.status === 404, 'unknown route 404');
 

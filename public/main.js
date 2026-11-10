@@ -24,7 +24,7 @@
   };
 
   // Everything this app keeps on the phone for one person, removed on sign-out.
-  const forgetPhone = () => ['spend.cache', 'spend.pending', 'spend.limit', 'spend.device', 'spend.email', 'spend.onboarded', 'spend.owner'].forEach(clear);
+  const forgetPhone = () => ['spend.cache', 'spend.pending', 'spend.limit', 'spend.device', 'spend.email', 'spend.onboarded', 'spend.owner', 'spend.realOffer'].forEach(clear);
 
   // ---- sign-in ----------------------------------------------------------------------------------------------
   let signingUp = false;

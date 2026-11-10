@@ -35,6 +35,9 @@
     'Dining & Coffee': '#ff9600', 'Subscriptions & Software': '#ce82ff', 'Groceries': '#58cc02', 'Transport': '#1cb0f6', 'Travel': '#00cd9c',
     'Health & Personal Care': '#ff4b4b', 'Bills & Utilities': '#ffc800', 'Entertainment': '#ff86d0', 'Shopping': '#2b70c9', 'Other': '#afafaf'
   };
+  const freshOn = () => document.documentElement.classList.contains('candy');
+  const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let firstLists = true;
   const catMeta = (c) => {
     const m = CAT[c] || CAT.Other;
     return document.documentElement.classList.contains('candy') ? [m[0], CANDY[c] || CANDY.Other] : m;
@@ -75,18 +78,41 @@
   const TX_LIMIT = 6;
 
   // Headline: total, change pill, per-day line.
+  let shownTotal = null;
+  let countRun = 0;
   dash.draw('h_amt', (el) => {
     const st = stateOf(['kpi']);
     const row = kpiRow();
     el.classList.toggle('is-loading', st === 'loading');
-    el.replaceChildren();
-    const text = row ? money(row.cur_total) : '—';
-    const dot = text.lastIndexOf('.');
-    if (dot > 0) {
-      el.append(document.createTextNode(text.slice(0, dot)), h('span', 'cents', text.slice(dot)));
+    const write = (v) => {
+      el.replaceChildren();
+      const text = v === null ? '—' : money(v);
+      const dot = text.lastIndexOf('.');
+      if (dot > 0) {
+        el.append(document.createTextNode(text.slice(0, dot)), h('span', 'cents', text.slice(dot)));
+      } else {
+        el.append(document.createTextNode(text));
+      }
+    };
+    const target = row ? row.cur_total : null;
+    // Fresh: the total counts up to its new value, like a score.
+    if (target !== null && freshOn() && !calm() && target !== shownTotal) {
+      const from = shownTotal === null ? 0 : shownTotal;
+      const run = ++countRun;
+      const t0 = performance.now();
+      const step = (t) => {
+        if (run !== countRun) return;
+        const k = Math.min(1, (t - t0) / 900);
+        const eased = 1 - Math.pow(1 - k, 3);
+        write(Math.round((from + (target - from) * eased) * 100) / 100);
+        if (k < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
     } else {
-      el.append(document.createTextNode(text));
+      countRun++;
+      write(target);
     }
+    shownTotal = target;
   });
 
   dash.draw('h_sub', (el) => {
@@ -124,6 +150,7 @@
 
   // 14-day line graph with the daily average drawn as a dashed line. Touch or hover a day to read it.
   // The note above the graph says how much is left to spend today to stay at or under the average.
+  let lastLineD = null;
   dash.draw('days', (el) => {
     const st = stateOf(['by_day']);
     el.replaceChildren();
@@ -159,7 +186,8 @@
     const pet = document.querySelector('#pet');
     if (pet) {
       const leftNow = avg > 0 ? avg - amountOf(today) : 1;
-      pet.dataset.mood = leftNow < 0 ? 'dizzy' : avg > 0 && leftNow / avg < 0.35 ? 'worried' : 'happy';
+      const hour = new Date().getHours();
+      pet.dataset.mood = leftNow < 0 ? 'dizzy' : (hour >= 22 || hour < 6) ? 'sleepy' : avg > 0 && leftNow / avg < 0.35 ? 'worried' : 'happy';
     }
     if (avg > 0) {
       const spent = amountOf(today);
@@ -186,7 +214,11 @@
           else break;
         }
       }
-      if (streak > 0) note.append(h('span', 'streak', document.documentElement.classList.contains('candy') ? '🔥 ' + streak + '-day streak' : '🔥 ' + streak + '-DAY STREAK'));
+      if (streak > 0) {
+        const badge = h('span', 'streak');
+        badge.append(h('span', 'flame', '🔥'), document.createTextNode(freshOn() ? ' ' + streak + '-day streak' : ' ' + streak + '-DAY STREAK'));
+        note.append(badge);
+      }
       if (streak > 0) window.dispatchEvent(new CustomEvent('spend:streak', { detail: streak }));
 
       // Candy theme: a jar of candies that empties as you spend, and today's candies by category.
@@ -241,8 +273,24 @@
     const curve = retro ? d3.curveStep : d3.curveMonotoneX;
     svg.append('path').attr('class', 'area').attr('fill', 'url(#sp-area)')
       .attr('d', d3.area().x(px).y0(y(0)).y1((d) => y(amountOf(d))).curve(curve)(days));
-    svg.append('path').attr('class', 'line').attr('id', 'sp-line-path')
-      .attr('d', d3.line().x(px).y((d) => y(amountOf(d))).curve(curve)(days));
+    const lineD = d3.line().x(px).y((d) => y(amountOf(d))).curve(curve)(days);
+    const linePath = svg.append('path').attr('class', 'line').attr('id', 'sp-line-path').attr('d', lineD);
+    const drawIn = freshOn() && !calm() && lineD !== lastLineD;
+    lastLineD = lineD;
+    if (drawIn) {
+      const node = linePath.node();
+      const len = node.getTotalLength ? node.getTotalLength() : 0;
+      if (len > 0) {
+        node.style.strokeDasharray = len;
+        node.style.strokeDashoffset = len;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          node.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(.4, 0, .2, 1)';
+          node.style.strokeDashoffset = '0';
+        }));
+        setTimeout(() => { node.style.strokeDasharray = ''; node.style.transition = ''; }, 1300);
+      }
+      svg.select('.area').classed('fade-in', true);
+    }
 
     if (avg > 0) {
       const ay = y(avg);
@@ -260,6 +308,7 @@
       .attr('cx', px)
       .attr('cy', (d) => y(amountOf(d)))
       .attr('r', radius);
+    if (drawIn) dots.classed('pop', true).style('animation-delay', (d, i) => (0.25 + i * 0.06).toFixed(2) + 's');
 
     if (retro) {
       const NS = 'http://www.w3.org/2000/svg';
@@ -359,6 +408,10 @@
       }
       mid.append(sub);
       row.append(chip(icon, color), mid, h('span', 'cat-amt', money(r.amount)));
+      if (firstLists && freshOn() && !calm()) {
+        row.classList.add('enter');
+        row.style.setProperty('--i', String(el.childElementCount));
+      }
       row.addEventListener('click', () => {
         activeCat = activeCat === r.category ? null : r.category;
         showAll = false;
@@ -432,6 +485,7 @@
     const remove = async () => {
       if (busy) return;
       busy = true;
+      if (window.spendPoof) window.spendPoof(wrap);
       row.style.transition = 'transform .18s ease-out';
       setOffset(-wrap.clientWidth);
       const done = await onDelete();
@@ -482,6 +536,8 @@
     });
     del.addEventListener('click', remove);
   };
+
+  if (window.dash) window.dash.onData(() => { if (stateOf(['by_cat']) === 'ok' && firstLists) setTimeout(() => { firstLists = false; }, 0); });
 
   // Purchases grouped by day with a total per day. Used by the Purchases card and the full list.
   const drawTxRows = (el, rows, shown, onPick) => {

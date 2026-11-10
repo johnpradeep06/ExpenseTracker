@@ -72,7 +72,7 @@ html.candy .avg-label { fill: var(--blue); font-family: var(--round); font-weigh
 
 /* Penny the piggy bank sits on the total card and shows how your day is going */
 .pet { display: none; }
-html.candy .pet { display: block; position: absolute; top: 12px; right: 10px; width: 88px; height: 82px; z-index: 1; }
+html.candy .pet { display: block; position: absolute; top: 12px; right: 10px; width: 88px; height: 82px; z-index: 3; }
 html.candy .pet svg { width: 100%; height: 100%; overflow: visible; }
 html.candy .pet .body { transform-origin: 50% 85%; animation: breathe 3.2s ease-in-out infinite; }
 html.candy .pet .eye { transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
@@ -83,7 +83,7 @@ html.candy .pet[data-mood="worried"] .sweat { animation: drip 2.4s ease-in infin
 html.candy .pet.hit .body { animation: wobble .6s ease-in-out; }
 html.candy .pet .say {
   position: absolute; right: 70px; top: 4px; padding: 4px 10px; border-radius: 12px; background: var(--card); color: var(--up);
-  border: 2px solid var(--edge); font-family: var(--round); font-weight: 900; font-size: 15px; white-space: nowrap; animation: say 1.8s ease-out forwards;
+  border: 2px solid var(--edge); font-family: var(--round); font-weight: 900; font-size: 15px; line-height: 1.25; width: max-content; max-width: 220px; animation: say 1.8s ease-out forwards;
 }
 html.candy .hero-label, html.candy .hero-amt, html.candy .hero-sub { position: relative; z-index: 2; max-width: calc(100% - 84px); }
 
@@ -158,7 +158,139 @@ html.retro .theme-pick button[aria-pressed="true"] { color: #0d0a1e; }
 @keyframes coin-fall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(140px) rotate(200deg); opacity: 0; } }
 @keyframes confetti-fall { to { transform: translateY(110vh) rotate(720deg); } }
 
+/* ---- More motion (Fresh). Each one is tied to something happening. ---- */
+/* Cards arrive one after another when the app opens */
+html.candy #app:not([hidden]) .top { animation: drop-in .5s cubic-bezier(.2, 1.3, .4, 1) both; }
+html.candy #app:not([hidden]) .stack > section { animation: rise-in .6s cubic-bezier(.2, 1.3, .4, 1) both; }
+html.candy #app:not([hidden]) .stack > section:nth-child(2) { animation-delay: .08s; }
+html.candy #app:not([hidden]) .stack > section:nth-child(3) { animation-delay: .16s; }
+html.candy #app:not([hidden]) .stack > section:nth-child(4) { animation-delay: .24s; }
+/* The chart: the area fades in under the line as it draws, dots pop in one by one */
+html.candy .area.fade-in { animation: fade-in 1.2s ease-out both; }
+html.candy .dot.pop { transform-box: fill-box; transform-origin: center; animation: pop-dot .45s cubic-bezier(.3, 1.8, .5, 1) both; }
+/* Category rows slide in the first time */
+html.candy .cat.enter { animation: slide-in .5s cubic-bezier(.2, 1.2, .4, 1) both; animation-delay: calc(var(--i, 0) * 70ms + .3s); }
+/* A new purchase slides in with a green flash */
+html.candy .tx.fresh-row { animation: fresh-flash 1.8s ease-out; }
+/* The streak flame flickers, and a sparkle twinkles while you're under budget */
+html.candy .flame { display: inline-block; transform-origin: 50% 90%; animation: flicker 1.3s ease-in-out infinite; }
+html.candy .avg-note.under .avg-big::after { content: '✨'; display: inline-block; margin-left: 6px; font-size: .8em; animation: twinkle 2.4s ease-in-out infinite; }
+/* The candies bob gently; the jar shakes when money leaves it */
+html.candy .jar-fill { animation: candy-bob 3.4s ease-in-out infinite; }
+html.candy .jar-glass.shake { animation: jar-shake .55s ease-in-out; }
+/* Buttons squish a little when tapped */
+html.candy .icon-btn svg, html.candy .tx .chip { transition: transform .15s cubic-bezier(.3, 1.8, .5, 1); }
+html.candy .icon-btn:active svg { transform: scale(.82); }
+html.candy .tx:active .chip { transform: scale(.88) rotate(-8deg); }
+/* Swipe-to-delete poof */
+.poof { position: fixed; z-index: 46; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; pointer-events: none; animation: poof .75s cubic-bezier(.2, .8, .3, 1) forwards; }
+/* Penny's idle actions, greeting and sleep */
+html.candy .pet .say.hello { color: var(--fg); }
+html.candy .pet.act-hop .body { animation: hop .65s cubic-bezier(.3, 1.6, .5, 1); }
+html.candy .pet.act-wag .tail { transform-origin: 84px 47px; animation: wag .22s ease-in-out 5; }
+html.candy .pet.act-ear .ear-l { transform-origin: 32px 26px; animation: ear .32s ease-in-out 2; }
+html.candy .pet.act-look .mood { animation: look 1.4s ease-in-out; }
+html.candy .pet[data-mood="sleepy"] .m-sleepy { display: inline; }
+html.candy .pet[data-mood="sleepy"] .body { animation: breathe 5s ease-in-out infinite; }
+html.candy .pet .zzz { font: 900 13px var(--round); fill: var(--blue); opacity: 0; animation: zzz 3s ease-in-out infinite; }
+html.candy .pet .z2 { animation-delay: 1s; }
+html.candy .pet .z3 { animation-delay: 2s; }
+
+@keyframes drop-in { from { opacity: 0; transform: translateY(-14px); } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(22px) scale(.97); } }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes pop-dot { from { transform: scale(0); } }
+@keyframes slide-in { from { opacity: 0; transform: translateX(-16px); } }
+@keyframes fresh-flash { 0% { background: color-mix(in srgb, var(--accent) 30%, var(--card)); transform: translateX(-14px); } 25% { transform: none; } 100% { background: var(--card); } }
+@keyframes flicker { 0%, 100% { transform: scale(1) rotate(-3deg); } 30% { transform: scale(1.12, .94) rotate(3deg); } 60% { transform: scale(.95, 1.08) rotate(-2deg); } }
+@keyframes twinkle { 0%, 100% { transform: scale(.7) rotate(0); opacity: .5; } 50% { transform: scale(1.15) rotate(20deg); opacity: 1; } }
+@keyframes candy-bob { 0%, 100% { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; } 50% { background-position: 2px -3px, -2px -2px, 1px -4px, -1px -2px, 2px -3px, 0 0; } }
+@keyframes jar-shake { 20% { transform: rotate(-8deg); } 45% { transform: rotate(7deg); } 70% { transform: rotate(-4deg); } 100% { transform: rotate(0); } }
+@keyframes poof { to { transform: translate(var(--dx), var(--dy)) scale(.2); opacity: 0; } }
+@keyframes hop { 0%, 100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-14px) scale(.96, 1.06); } 60% { transform: translateY(0) scale(1.06, .94); } }
+@keyframes wag { 50% { transform: rotate(18deg); } }
+@keyframes ear { 50% { transform: rotate(-14deg); } }
+@keyframes look { 0%, 100% { transform: translateX(0); } 25%, 45% { transform: translateX(-3px); } 65%, 85% { transform: translateX(3px); } }
+@keyframes zzz { 0% { opacity: 0; transform: translate(0, 4px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(4px, -8px); } }
+
+/* ---- The saving game ---- */
+.game { display: none; }
+html.candy .game:not([hidden]) { display: grid; gap: 10px; margin: 14px 0 8px; position: relative; z-index: 2; }
+html.candy .goal-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 2px solid var(--edge); border-radius: 16px;
+  background: var(--card); box-shadow: 0 3px 0 var(--edge); text-align: left; font: inherit; color: inherit; cursor: pointer;
+}
+html.candy .goal-row:active { transform: translateY(3px); box-shadow: 0 0 0 var(--edge); }
+html.candy .goal-emoji { flex: none; font-size: 32px; line-height: 1; animation: bob-emoji 3s ease-in-out infinite; }
+html.candy .goal-main { display: grid; gap: 6px; flex: 1; min-width: 0; }
+html.candy .goal-name { font-weight: 900; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.candy .goal-bar { position: relative; display: block; height: 16px; border-radius: 99px; background: var(--track); overflow: hidden; }
+html.candy .goal-bar::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), var(--card) calc(10% - 2px) 10%); }
+html.candy .goal-fill {
+  position: absolute; inset: 0 auto 0 0; display: block; width: 0; border-radius: 99px; background: linear-gradient(180deg, #ffd84d, #ffc800);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .08); transition: width 1.1s cubic-bezier(.3, 1.3, .5, 1);
+}
+html.candy .goal-fill::before { content: ''; position: absolute; top: 3px; left: 6px; right: 6px; height: 3px; border-radius: 9px; background: rgba(255, 255, 255, .6); }
+html.candy .goal-sub { font-size: 13px; font-weight: 800; color: var(--muted); }
+html.candy .lvl-row { display: flex; align-items: center; gap: 10px; }
+html.candy .lvl-badge { flex: none; padding: 4px 10px; border-radius: 12px; background: #ce82ff; color: #fff; font-weight: 900; font-size: 13px; box-shadow: 0 3px 0 #a568cc; }
+html.candy .xp-bar { flex: 1; display: block; height: 12px; border-radius: 99px; background: var(--track); overflow: hidden; }
+html.candy .xp-fill { display: block; height: 100%; width: 0; border-radius: 99px; background: #ce82ff; transition: width 1.1s cubic-bezier(.3, 1.3, .5, 1); }
+html.candy .xp-num { flex: none; font-size: 12px; font-weight: 800; color: var(--muted); }
+html.candy .collect-btn {
+  padding: 15px 16px; border: 0; border-radius: 16px; background: #ffc800; color: #5c4400; font: 900 17px var(--round);
+  text-transform: uppercase; letter-spacing: .04em; box-shadow: 0 5px 0 #e0a800; cursor: pointer; animation: beg 1.8s ease-in-out infinite;
+}
+html.candy .collect-btn:active { transform: translateY(5px); box-shadow: 0 0 0 #e0a800; }
+html.candy .collect-btn:disabled { opacity: .7; animation: none; }
+html.candy .real-offer:not([hidden]) {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px 12px; padding: 12px 14px; border: 2px dashed #ffc800; border-radius: 16px;
+  background: color-mix(in srgb, #ffc800 10%, var(--card));
+}
+html.candy .real-offer p { grid-column: 1 / -1; margin: 0; font-size: 14px; font-weight: 800; color: var(--fg); }
+html.candy .real-btn { padding: 11px 14px; border: 0; border-radius: 14px; background: var(--accent); color: #fff; font: 900 15px var(--round); box-shadow: 0 4px 0 var(--accent-dark); cursor: pointer; }
+html.candy .real-btn:active { transform: translateY(4px); box-shadow: 0 0 0 var(--accent-dark); }
+html.candy #real-skip { justify-self: end; }
+html.candy .real-offer .link { font-weight: 800; color: var(--muted); }
+.fly-coin { position: fixed; z-index: 48; font-size: 24px; line-height: 1; pointer-events: none; will-change: transform; }
+.fly-coin.gold { font-size: 40px; filter: drop-shadow(0 0 10px #ffc800); }
+
+/* Penny: tap, double-tap and hold her; she eats coins, dances and celebrates */
+html.candy .pet { cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html.candy .pet .say { pointer-events: none; }
+html.candy .pet .say.count { animation: none; opacity: 1; color: #c98f00; }
+html.candy .pet.act-eat .body { animation: munch .24s ease-in-out infinite; }
+html.candy .pet.act-dance .body { animation: dance 1.6s ease-in-out; }
+html.candy .pet.act-victory .body { animation: victory 1.4s cubic-bezier(.3, 1.3, .5, 1); }
+html.candy .pet.act-giggle .body { animation: giggle .6s ease-in-out; }
+html.candy .pet.act-spin .body { transform-origin: 50% 50%; animation: spin .75s cubic-bezier(.4, 1.3, .5, 1); }
+html.candy .pet.act-shimmy .body { animation: shimmy .95s ease-in-out; }
+html.candy .heart { position: absolute; left: 50%; top: 4px; font-size: 20px; pointer-events: none; transform: translateX(-50%); animation: heart-up 1s ease-out forwards; }
+.pet .acc { display: none; }
+html.candy .pet[data-outfit="hat"] .acc-hat, html.candy .pet[data-outfit="shades"] .acc-shades, html.candy .pet[data-outfit="bow"] .acc-bow,
+html.candy .pet[data-outfit="crown"] .acc-crown, html.candy .pet[data-outfit="gold"] .acc-crown { display: inline; }
+html.candy .pet[data-outfit="gold"] svg { filter: drop-shadow(0 0 7px rgba(255, 200, 0, .85)); }
+
+/* Goal sheet: pick an icon */
+.emoji-pick { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.emoji-pick button { aspect-ratio: 1; padding: 0; border: 2px solid var(--edge, var(--line)); border-radius: 12px; background: var(--card); font-size: 21px; cursor: pointer; box-shadow: 0 3px 0 var(--edge, var(--line)); }
+.emoji-pick button[aria-pressed="true"] { border-color: var(--blue, var(--accent)); background: color-mix(in srgb, var(--blue, var(--accent)) 14%, var(--card)); box-shadow: 0 3px 0 var(--blue-dark, var(--accent)); }
+
+@keyframes bob-emoji { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-3px) rotate(4deg); } }
+@keyframes beg { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+@keyframes munch { 50% { transform: scale(1.08, .92); } }
+@keyframes dance {
+  0%, 100% { transform: none; } 12% { transform: translateY(-9px) rotate(-12deg); } 25% { transform: translateY(0) scale(1.06, .94); }
+  37% { transform: translateY(-9px) rotate(12deg); } 50% { transform: translateY(0) scale(1.06, .94); } 62% { transform: translateY(-11px) rotate(-8deg); }
+  75% { transform: translateY(0) scale(1.06, .94); } 87% { transform: translateY(-6px) rotate(8deg); }
+}
+@keyframes victory { 0%, 100% { transform: none; } 30% { transform: translateY(-24px) rotate(180deg); } 60% { transform: translateY(-24px) rotate(360deg); } 80% { transform: translateY(0) scale(1.1, .9); } }
+@keyframes giggle { 0%, 100% { transform: none; } 20% { transform: rotate(-7deg) scale(1.04); } 40% { transform: rotate(6deg); } 60% { transform: rotate(-4deg) scale(1.03); } 80% { transform: rotate(3deg); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmy { 0%, 100% { transform: none; } 15%, 45%, 75% { transform: translateX(-4px) rotate(-4deg); } 30%, 60%, 90% { transform: translateX(4px) rotate(4deg); } }
+@keyframes heart-up { to { transform: translate(-50%, -46px) scale(1.5); opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
-  html.candy *, html.candy *::before, .confetti, .coin-drop { animation: none !important; transition: none !important; }
-  .confetti, .coin-drop { display: none; }
+  html.candy *, html.candy *::before, html.candy *::after, .confetti, .coin-drop, .poof, .fly-coin { animation: none !important; transition: none !important; }
+  .confetti, .coin-drop, .poof, .fly-coin { display: none; }
 }
