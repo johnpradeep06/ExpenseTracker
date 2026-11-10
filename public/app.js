@@ -220,6 +220,7 @@
         note.append(badge);
       }
       if (streak > 0) window.dispatchEvent(new CustomEvent('spend:streak', { detail: streak }));
+      if (left < 0) window.dispatchEvent(new CustomEvent('spend:over', { detail: -left }));
 
       // Candy theme: a jar of candies that empties as you spend, and today's candies by category.
       const jar = h('div', 'jar' + (ratio < 0.3 ? ' low' : ''));

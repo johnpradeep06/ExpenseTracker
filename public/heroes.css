@@ -1,0 +1,67 @@
+/* Heroes: the picker and the power animations. Everything here stops with Reduce Motion. */
+.hx-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.hx-card { display: grid; justify-items: center; gap: 2px; padding: 10px 8px 12px; border-radius: 16px; border: 2px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; text-align: center; cursor: pointer; }
+.hx-card .hx-img { width: 92px; height: 92px; object-fit: contain; }
+.hx-card b { font-size: 15px; }
+.hx-card span { font-size: 12px; color: var(--muted); }
+.hx-card.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.hx-card.locked { opacity: .55; }
+.hx-card.locked .hx-img { filter: grayscale(1) brightness(.6); }
+
+.hx-stage { position: fixed; z-index: 44; left: 50%; bottom: 14vh; width: 220px; height: 220px; margin-left: -110px; pointer-events: none; animation: hx-in 2.3s ease both; }
+.hx-stage.hx-doom { width: 260px; height: 260px; margin-left: -130px; animation-duration: 3.2s; }
+.hx-img { display: block; }
+.hx-hero { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transform-origin: 50% 90%; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .3)); }
+.hx-fx { position: absolute; inset: 0; }
+.hx-say { position: absolute; left: 50%; top: -34px; transform: translateX(-50%); white-space: nowrap; padding: 6px 12px; border-radius: 14px; background: #fff; color: #222; font-weight: 800; font-size: 14px; box-shadow: 0 3px 0 rgba(0, 0, 0, .2); animation: hx-say 2.3s ease both; }
+.hx-doom .hx-say { background: #0b2a14; color: #3dff6b; letter-spacing: .12em; text-shadow: 0 0 10px #3dff6b; animation-duration: 3.2s; }
+@keyframes hx-in { 0% { opacity: 0; transform: translateY(40px) scale(.6); } 12% { opacity: 1; transform: none; } 82% { opacity: 1; } 100% { opacity: 0; transform: translateY(20px) scale(.9); } }
+@keyframes hx-say { 0%, 8% { opacity: 0; } 18%, 80% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Shield throw */
+.hx-disk { position: absolute; left: 70%; top: 40%; width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(#ffe066, #ffc800 60%, #e5a800); border: 5px solid #c98f00; color: #c98f00; font: 900 32px/54px Arial, sans-serif; text-align: center; animation: hx-disk 1.6s .3s ease-in-out both; }
+@keyframes hx-disk { 0% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(130px, -50px) rotate(540deg); } 100% { transform: translate(0, 0) rotate(1080deg); } }
+/* Illusion */
+.hx-clone { position: absolute; top: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; filter: hue-rotate(40deg) saturate(1.4); animation: hx-clone 1.6s .3s ease-out both; }
+.hx-clone.c1 { left: -90px; } .hx-clone.c2 { left: 90px; filter: hue-rotate(-40deg) saturate(1.4); }
+@keyframes hx-clone { 0% { opacity: 0; } 40%, 70% { opacity: .55; } 100% { opacity: 0; } }
+/* Repulsor */
+.hx-beam { position: absolute; left: 55%; top: 36%; width: 0; height: 22px; border-radius: 11px; background: linear-gradient(90deg, #fff, #41c8ff 40%, #1a6bff); box-shadow: 0 0 18px 6px rgba(65, 200, 255, .6); animation: hx-beam 1.2s .5s ease-out both; }
+.hx-core { position: absolute; left: 50%; top: 30%; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 0 18px 10px #41c8ff; opacity: 0; animation: hx-blink 1.2s .45s both; }
+.hx-repulsor .hx-hero { animation: hx-float 2.3s ease-in-out both; }
+@keyframes hx-beam { 0% { width: 0; opacity: 1; } 40% { width: 45vw; } 100% { width: 45vw; opacity: 0; } }
+@keyframes hx-blink { 0%, 100% { opacity: 0; } 30%, 70% { opacity: 1; } }
+@keyframes hx-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
+/* Stealth */
+.hx-stealth .hx-hero { animation: hx-fade 2.3s ease both; }
+.hx-slash { position: absolute; left: 20%; width: 150px; height: 6px; border-radius: 3px; background: #ff6b6b; box-shadow: 0 0 10px #ff3b3b; transform: rotate(-35deg); opacity: 0; animation: hx-blink 1.2s both; }
+.hx-slash.s0 { top: 20%; animation-delay: .5s; } .hx-slash.s1 { top: 35%; animation-delay: .6s; } .hx-slash.s2 { top: 50%; animation-delay: .7s; } .hx-slash.s3 { top: 65%; animation-delay: .8s; }
+@keyframes hx-fade { 0%, 15% { opacity: 1; } 40%, 65% { opacity: .15; } 100% { opacity: 1; } }
+/* Pounce */
+.hx-pounce .hx-hero { animation: hx-pounce 1.6s .3s ease-in-out both; }
+.hx-claw { position: absolute; left: 62%; width: 90px; height: 7px; border-radius: 4px; background: #d9b3ff; box-shadow: 0 0 12px #b46bff; transform: rotate(-50deg); opacity: 0; animation: hx-blink .9s .8s both; }
+.hx-claw.k0 { top: 22%; } .hx-claw.k1 { top: 32%; left: 66%; } .hx-claw.k2 { top: 42%; left: 70%; }
+@keyframes hx-pounce { 0% { transform: translateX(-60px); } 45% { transform: translateX(80px) rotate(8deg); } 100% { transform: translateX(0); } }
+/* Magic */
+.hx-ring { position: absolute; border-radius: 50%; border: 4px dashed #ff9a2e; left: 50%; top: 52%; animation: hx-spin 2.3s linear both; }
+.hx-ring.r1 { width: 280px; height: 280px; margin: -140px 0 0 -140px; }
+.hx-ring.r2 { width: 210px; height: 210px; margin: -105px 0 0 -105px; animation-direction: reverse; }
+.hx-ring.r3 { width: 150px; height: 150px; margin: -75px 0 0 -75px; border-style: solid; opacity: .7; }
+@keyframes hx-spin { to { transform: rotate(360deg); } }
+/* Smash */
+.hx-smash .hx-hero { animation: hx-smash 1.4s .2s ease-in-out both; }
+.hx-wave { position: absolute; left: 50%; bottom: 6%; width: 40px; height: 14px; margin-left: -20px; border-radius: 50%; border: 6px solid #cfff7a; opacity: 0; animation: hx-wave 1s .75s ease-out both; }
+.hx-doom .hx-wave { border-color: #3dff6b; box-shadow: 0 0 24px #3dff6b; animation-delay: 1.2s; bottom: 40%; height: 40px; }
+@keyframes hx-smash { 0% { transform: none; } 30% { transform: translateY(-50px) scale(1.15); } 45% { transform: translateY(4px) scale(1.05, .92); } 55% { transform: translateX(-5px); } 65% { transform: translateX(5px); } 100% { transform: none; } }
+@keyframes hx-wave { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(14); } }
+/* Lightning */
+.hx-flash { position: fixed; inset: 0; background: #fff; opacity: 0; animation: hx-flash 1.4s .4s both; }
+.hx-bolt { position: absolute; top: -34vh; font-size: 96px; line-height: 1; opacity: 0; animation: hx-blink 1s .4s both; filter: drop-shadow(0 0 12px #7aa2ff); }
+.hx-bolt.b1 { left: -10%; } .hx-bolt.b2 { left: 35%; animation-delay: .55s; } .hx-bolt.b3 { left: 78%; animation-delay: .7s; }
+@keyframes hx-flash { 0%, 100% { opacity: 0; } 15%, 45% { opacity: .35; } 30% { opacity: 0; } }
+/* Doom */
+.hx-doom .hx-hero { animation: hx-doom 3s ease both; }
+.hx-glow { position: fixed; inset: 0; background: radial-gradient(circle at 50% 70%, rgba(61, 255, 107, .35), transparent 60%); animation: hx-blink 3s both; }
+@keyframes hx-doom { 0% { transform: translateY(80px) scale(.4); opacity: 0; } 35% { transform: none; opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) { .hx-stage { display: none; } }
