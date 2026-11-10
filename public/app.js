@@ -30,7 +30,15 @@
     'Shopping': ['🛍️', '#A855C7'],
     'Other': ['🧾', '#8C8C8C']
   };
-  const catMeta = (c) => CAT[c] || CAT.Other;
+  // Candy theme: brighter candy colours, one per category.
+  const CANDY = {
+    'Dining & Coffee': '#ff9f6e', 'Subscriptions & Software': '#a78bfa', 'Groceries': '#34d399', 'Transport': '#60a5fa', 'Travel': '#22d3ee',
+    'Health & Personal Care': '#fb7185', 'Bills & Utilities': '#facc15', 'Entertainment': '#f472b6', 'Shopping': '#c084fc', 'Other': '#94a3b8'
+  };
+  const catMeta = (c) => {
+    const m = CAT[c] || CAT.Other;
+    return document.documentElement.classList.contains('candy') ? [m[0], CANDY[c] || CANDY.Other] : m;
+  };
   const MERCHANT_COLORS = ['#E8833A', '#5B6CE0', '#3BA776', '#3B82C4', '#14A3B8', '#D9567A', '#C9A227', '#C2528B', '#A855C7'];
   const colorFor = (s) => {
     let n = 0;
@@ -148,6 +156,11 @@
     const days = d3.timeDay.range(first, d3.timeDay.offset(last, 1));
     const amountOf = (d) => Math.max(0, (byDay.get(dayKey(d)) || {}).amount || 0);
 
+    const pet = document.querySelector('#pet');
+    if (pet) {
+      const leftNow = avg > 0 ? avg - amountOf(today) : 1;
+      pet.dataset.mood = leftNow < 0 ? 'dizzy' : avg > 0 && leftNow / avg < 0.35 ? 'worried' : 'happy';
+    }
     if (avg > 0) {
       const spent = amountOf(today);
       const left = Math.round((avg - spent) * 100) / 100;
@@ -173,7 +186,33 @@
           else break;
         }
       }
-      if (streak > 0) note.append(h('span', 'streak', '🔥 ' + streak + '-DAY STREAK'));
+      if (streak > 0) note.append(h('span', 'streak', document.documentElement.classList.contains('candy') ? '🔥 ' + streak + '-day streak' : '🔥 ' + streak + '-DAY STREAK'));
+      if (streak > 0) window.dispatchEvent(new CustomEvent('spend:streak', { detail: streak }));
+
+      // Candy theme: a jar of candies that empties as you spend, and today's candies by category.
+      const jar = h('div', 'jar' + (ratio < 0.3 ? ' low' : ''));
+      const glass = h('div', 'jar-glass');
+      const jfill = h('div', 'jar-fill');
+      jfill.style.height = 'calc(' + Math.round(ratio * 100) + '% - 6px)';
+      glass.append(jfill);
+      const side = h('div', 'jar-side');
+      side.append(h('span', 'jar-left', left >= 0 ? money(left) + ' of candy left today' : 'The candy jar is empty'));
+      const todayKey = dayKey(today);
+      const byCatToday = {};
+      rowsOf('spend').filter((r) => r.period === 'now' && r.day === todayKey && r.amount > 0)
+        .forEach((r) => { byCatToday[r.category] = (byCatToday[r.category] || 0) + r.amount; });
+      const candies = h('div', 'candies');
+      Object.entries(byCatToday).sort((a, b) => b[1] - a[1]).slice(0, 4).forEach(([c, v]) => {
+        const [icon, color] = catMeta(c);
+        const pill = h('span', 'candy', icon + ' ' + money(Math.round(v * 100) / 100));
+        pill.style.setProperty('--c', color);
+        pill.title = c;
+        candies.append(pill);
+      });
+      if (!candies.childElementCount) candies.append(h('span', 'candy', '✨ nothing eaten yet'));
+      side.append(candies);
+      jar.append(glass, side);
+      note.append(jar);
       const edit = h('button', 'link set-limit', limit ? 'Change limit' : 'Set your own limit');
       edit.type = 'button';
       edit.addEventListener('click', () => window.spendOpenLimit && window.spendOpenLimit());

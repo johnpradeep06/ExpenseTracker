@@ -1,0 +1,152 @@
+/* Candy theme: soft pink, a candy colour for every category, puffy "clay" cards, and Penny the piggy bank.
+   Turned on per phone in Settings (it adds the class "candy" to <html>). The numbers stay the boldest thing on screen;
+   motion only happens when something happens, and everything stops with Reduce Motion. */
+@font-face { font-family: 'Baloo 2'; src: url('fonts/baloo-2-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Baloo 2'; src: url('fonts/baloo-2-latin-800-normal.woff2') format('woff2'); font-weight: 800; font-display: swap; }
+
+html.candy {
+  color-scheme: light;
+  --bg: #fff0f6; --card: #ffffff; --fg: #3d1b3a; --muted: #9a6a8d; --line: rgba(214, 51, 132, .12); --track: #fde3ef;
+  --accent: #ff4fa3; --up: #ff4f72; --up-bg: #ffe1e7; --down: #10a874; --down-bg: #dcf8ec;
+  --shadow: 0 10px 26px rgba(255, 79, 163, .13), 0 2px 0 rgba(255, 79, 163, .05);
+  --radius: 28px; --round: 'Baloo 2', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
+}
+html.candy body {
+  background:
+    radial-gradient(circle at 0% 0%, #ffd3e7 0, transparent 38%),
+    radial-gradient(circle at 100% 18%, #e4e2ff 0, transparent 34%),
+    radial-gradient(circle at 15% 70%, #d9f7ec 0, transparent 30%),
+    #fff0f6;
+}
+
+/* Rounded, friendly type for headings and every amount */
+html.candy h1, html.candy h2, html.candy .hero-amt, html.candy .cat-amt, html.candy .day-total, html.candy .avg-big,
+html.candy .primary, html.candy .more, html.candy .limit-pill, html.candy .pill, html.candy .set-h, html.candy .hero-label,
+html.candy .day-head, html.candy .toast, html.candy .cat-name { font-family: var(--round); }
+html.candy .hero-amt { font-weight: 800; font-size: 50px; letter-spacing: -.01em; color: #3d1b3a; }
+html.candy .hero-amt .cents { color: #c48ab3; font-weight: 800; }
+html.candy .card h2 { font-weight: 800; font-size: 22px; }
+html.candy .cat-name { font-weight: 600; font-size: 17px; }
+html.candy .cat-amt { font-weight: 800; font-size: 18px; }
+html.candy .avg-big { font-weight: 800; font-size: 22px; }
+html.candy .top h1 { font-weight: 800; color: #ff3d96; }
+
+/* Puffy clay cards and buttons */
+html.candy .card, html.candy .foot details { border-radius: 28px; box-shadow: var(--shadow), inset 0 -3px 0 rgba(255, 79, 163, .06); }
+html.candy #headline { background: linear-gradient(160deg, #ffe0ef 0%, #fff6fb 55%, #ffffff 100%); position: relative; overflow: hidden; }
+html.candy .sheet { border-radius: 30px 30px 0 0; }
+html.candy .primary {
+  background: linear-gradient(180deg, #ff74b8, #ff3d96); color: #fff; border-radius: 999px;
+  box-shadow: 0 6px 0 #d81b74, 0 10px 18px rgba(255, 61, 150, .3), inset 0 2px 0 rgba(255, 255, 255, .45);
+}
+html.candy .primary:active { transform: translateY(4px); box-shadow: 0 2px 0 #d81b74, inset 0 2px 0 rgba(255, 255, 255, .45); }
+html.candy .icon-btn, html.candy .limit-pill { background: #fff; box-shadow: 0 4px 0 #ffc9e2, 0 8px 16px rgba(255, 79, 163, .14); }
+html.candy .icon-btn:active, html.candy .limit-pill:active { transform: translateY(3px); box-shadow: 0 1px 0 #ffc9e2; }
+html.candy .limit-pill.set { background: #ffe1f0; color: #e0287f; }
+html.candy .btn-plain, html.candy .more { background: #fde3ef; border-radius: 18px; }
+html.candy .chip { border-radius: 16px; background: color-mix(in srgb, var(--c) 24%, #fff); box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--c) 30%, transparent); }
+html.candy .pill { border-radius: 999px; }
+html.candy .seg-part { border-radius: 999px; }
+html.candy .tx-swipe .tx { background: transparent; }
+html.candy .tx-swipe { background: var(--card); }
+
+/* Chart: a pink line, soft fill, lavender limit line */
+html.candy .line { stroke: #ff4fa3; stroke-width: 3.5; }
+html.candy .grad-top { stop-color: #ff4fa3; stop-opacity: .3; }
+html.candy .grad-bot { stop-color: #ff4fa3; stop-opacity: 0; }
+html.candy .dot { fill: #fff; stroke: #ff4fa3; }
+html.candy .dot.over { fill: #ff4f72; stroke: #ff4f72; }
+html.candy .avg-line { stroke: #8b7cf6; stroke-opacity: .8; stroke-dasharray: 6 6; }
+html.candy .avg-label { fill: #8b7cf6; font-family: var(--round); font-weight: 800; }
+
+/* Penny the piggy bank sits on the total card and shows how your day is going */
+.pet { display: none; }
+html.candy .pet { display: block; position: absolute; top: 12px; right: 12px; width: 92px; height: 86px; z-index: 1; }
+html.candy .pet svg { width: 100%; height: 100%; overflow: visible; }
+html.candy .pet .body { transform-origin: 50% 85%; animation: breathe 3.2s ease-in-out infinite; }
+html.candy .pet .eye { transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
+html.candy .pet .mood { display: none; }
+html.candy .pet[data-mood="happy"] .m-happy, html.candy .pet[data-mood="worried"] .m-worried, html.candy .pet[data-mood="dizzy"] .m-dizzy { display: inline; }
+html.candy .pet[data-mood="dizzy"] .body { animation: woozy 1.6s ease-in-out infinite; }
+html.candy .pet[data-mood="worried"] .sweat { animation: drip 2.4s ease-in infinite; }
+html.candy .pet.hit .body { animation: wobble .6s ease-in-out; }
+html.candy .pet .say {
+  position: absolute; right: 70px; top: 4px; padding: 4px 10px; border-radius: 14px; background: #fff; color: #ff3d6e;
+  font-family: var(--round); font-weight: 800; font-size: 15px; white-space: nowrap; box-shadow: 0 4px 12px rgba(255, 79, 163, .25);
+  animation: say 1.8s ease-out forwards;
+}
+html.candy .hero-label, html.candy .hero-amt, html.candy .hero-sub { position: relative; z-index: 2; max-width: calc(100% - 84px); }
+
+/* The candy jar: today's limit. It empties as you spend, and today's candies show what ate it. */
+.jar { display: none; }
+html.candy .hp { display: none; }
+html.candy .jar { display: flex; align-items: center; gap: 14px; width: 100%; margin: 10px 0 4px; }
+html.candy .jar-glass {
+  position: relative; flex: none; width: 58px; height: 70px; border-radius: 14px 14px 22px 22px;
+  background: rgba(255, 255, 255, .7); box-shadow: inset 0 0 0 3px #ffc4df, 0 6px 14px rgba(255, 79, 163, .15); overflow: hidden;
+}
+html.candy .jar-glass::before { content: ''; position: absolute; top: -2px; left: 8px; right: 8px; height: 10px; border-radius: 6px; background: #ff8cc4; box-shadow: inset 0 -2px 0 #ff5fa8; z-index: 2; }
+html.candy .jar-fill {
+  position: absolute; left: 3px; right: 3px; bottom: 3px; border-radius: 0 0 19px 19px; transition: height .8s cubic-bezier(.3, 1.4, .6, 1);
+  background:
+    radial-gradient(circle at 20% 30%, #8b7cf6 0 4px, transparent 5px), radial-gradient(circle at 70% 55%, #34d399 0 4px, transparent 5px),
+    radial-gradient(circle at 40% 80%, #facc15 0 4px, transparent 5px), radial-gradient(circle at 80% 20%, #60a5fa 0 4px, transparent 5px),
+    radial-gradient(circle at 15% 70%, #ff9f6e 0 4px, transparent 5px), linear-gradient(180deg, #ffb3d6, #ff74b8);
+  background-size: 24px 24px, 22px 22px, 26px 26px, 20px 20px, 28px 28px, 100% 100%;
+}
+html.candy .jar.low .jar-fill { background-color: #ffb36b; }
+html.candy .jar-side { display: grid; gap: 6px; min-width: 0; }
+html.candy .jar-left { font-family: var(--round); font-weight: 800; font-size: 15px; color: var(--muted); }
+html.candy .candies { display: flex; flex-wrap: wrap; gap: 6px; }
+html.candy .candy {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px 3px 6px; border-radius: 999px; font-family: var(--round);
+  font-weight: 800; font-size: 14px; color: #3d1b3a; background: color-mix(in srgb, var(--c) 28%, #fff); box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--c) 40%, transparent);
+}
+
+/* Streak pill */
+html.candy .streak {
+  display: inline-flex; margin-top: 10px; padding: 6px 12px; border-radius: 999px; font-family: var(--round); font-weight: 800; font-size: 14px;
+  color: #c2410c; background: linear-gradient(180deg, #fff3c4, #ffe08a); box-shadow: 0 3px 0 #f5c451;
+}
+
+/* Pop-ups (Added / Deleted / Saved) become a candy bubble */
+html.candy .toast { border-radius: 26px; background: #fff; color: #3d1b3a; box-shadow: 0 0 0 3px #ffc4df, 0 12px 28px rgba(255, 79, 163, .3); font-weight: 800; }
+html.candy .toast:not([hidden]) { animation: bounce-in .45s cubic-bezier(.3, 1.6, .5, 1); }
+html.candy .toast::before { content: '🍬'; font-size: 20px; animation: spin-candy 1.2s ease-in-out infinite; }
+html.candy .toast .link { color: #ff3d96; }
+
+/* Coins and confetti */
+.coin-drop { position: fixed; z-index: 46; pointer-events: none; font-size: 24px; animation: coin-fall 1.1s cubic-bezier(.5, 0, .9, .5) forwards; }
+.confetti { position: fixed; inset: 0; z-index: 46; pointer-events: none; overflow: hidden; }
+.confetti i { position: absolute; top: -20px; width: 10px; height: 14px; border-radius: 3px; animation: confetti-fall linear forwards; }
+.cheer {
+  position: fixed; z-index: 47; left: 50%; top: 22%; transform: translateX(-50%); padding: 16px 22px; border-radius: 26px; background: #fff;
+  text-align: center; font-family: var(--round, system-ui); color: #3d1b3a; box-shadow: 0 0 0 4px #ffc4df, 0 18px 40px rgba(255, 79, 163, .35);
+  animation: bounce-in .5s cubic-bezier(.3, 1.6, .5, 1), fade-away .4s ease-in 2.6s forwards; pointer-events: none; white-space: nowrap;
+}
+.cheer b { display: block; font-size: 26px; font-weight: 800; color: #ff3d96; }
+.cheer span { font-size: 15px; font-weight: 600; color: #9a6a8d; }
+
+/* Theme picker in Settings */
+.theme-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.theme-pick button { padding: 12px 6px; border: 0; border-radius: 14px; background: var(--track); font-weight: 700; font-size: 14px; cursor: pointer; }
+.theme-pick button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+html.retro .theme-pick button { border-radius: 0; font-family: var(--pixel); font-size: 9px; color: var(--fg); }
+html.retro .theme-pick button[aria-pressed="true"] { color: #0d0a1e; }
+
+@keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035, .975); } }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+@keyframes woozy { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes wobble { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-12deg) scale(1.05); } 45% { transform: rotate(10deg); } 70% { transform: rotate(-6deg); } }
+@keyframes drip { 0% { transform: translateY(-2px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(10px); opacity: 0; } }
+@keyframes say { 0% { opacity: 0; transform: translateY(6px) scale(.8); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes bounce-in { 0% { transform: translateX(-50%) scale(.5); opacity: 0; } 100% { transform: translateX(-50%) scale(1); opacity: 1; } }
+@keyframes fade-away { to { opacity: 0; transform: translateX(-50%) translateY(-10px); } }
+@keyframes spin-candy { 0%, 100% { transform: rotate(-15deg); } 50% { transform: rotate(15deg); } }
+@keyframes coin-fall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(140px) rotate(200deg); opacity: 0; } }
+@keyframes confetti-fall { to { transform: translateY(110vh) rotate(720deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  html.candy *, html.candy *::before, .confetti, .coin-drop { animation: none !important; transition: none !important; }
+  .confetti, .coin-drop { display: none; }
+}
