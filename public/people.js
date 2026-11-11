@@ -44,13 +44,39 @@
     setTimeout(() => { button.textContent = label; }, 2200);
   };
 
-  const row = (main, sub, button, cls) => {
+  const row = (main, sub, button, cls, extra) => {
     const r = el('div', 'person' + (cls ? ' ' + cls : ''));
     const m = el('div', 'person-main');
     m.append(el('b', '', main), el('span', '', sub));
     r.append(m);
-    if (button) r.append(button);
+    if (extra && button) {
+      const box = el('div', 'person-actions');
+      box.append(extra, button);
+      r.append(box);
+    } else if (button) r.append(button);
     return r;
+  };
+
+  // A reset code for someone who forgot their password: one tap, then send them the message.
+  let resetCode = '';
+  let resetExpiry = '';
+  let resetEmail = '';
+  const resetMessage = () =>
+    'Reset your password for My spending.\n' +
+    'Open ' + location.origin + '/?reset=' + resetCode + ' and enter your email (' + resetEmail + ') and a new password.\n' +
+    'Your reset code is ' + resetCode + ' (it works once and expires ' + day.format(new Date(resetExpiry)) + ').';
+  const copyReset = async (text, button, done) => {
+    const label = button.textContent;
+    try { await navigator.clipboard.writeText(text); button.textContent = done; }
+    catch (e) {
+      const rg = document.createRange();
+      rg.selectNodeContents($('#reset-code'));
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(rg);
+      button.textContent = 'Selected, tap Copy';
+    }
+    setTimeout(() => { button.textContent = label; }, 2200);
   };
 
   const draw = (data) => {
@@ -81,6 +107,26 @@
     list.replaceChildren();
     data.people.forEach((p) => {
       let b = null;
+      let rb = null;
+      if (!p.owner && !p.disabled) {
+        rb = el('button', 'btn-plain mini', 'Reset password');
+        rb.type = 'button';
+        rb.addEventListener('click', async () => {
+          rb.disabled = true;
+          showError('');
+          try {
+            const r = await window.spendApi('POST', 'owner/people/' + p.id + '/reset');
+            resetCode = r.code; resetExpiry = r.expires_at; resetEmail = r.email;
+            $('#reset-code').textContent = r.code;
+            $('#reset-for').textContent = 'Reset code for ' + r.email + '. Send it to them. It works once and lasts 24 hours.';
+            $('#reset-result').hidden = false;
+            $('#reset-result').scrollIntoView({ block: 'nearest' });
+          } catch (x) {
+            showError(friendly(x));
+          }
+          rb.disabled = false;
+        });
+      }
       if (!p.owner) {
         const restoring = p.disabled;
         b = el('button', 'btn-plain mini' + (restoring ? '' : ' danger-mini'), restoring ? 'Restore' : 'Remove access');
@@ -104,7 +150,7 @@
         });
       }
       const sub = p.owner ? 'You (owner)' : p.disabled ? 'Access removed' : 'Joined ' + day.format(new Date(p.joined));
-      list.append(row(p.email, sub, b, p.disabled ? 'off' : ''));
+      list.append(row(p.email, sub, b, p.disabled ? 'off' : '', rb));
     });
   };
 
@@ -120,6 +166,7 @@
   const open = () => {
     if (window.spendCloseSettings) window.spendCloseSettings();
     $('#inv-result').hidden = true;
+    $('#reset-result').hidden = true;
     $('#inv-note').value = '';
     backdrop.hidden = false;
     sheet.hidden = false;
@@ -132,7 +179,9 @@
     backdrop.hidden = true;
     document.body.classList.remove('sheet-open');
     $('#inv-result').hidden = true;
+    $('#reset-result').hidden = true;
     lastCode = '';
+    resetCode = '';
   };
 
   $('#inv-create').addEventListener('click', async () => {
@@ -154,6 +203,9 @@
   });
   $('#inv-copy-code').addEventListener('click', (e) => copy(lastCode, e.currentTarget, 'Copied'));
   $('#inv-share').addEventListener('click', (e) => copy(inviteMessage(), e.currentTarget, 'Copied'));
+
+  $('#reset-copy-code').addEventListener('click', (e) => copyReset(resetCode, e.currentTarget, 'Copied'));
+  $('#reset-share').addEventListener('click', (e) => copyReset(resetMessage(), e.currentTarget, 'Copied'));
 
   $('#signups-toggle').addEventListener('click', async () => {
     const turnOn = $('#signups-toggle').dataset.open !== '1';

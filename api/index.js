@@ -125,6 +125,14 @@ const makeInvite = async (note, days) => {
   return { id: Number(rows[0].id), code, expires_at: iso(rows[0].expires_at) };
 };
 
+// A reset code is made by the owner (or with the admin secret), works once, and lasts 24 hours. Only its hash is stored.
+const makeReset = async (userId) => {
+  const code = 'rst_' + crypto.randomBytes(18).toString('base64url');
+  const expires = new Date(Date.now() + DAY).toISOString();
+  await q('update users set reset_hash = $2, reset_expires = $3 where id = $1', [userId, sha(code), expires]);
+  return { code, expires_at: expires };
+};
+
 // ---- email and password -----------------------------------------------------------------------------------------
 // Passwords are kept only as salted scrypt hashes. After 5 wrong tries an account is locked for 15 minutes.
 const SCRYPT = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
@@ -379,6 +387,42 @@ const routes = {
     return { session: await makeSession(user), email: user.email, name: user.name, isNew: !user.key_hash };
   },
 
+  // Set a new password with a one-time reset code from the owner. Signs out every other phone and signs this one in.
+  'POST auth/reset': async (req) => {
+    const b = await readBody(req);
+    const email = String(b.email || '').trim().toLowerCase();
+    const code = String(b.code || '').trim();
+    const password = String(b.password || '');
+    if (await tooManyTries(req)) fail(429, 'Too many tries. Wait 15 minutes and try again.');
+    if (password.length < 10) fail(400, 'Use a password of at least 10 characters');
+    if (password.length > 200) fail(400, 'That password is too long');
+    const bad = async () => { await noteFailedTry(req); fail(403, 'That reset code is not valid or has expired. Ask the person who runs the app for a new one.'); };
+    if (!email || !/^rst_[A-Za-z0-9_-]{16,64}$/.test(code)) await bad();
+    const user = (await q('select * from users where lower(email) = $1', [email]))[0];
+    const good = user && user.reset_hash && user.reset_expires && new Date(user.reset_expires).getTime() > Date.now()
+      && crypto.timingSafeEqual(Buffer.from(sha(code)), Buffer.from(String(user.reset_hash)));
+    if (!good) await bad();
+    if (user.disabled) fail(403, 'This account no longer has access. Ask the person who invited you.');
+    const rows = await q('update users set pw_hash = $2, reset_hash = null, reset_expires = null, fail_count = 0, locked_until = null, session_version = session_version + 1 where id = $1 and reset_hash = $3 returning *',
+      [user.id, await hashPassword(password), user.reset_hash]);
+    if (!rows[0]) await bad();
+    return { session: await makeSession(rows[0]), email: rows[0].email, name: rows[0].name, isNew: !rows[0].key_hash };
+  },
+
+  // Change your own password. Every other phone is signed out; this one keeps going with a fresh session.
+  'PUT me/password': async (req) => {
+    const u = await signedIn(req);
+    const b = await readBody(req);
+    const current = String(b.current || '').slice(0, 200);
+    const password = String(b.password || '');
+    if (await tooManyTries(req)) fail(429, 'Too many tries. Wait 15 minutes and try again.');
+    if (password.length < 10) fail(400, 'Use a password of at least 10 characters');
+    if (password.length > 200) fail(400, 'That password is too long');
+    if (!(await checkPassword(current, u.pw_hash))) { await noteFailedTry(req); fail(403, 'Your current password is not right'); }
+    const rows = await q('update users set pw_hash = $2, reset_hash = null, reset_expires = null, session_version = session_version + 1 where id = $1 returning *', [u.id, await hashPassword(password)]);
+    return { ok: true, session: await makeSession(rows[0]) };
+  },
+
   'GET me': async (req) => {
     const u = await signedIn(req);
     const devices = await q('select count(*)::int as n from devices where user_id = $1', [u.id]);
@@ -622,13 +666,28 @@ const routes = {
   // Removing access signs the person out everywhere and blocks their login and Shortcut. Their data is kept, so it can be restored.
   'POST owner/people/:id/:action': async (req, arg) => {
     const me = await ownerOnly(req);
-    if (arg.id === me.id) fail(400, 'You cannot remove your own access');
     const rows = await q('select id, email from users where id = $1', [arg.id]);
     if (!rows[0]) fail(404, 'That person was not found');
-    if (String(rows[0].email).toLowerCase() === ownerEmail()) fail(400, 'The owner cannot be removed');
+    if (arg.action !== 'reset') {
+      if (arg.id === me.id) fail(400, 'You cannot remove your own access');
+      if (String(rows[0].email).toLowerCase() === ownerEmail()) fail(400, 'The owner cannot be removed');
+    }
+    if (arg.action === 'reset') {
+      if (arg.id === me.id) fail(400, 'Use Change password in Settings for your own account');
+      return { ...(await makeReset(arg.id)), email: rows[0].email };
+    }
     const off = arg.action === 'remove';
     await q('update users set disabled = $2, session_version = session_version + 1 where id = $1', [arg.id, off]);
     return { ok: true, disabled: off };
+  },
+
+  // For the owner of the server, with the admin secret: a reset code for anyone, including the owner if they are locked out.
+  'POST admin/reset': async (req) => {
+    if (!env('ADMIN_SECRET') || bearer(req) !== env('ADMIN_SECRET')) fail(401, 'Not allowed');
+    const b = await readBody(req);
+    const u = (await q('select id, email from users where lower(email) = $1', [String(b.email || '').trim().toLowerCase()]))[0];
+    if (!u) fail(404, 'No account with that email');
+    return { ...(await makeReset(u.id)), email: u.email };
   },
 
   // For the owner of the server, with the admin secret: make an invite without signing in (also used to start a new install).
@@ -666,7 +725,7 @@ const handler = async (req, res) => {
     let arg;
     const m = /^purchases\/(\d{1,18})$/.exec(route);
     const mi = /^owner\/invites\/(\d{1,18})$/.exec(route);
-    const mp = /^owner\/people\/([0-9a-f-]{36})\/(remove|restore)$/.exec(route);
+    const mp = /^owner\/people\/([0-9a-f-]{36})\/(remove|restore|reset)$/.exec(route);
     if (m) {
       key = req.method + ' purchases/:id';
       arg = m[1];

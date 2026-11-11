@@ -210,6 +210,7 @@ button { font: inherit; color: inherit; }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .set-row span { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
 #settings-sheet .fine { margin: 0; }
+.pw-form { display: grid; gap: 10px; margin: 4px 0 8px; }
 #settings-sheet .danger-plain { width: 100%; margin-top: 0; }
 .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .card-head .sub { margin-bottom: 14px; }
@@ -225,6 +226,7 @@ button { font: inherit; color: inherit; }
 .person-main { min-width: 0; display: grid; gap: 1px; }
 .person-main b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .person-main span { font-size: 13px; color: var(--muted); }
+.person-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .person .mini { flex-shrink: 0; margin: 0; width: auto; padding: 8px 12px; font-size: 14px; }
 .person .mini.danger-mini { background: var(--up-bg); color: var(--up); font-weight: 700; }
 .person.off .person-main b { text-decoration: line-through; opacity: .7; }
@@ -269,8 +271,11 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
     <label class="field">Email<input id="auth-email" type="email" autocomplete="username" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" required></label>
     <label class="field">Password<input id="auth-password" type="password" autocomplete="current-password" minlength="10" required></label>
     <label class="field" id="invite-field" hidden>Invite code<input id="auth-invite" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="inv_…"></label>
+    <label class="field" id="reset-field" hidden>Reset code<input id="auth-reset" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="rst_…"></label>
     <p class="fine" id="auth-hint" hidden>At least 10 characters. You need an invite code from the person who shared this app.</p>
+    <p class="fine" id="reset-hint" hidden>Ask the person who invited you for a reset code, then choose a new password (at least 10 characters).</p>
     <button type="submit" class="primary" id="auth-submit">Sign in</button>
+    <button type="button" class="link" id="auth-forgot">Forgot your password?</button>
     <button type="button" class="link" id="auth-toggle">New here? Create an account</button>
   </form>
   <p class="msg" id="signin-error" hidden></p>
@@ -617,6 +622,14 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 
   <section class="set-group" aria-labelledby="ppl-h">
     <h3 class="set-h" id="ppl-h">People with access</h3>
+    <div class="inv-result" id="reset-result" hidden>
+      <p class="fine" id="reset-for">Send this to them. It works once and lasts 24 hours.</p>
+      <div class="code-box"><code id="reset-code"></code></div>
+      <div class="sheet-actions">
+        <button type="button" class="btn-plain" id="reset-copy-code">Copy code</button>
+        <button type="button" class="primary" id="reset-share">Copy reset message</button>
+      </div>
+    </div>
     <div id="people-list"><p class="empty-line">Loading…</p></div>
     <p class="fine">Removing someone signs them out everywhere and stops their Shortcut. Their data is kept, and you can restore them any time.</p>
   </section>
@@ -659,6 +672,13 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
   <section class="set-group" aria-labelledby="set-account">
     <h3 class="set-h" id="set-account">Account</h3>
     <p class="acct">Signed in as <b id="acct-email">…</b></p>
+    <button type="button" class="btn-plain set-row" id="pw-open">Change password<span aria-hidden="true">&rsaquo;</span></button>
+    <form id="pw-form" class="pw-form" hidden novalidate>
+      <label class="field"><span>Current password</span><input id="pw-current" type="password" autocomplete="current-password"></label>
+      <label class="field"><span>New password (at least 10 characters)</span><input id="pw-new" type="password" autocomplete="new-password" minlength="10"></label>
+      <button type="submit" class="primary" id="pw-save">Save new password</button>
+      <p class="msg-inline" id="pw-note" hidden></p>
+    </form>
     <button type="button" class="btn-plain" id="sign-out">Sign out on this phone</button>
     <button type="button" class="btn-plain" id="sign-out-all">Sign out everywhere</button>
   </section>

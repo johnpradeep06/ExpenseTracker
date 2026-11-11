@@ -28,23 +28,31 @@
 
   // ---- sign-in ----------------------------------------------------------------------------------------------
   let signingUp = false;
-  const setMode = (up) => {
-    signingUp = up;
-    $('#auth-submit').textContent = up ? 'Create account' : 'Sign in';
-    $('#auth-toggle').textContent = up ? 'Already have an account? Sign in' : 'New here? Create an account';
-    $('#auth-password').autocomplete = up ? 'new-password' : 'current-password';
-    $('#auth-hint').hidden = !up;
-    $('#invite-field').hidden = !up;
+  let resetting = false;
+  const setMode = (up, reset) => {
+    signingUp = !!up && !reset;
+    resetting = !!reset;
+    $('#auth-submit').textContent = resetting ? 'Set new password' : up ? 'Create account' : 'Sign in';
+    $('#auth-toggle').textContent = resetting ? 'Back to sign in' : up ? 'Already have an account? Sign in' : 'New here? Create an account';
+    $('#auth-password').autocomplete = up || resetting ? 'new-password' : 'current-password';
+    $('#auth-password').setAttribute('aria-label', resetting ? 'New password' : 'Password');
+    $('#auth-hint').hidden = !signingUp;
+    $('#invite-field').hidden = !signingUp;
+    $('#reset-field').hidden = !resetting;
+    $('#reset-hint').hidden = !resetting;
+    $('#auth-forgot').hidden = signingUp || resetting;
     note('#signin-error', '');
   };
-  $('#auth-toggle').addEventListener('click', () => setMode(!signingUp));
+  $('#auth-toggle').addEventListener('click', () => setMode(resetting ? false : !signingUp));
+  $('#auth-forgot').addEventListener('click', () => setMode(false, true));
 
   $('#auth-form').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     note('#signin-error', '');
     const email = $('#auth-email').value.trim();
     const password = $('#auth-password').value;
-    if (!email || !password) { note('#signin-error', 'Enter your email and password.'); return; }
+    if (!email || !password) { note('#signin-error', resetting ? 'Enter your email and a new password.' : 'Enter your email and password.'); return; }
+    if (resetting && !$('#auth-reset').value.trim()) { note('#signin-error', 'Enter the reset code you were given.'); return; }
     const btn = $('#auth-submit');
     btn.disabled = true;
     try {
@@ -53,11 +61,13 @@
         body.invite = $('#auth-invite').value.trim();
         if (!body.invite) { note('#signin-error', 'Enter the invite code you were given.'); btn.disabled = false; return; }
       }
-      const r = await window.spendApi('POST', signingUp ? 'auth/signup' : 'auth/login', body);
+      if (resetting) body.code = $('#auth-reset').value.trim();
+      const r = await window.spendApi('POST', resetting ? 'auth/reset' : signingUp ? 'auth/signup' : 'auth/login', body);
       session.set(r.session);
       write('spend.email', r.email || '');
       $('#auth-password').value = '';
       $('#auth-invite').value = '';
+      $('#auth-reset').value = '';
       try { await window.spendApi('PUT', 'me', { tz: Intl.DateTimeFormat().resolvedOptions().timeZone }); } catch (e) { /* stays on the default */ }
       // First time: connect the Shortcut. Coming back on a new phone: straight to the spending.
       if (r.isNew) showTour(false);
@@ -356,6 +366,33 @@
 
   $('#show-code').addEventListener('click', showOnboard);
   $('#tour-open').addEventListener('click', () => { closeSettings(); showTour(true); });
+  $('#pw-open').addEventListener('click', () => {
+    const f = $('#pw-form');
+    f.hidden = !f.hidden;
+    note('#pw-note', '');
+    if (!f.hidden) $('#pw-current').focus();
+  });
+  $('#pw-form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    note('#pw-note', '');
+    const current = $('#pw-current').value;
+    const next = $('#pw-new').value;
+    if (!current || next.length < 10) { note('#pw-note', next.length < 10 && current ? 'Use a new password of at least 10 characters.' : 'Enter your current password and a new one of at least 10 characters.'); return; }
+    const btn = $('#pw-save');
+    btn.disabled = true;
+    try {
+      const r = await window.spendApi('PUT', 'me/password', { current, password: next });
+      if (r.session) session.set(r.session);
+      $('#pw-current').value = '';
+      $('#pw-new').value = '';
+      $('#pw-form').hidden = true;
+      note('#acct-note', 'Password changed. Your other phones were signed out.');
+    } catch (e) {
+      note('#pw-note', e && e.status ? e.message : 'Could not reach the server. Check your connection and try again.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
   $('#sign-out').addEventListener('click', () => signOut('You are signed out.'));
   $('#sign-out-all').addEventListener('click', async () => {
     try {
@@ -439,7 +476,8 @@
   ['spend.token', 'spend.repo'].forEach(clear);
 
   const inviteFromLink = new URLSearchParams(location.search).get('invite');
-  if (inviteFromLink) {
+  const resetFromLink = new URLSearchParams(location.search).get('reset');
+  if (inviteFromLink || resetFromLink) {
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* not important */ }
   }
   if (!session.get()) {
@@ -447,6 +485,9 @@
     if (inviteFromLink) {
       setMode(true);
       $('#auth-invite').value = inviteFromLink.slice(0, 80);
+    } else if (resetFromLink) {
+      setMode(false, true);
+      $('#auth-reset').value = resetFromLink.slice(0, 80);
     }
   } else if (!read('spend.onboarded')) showOnboard();
   else startApp();
