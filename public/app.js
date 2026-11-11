@@ -20,6 +20,8 @@
   // Icon and colour for each category. Anything unknown falls back to Other.
   const CAT = {
     'Dining & Coffee': ['☕', '#E8833A'],
+    'Food Delivery': ['🛵', '#E0533D'],
+    'Snacks': ['🍿', '#E5A53A'],
     'Subscriptions & Software': ['💻', '#5B6CE0'],
     'Groceries': ['🛒', '#3BA776'],
     'Transport': ['🚌', '#3B82C4'],
@@ -32,7 +34,7 @@
   };
   // Fresh theme: bright accent colours, one per category.
   const CANDY = {
-    'Dining & Coffee': '#ff9600', 'Subscriptions & Software': '#ce82ff', 'Groceries': '#58cc02', 'Transport': '#1cb0f6', 'Travel': '#00cd9c',
+    'Dining & Coffee': '#ff9600', 'Food Delivery': '#ff5a3c', 'Snacks': '#ffb100', 'Subscriptions & Software': '#ce82ff', 'Groceries': '#58cc02', 'Transport': '#1cb0f6', 'Travel': '#00cd9c',
     'Health & Personal Care': '#ff4b4b', 'Bills & Utilities': '#ffc800', 'Entertainment': '#ff86d0', 'Shopping': '#2b70c9', 'Other': '#afafaf'
   };
   const freshOn = () => document.documentElement.classList.contains('candy');

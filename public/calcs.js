@@ -3,8 +3,10 @@ dash.calc('spend', {
   title: 'Purchases',
   description: 'Log emails turned into purchases: amount read, duplicates removed, category assigned.',
   fn: (mail_now, mail_prev) => {
-    const CATS = ['Groceries', 'Dining & Coffee', 'Transport', 'Subscriptions & Software', 'Shopping', 'Entertainment', 'Health & Personal Care', 'Bills & Utilities', 'Travel'];
+    const CATS = ['Groceries', 'Dining & Coffee', 'Food Delivery', 'Snacks', 'Transport', 'Subscriptions & Software', 'Shopping', 'Entertainment', 'Health & Personal Care', 'Bills & Utilities', 'Travel'];
     const RULES = [
+      ['Food Delivery', ['uber eats', 'ubereats', 'doordash', 'skipthedishes', 'skip the dishes', 'foodora', 'grubhub', 'fantuan', 'hungrypanda', 'hungry panda', 'menu.ca', 'just eat']],
+      ['Snacks', ['7-eleven', '7 eleven', '7eleven', 'couche-tard', 'couche tard', 'convenience', 'depanneur', 'vending', 'snack', 'candy', 'chocolate', 'ice cream', 'gelato', 'popcorn', 'cookie', 'chips', 'sweets', 'treats', 'cinnabon', 'auntie anne', 'dairy queen', 'baskin', 'cold stone', 'menchie', 'yogurt', 'pretzel']],
       ['Dining & Coffee', ['uber eats', 'ubereats', 'doordash', 'skipthedishes', 'skip the', 'tim hortons', 'tims', 'starbucks', 'mcdonald', 'subway', 'a&w', 'harvey', 'wendy', 'burger', 'pizza', 'restaurant', 'resto', 'caf', 'coffee', 'bakery', 'sushi', 'kfc', 'popeyes', 'chipotle', 'domino', 'second cup', 'boba', 'donut', 'bubble', 'grill', 'bistro', 'diner', 'pub ', 'kitchen', 'thai', 'ramen', 'shawarma', 'poutine', 'dairy queen', 'freshii', 'panera', 'taco', 'wings', 'biryani', 'chai', 'bbq', 'noodle']],
       ['Subscriptions & Software', ['netflix', 'spotify', 'apple.com/bill', 'apple services', 'icloud', 'youtube', 'disney', 'prime video', 'amazon prime', 'openai', 'chatgpt', 'anthropic', 'claude', 'github', 'adobe', 'microsoft', 'dropbox', 'notion', 'figma', 'canva', 'vercel', 'railway', 'crave', 'paramount', 'audible', 'google one', 'google play', 'patreon', 'substack', 'cursor', 'perplexity', 'linkedin']],
       ['Groceries', ['loblaw', 'no frills', 'nofrills', 'metro', 'sobeys', 'freshco', 'food basics', 'farm boy', 'iga ', 'zehrs', 'maxi', 'provigo', 'superstore', 'costco', 't&t', 'whole foods', 'grocery', 'supermarch', 'fruiterie', 'bulk barn', 'walmart supercentre', 'longos', 'adonis', 'marche']],
