@@ -43,3 +43,45 @@
 .hist-mrow { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; color: var(--muted); }
 .hist-mrow b { color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }
 #history-open { justify-self: start; margin-top: 2px; }
+
+/* Week and month: calendar, chart and list */
+#add-backdrop { z-index: 31; } #add-sheet { z-index: 32; }
+.hist-views { display: grid; gap: 12px; }
+.hist-view { display: flex; gap: 6px; }
+.hist-view button { border: 0; border-radius: 99px; padding: 7px 13px; font: inherit; font-size: 13px; font-weight: 700; background: var(--track); color: var(--muted); cursor: pointer; }
+.hist-view button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.hist-dow, .hist-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.hist-dow { font-size: 11px; color: var(--muted); font-weight: 700; text-align: center; margin-bottom: 4px; }
+.hist-cd { aspect-ratio: 1 / 1.05; border-radius: 11px; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; }
+.hist-cd small { font-size: 10px; font-weight: 700; margin-top: 1px; }
+.hist-cd.empty { background: none; cursor: default; }
+.hist-cd.future { background: var(--track); color: var(--muted); opacity: .5; cursor: default; }
+.hist-cd.zero { background: var(--track); color: var(--muted); }
+.hist-cd.ok { background: var(--down-bg); color: var(--down); }
+.hist-cd.over { background: var(--up-bg); color: var(--up); }
+.hist-cd.today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hist-cd.sel { box-shadow: 0 0 0 3px var(--fg) inset; }
+.hist-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11.5px; color: var(--muted); margin-top: 10px; }
+.hist-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.lg-ok { background: var(--down-bg); outline: 1px solid var(--down); } .lg-over { background: var(--up-bg); outline: 1px solid var(--up); } .lg-zero { background: var(--track); outline: 1px solid var(--line); }
+.hist-dayhead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.hist-dayright { display: flex; align-items: baseline; gap: 8px; }
+.hist-dayright .hist-pill { margin-top: 0; }
+.hist-tx { display: flex; align-items: center; gap: 11px; width: 100%; padding: 8px 0; border: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.hist-amt.in { color: var(--down); }
+.hist-days { position: relative; display: flex; align-items: flex-end; gap: 2.5px; height: 110px; margin-top: 12px; border-bottom: 1px solid var(--line); }
+.hist-dc { flex: 1; display: flex; align-items: flex-end; height: 100%; padding: 0; border: 0; background: none; min-width: 0; cursor: pointer; }
+.hist-dc i { display: block; width: 100%; border-radius: 3px 3px 0 0; background: var(--down); }
+.hist-dc i.over { background: var(--up); } .hist-dc i.fut { background: var(--track); }
+.hist-lim { position: absolute; left: 0; right: 0; border-top: 2px dashed #3b82c4; opacity: .85; pointer-events: none; }
+.hist-lim span { position: absolute; right: 0; top: -17px; font-size: 10.5px; font-weight: 800; color: #3b82c4; }
+.hist-axis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+.hist-listbox { display: grid; gap: 10px; }
+.hist-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.hist-chips::-webkit-scrollbar { display: none; }
+.hist-chips button { flex: none; border: 0; border-radius: 99px; padding: 6px 11px; font: inherit; font-size: 12px; font-weight: 700; background: var(--track); color: var(--muted); cursor: pointer; white-space: nowrap; }
+.hist-chips button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.hist-search { width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font: inherit; font-size: 16px; background: var(--card); color: var(--fg); }
+.hist-list { padding-top: 6px; }
+.hist-dh { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: .04em; padding: 10px 0 4px; border-top: 1px solid var(--line); }
+.hist-dh:first-child { border-top: 0; }

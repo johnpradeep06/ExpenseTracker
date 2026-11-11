@@ -481,8 +481,9 @@ const routes = {
       ? (await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, from, to])).map(issueOf)
       : []);
     const [nowRows, prevRows] = await Promise.all([fetchRows(r.start, r.end), fetchRows(r.prevStart, r.prevEnd)]);
-    const s = compute.summary(nowRows, prevRows, u.tz, Date.now());
-    return { range, title: r.title, prevLabel: r.prevLabel, inProgress: r.inProgress, days: r.days, prevAnchor: r.prevAnchor, nextAnchor: r.nextAnchor, ...s, perDay: Math.round((s.total / r.days) * 100) / 100 };
+    const wantRows = params.get('rows') === '1' && (range === 'week' || range === 'month');
+    const s = compute.summary(nowRows, prevRows, u.tz, Date.now(), wantRows);
+    return { range, startDay: r.startDay, endDay: r.endDay, today: r.today, limit: limitOf(u), title: r.title, prevLabel: r.prevLabel, inProgress: r.inProgress, days: r.days, prevAnchor: r.prevAnchor, nextAnchor: r.nextAnchor, ...s, perDay: Math.round((s.total / r.days) * 100) / 100 };
   },
 
   'POST purchases': async (req) => {
