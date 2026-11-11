@@ -210,7 +210,7 @@ button { font: inherit; color: inherit; }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .set-row span { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
 #settings-sheet .fine { margin: 0; }
-.alerts-banner[hidden] { display: none; }
+.alerts-banner[hidden], #by-card[hidden] { display: none; }
 .alerts-banner { display: grid; gap: 12px; margin-bottom: 14px; }
 .alerts-banner .ab-text { display: grid; gap: 3px; }
 .alerts-banner .ab-text span { font-size: 14px; color: var(--muted); }
@@ -495,6 +495,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
       <div data-draw="cats"></div>
     </section>
 
+
+    <section class="card sp-js-full" id="by-card" hidden>
+      <h2>Cards</h2>
+      <p class="sub">Which card each purchase was on. Tap one to see just those purchases.</p>
+      <div data-draw="cards"></div>
+    </section>
 
     <section class="card sp-js-full" id="top-merchants">
       <h2>Biggest merchants</h2>

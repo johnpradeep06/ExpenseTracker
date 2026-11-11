@@ -76,6 +76,15 @@
   const kpiRow = () => (stateOf(['kpi']) === 'ok' ? rowsOf('kpi')[0] : null);
 
   let activeCat = null;
+  let activeCard = null; // raw card name; '' means purchases with no card
+  // Names you give your cards (for example "Family card"). Kept on this phone.
+  const cardNames = () => { try { return JSON.parse(localStorage.getItem('spend.cardNames') || '{}') || {}; } catch (e) { return {}; } };
+  const cardName = (raw) => cardNames()[raw] || raw || 'No card';
+  const setCardName = (raw, name) => {
+    const m = cardNames();
+    if (name) m[raw] = name; else delete m[raw];
+    try { localStorage.setItem('spend.cardNames', JSON.stringify(m)); } catch (e) { /* storage unavailable */ }
+  };
   let showAll = false;
   const TX_LIMIT = 6;
 
@@ -394,9 +403,39 @@
       }
       row.addEventListener('click', () => {
         activeCat = activeCat === r.category ? null : r.category;
+        activeCard = null;
         showAll = false;
         dash.render();
         if (activeCat) {
+          const card = document.querySelector('#latest');
+          if (card) card.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+        }
+      });
+      el.append(row);
+    });
+  });
+
+  // Cards: one row per card used. Tap a row to filter the purchases below to that card.
+  dash.draw('cards', (el) => {
+    const st = stateOf(['by_card']);
+    const sec = document.querySelector('#by-card');
+    el.replaceChildren();
+    const rows = st === 'ok' ? rowsOf('by_card') : [];
+    // Only worth showing when there is more than one card (or a named card).
+    if (sec) sec.hidden = rows.length < 2 && !(rows.length === 1 && rows[0].card);
+    rows.forEach((r) => {
+      const row = h('button', 'cat' + (activeCard === r.card ? ' on' : ''));
+      row.type = 'button';
+      row.setAttribute('aria-pressed', activeCard === r.card ? 'true' : 'false');
+      const mid = h('span', 'cat-mid');
+      mid.append(h('span', 'cat-name', cardName(r.card)), h('span', 'cat-sub', r.count + (r.count === 1 ? ' purchase' : ' purchases') + ' · ' + share(r.share) + ' of spending'));
+      row.append(chip('💳', '#5B6CE0'), mid, h('span', 'cat-amt', money(r.amount)));
+      row.addEventListener('click', () => {
+        activeCard = activeCard === r.card ? null : r.card;
+        activeCat = null;
+        showAll = false;
+        dash.render();
+        if (activeCard !== null) {
           const card = document.querySelector('#latest');
           if (card) card.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
         }
@@ -519,6 +558,8 @@
 
   if (window.dash) window.dash.onData(() => { if (stateOf(['by_cat']) === 'ok' && firstLists) setTimeout(() => { firstLists = false; }, 0); });
 
+  const manyCards = () => new Set(rowsOf('spend').filter((r) => r.period === 'now').map((r) => r.card || '')).size > 1;
+
   // Purchases grouped by day with a total per day. Used by the Purchases card and the full list.
   const drawTxRows = (el, rows, shown, onPick) => {
     const todayKey = dayKey(new Date());
@@ -542,7 +583,7 @@
         row.dataset.key = r.id;
         row.setAttribute('aria-label', 'Edit ' + r.merchant);
         const mid = h('span', 'cat-mid');
-        mid.append(h('span', 'cat-name', r.merchant), h('span', 'cat-sub', (r.ts ? clock(new Date(r.ts)) + ' · ' : '') + r.category + (String(r.id).indexOf('p-') === 0 ? ' · not sent yet' : '')));
+        mid.append(h('span', 'cat-name', r.merchant), h('span', 'cat-sub', (r.ts ? clock(new Date(r.ts)) + ' · ' : '') + r.category + (r.card && manyCards() ? ' · ' + cardName(r.card) : '') + (String(r.id).indexOf('p-') === 0 ? ' · not sent yet' : '')));
         const amt = h('span', 'cat-amt' + (r.amount < 0 ? ' in' : ''), r.amount < 0 ? '+' + money(-r.amount) : money(r.amount));
         row.append(chip(icon, color), mid, amt);
         if (String(r.id).indexOf('p-') === 0) {
@@ -572,14 +613,26 @@
     }
     if (st !== 'ok') return;
     const all = rowsOf('spend').filter((r) => r.period === 'now');
-    const rows = activeCat ? all.filter((r) => r.category === activeCat) : all;
-    if (activeCat) {
+    const rows = activeCat ? all.filter((r) => r.category === activeCat) : activeCard !== null ? all.filter((r) => (r.card || '') === activeCard) : all;
+    if (activeCat || activeCard !== null) {
       const bar = h('div', 'filter');
-      bar.append(h('span', '', 'Showing ' + activeCat));
+      bar.append(h('span', '', 'Showing ' + (activeCat || cardName(activeCard))));
+      if (activeCard !== null && activeCard) {
+        const ren = h('button', 'link', 'Rename');
+        ren.type = 'button';
+        ren.addEventListener('click', () => {
+          const next = window.prompt('A name for this card (for example "Family card"). Leave empty to use ' + activeCard + '.', cardNames()[activeCard] || '');
+          if (next === null) return;
+          setCardName(activeCard, next.trim().slice(0, 30));
+          dash.render();
+        });
+        bar.append(ren);
+      }
       const clear = h('button', 'link', 'Show all');
       clear.type = 'button';
       clear.addEventListener('click', () => {
         activeCat = null;
+        activeCard = null;
         showAll = false;
         dash.render();
       });
@@ -592,7 +645,7 @@
       const more = h('button', 'more', 'Show all ' + rows.length + ' purchases');
       more.type = 'button';
       more.addEventListener('click', () => {
-        if (!activeCat && window.spendOpenAll) { window.spendOpenAll(false); return; }
+        if (!activeCat && activeCard === null && window.spendOpenAll) { window.spendOpenAll(false); return; }
         showAll = true;
         dash.render();
       });

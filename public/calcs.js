@@ -153,6 +153,26 @@ dash.calc('by_cat', {
   }
 });
 
+dash.calc('by_card', {
+  inputs: ['spend'],
+  title: 'Spending by card',
+  description: 'Last 14 days by the card that was used, with a purchase count.',
+  fn: (spend) => {
+    const now = {};
+    spend.filter((r) => r.period === 'now').forEach((r) => {
+      const k = r.card || '';
+      const t = now[k] || (now[k] = { amount: 0, count: 0 });
+      t.amount += r.amount;
+      t.count += 1;
+    });
+    const total = Object.values(now).filter((v) => v.amount > 0).reduce((s, v) => s + v.amount, 0);
+    return Object.keys(now)
+      .filter((k) => now[k].amount > 0)
+      .map((k) => ({ card: k, amount: Math.round(now[k].amount * 100) / 100, count: now[k].count, share: total > 0 ? now[k].amount / total : 0 }))
+      .sort((a, b) => b.amount - a.amount);
+  }
+});
+
 dash.calc('by_day', {
   inputs: ['spend'],
   title: 'Spending by day',
