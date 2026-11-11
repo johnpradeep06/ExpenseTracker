@@ -210,6 +210,12 @@ button { font: inherit; color: inherit; }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .set-row span { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
 #settings-sheet .fine { margin: 0; }
+.alerts-banner[hidden] { display: none; }
+.alerts-banner { display: grid; gap: 12px; margin-bottom: 14px; }
+.alerts-banner .ab-text { display: grid; gap: 3px; }
+.alerts-banner .ab-text span { font-size: 14px; color: var(--muted); }
+.alerts-banner .ab-actions { display: flex; align-items: center; gap: 14px; }
+.alerts-banner .primary { width: auto; padding-inline: 22px; margin: 0; }
 .pw-form { display: grid; gap: 10px; margin: 4px 0 8px; }
 #settings-sheet .danger-plain { width: 100%; margin-top: 0; }
 .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -355,6 +361,13 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
     </div>
   </header>
 
+  <section class="card alerts-banner" id="alerts-banner" aria-label="Turn on alerts" hidden>
+    <div class="ab-text"><b>Turn on alerts</b><span>A morning note with what you can spend, and a nudge right when a purchase puts you over your limit.</span></div>
+    <div class="ab-actions">
+      <button type="button" class="primary" id="alerts-banner-on">Turn on</button>
+      <button type="button" class="link" id="alerts-banner-later">Not now</button>
+    </div>
+  </section>
   <p class="msg" id="offline-note" role="status" hidden></p>
   <p class="msg" id="load-error" hidden>Could not load your purchases. Check your connection and tap the refresh button.</p>
   <p class="msg sp-js-connect" hidden>Your sign-in has run out. Close the app and open it again to sign in.</p>

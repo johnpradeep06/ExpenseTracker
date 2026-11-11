@@ -24,7 +24,7 @@
   };
 
   // Everything this app keeps on the phone for one person, removed on sign-out.
-  const forgetPhone = () => ['spend.cache', 'spend.pending', 'spend.limit', 'spend.device', 'spend.email', 'spend.onboarded', 'spend.owner', 'spend.realOffer'].forEach(clear);
+  const forgetPhone = () => ['spend.cache', 'spend.pending', 'spend.limit', 'spend.device', 'spend.email', 'spend.onboarded', 'spend.owner', 'spend.realOffer', 'spend.alertsAsk'].forEach(clear);
 
   // ---- sign-in ----------------------------------------------------------------------------------------------
   let signingUp = false;
@@ -352,6 +352,7 @@
     dash.start(() => window.loadPurchases());
     if (window.spendSyncLimit) window.spendSyncLimit();
     if (window.spendAlertsRender) window.spendAlertsRender();
+    if (window.spendAlertsSync) window.spendAlertsSync();
   };
 
   const signOut = (message) => {

@@ -27,6 +27,11 @@
     window.spendApi('GET', 'config').then((c) => { keyCache = (c && c.vapidPublicKey) || ''; }).catch(() => {});
   };
 
+  // The sign-in prompt for alerts has to be a tap (the phone insists), so the app asks once, with one big button.
+  // "Not now" hides the question for a week.
+  const ASK_KEY = 'spend.alertsAsk';
+  const askedRecently = () => Date.now() - (Number(read(ASK_KEY)) || 0) < 7 * 86400000;
+
   let message = '';
   let busy = false;
   const idle = 'A note each morning with what you can spend, an alert right after a purchase that puts you over your daily limit, and a reminder each night at 9.';
@@ -63,6 +68,8 @@
     if (text.textContent !== words) text.textContent = words;
     on.hidden = !showOn;
     off.hidden = !showOff;
+    const banner = $('#alerts-banner');
+    if (banner) banner.hidden = !(showOn && !askedRecently() && !!window.spendSession.get());
     note.hidden = !message;
     note.textContent = message;
     on.disabled = busy;
@@ -79,7 +86,9 @@
     message = '';
     busy = true;
     const on = $('#alerts-on');
+    const bon = $('#alerts-banner-on');
     on.textContent = 'Turning on…';
+    if (bon) bon.textContent = 'Turning on…';
     try {
       // The permission prompt has to come straight from the tap, before any waiting.
       const perm = await Notification.requestPermission();
@@ -109,6 +118,7 @@
     } finally {
       busy = false;
       on.textContent = 'Turn on alerts';
+      if (bon) bon.textContent = 'Turn on';
       render();
     }
   };
@@ -135,17 +145,31 @@
 
   // If the phone gave this app a new subscription since it was saved, save the new one.
   const resync = async () => {
-    if (!window.spendSession.get() || !capable() || Notification.permission !== 'granted' || !read(KEY_DEVICE)) return;
+    if (!window.spendSession.get() || !capable() || Notification.permission !== 'granted') return;
     try {
       const reg = await ready();
-      const sub = await reg.pushManager.getSubscription();
+      let sub = await reg.pushManager.getSubscription();
+      // Already allowed on this phone but never saved (for example a new account on the same phone): turn it on without asking again.
+      if (!sub && !read(KEY_DEVICE)) {
+        if (!keyCache) keyCache = ((await window.spendApi('GET', 'config')) || {}).vapidPublicKey || '';
+        if (!keyCache) return;
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes(keyCache) });
+        await register(sub);
+        render();
+        return;
+      }
       if (sub && sub.endpoint !== read(KEY_DEVICE)) await register(sub);
+      if (sub && !read(KEY_DEVICE)) render();
     } catch (e) { /* try again next time the app opens */ }
   };
 
   const on = $('#alerts-on');
   const off = $('#alerts-off');
   if (on) on.addEventListener('click', turnOn);
+  const bon2 = $('#alerts-banner-on');
+  if (bon2) bon2.addEventListener('click', turnOn);
+  const later = $('#alerts-banner-later');
+  if (later) later.addEventListener('click', () => { write(ASK_KEY, String(Date.now())); render(); });
   if (off) off.addEventListener('click', turnOff);
   if ('serviceWorker' in navigator) {
     // Tapping an alert while the app is open asks it to load the newest purchases.
@@ -154,6 +178,7 @@
     });
   }
   window.spendAlertsRender = render;
+  window.spendAlertsSync = resync;
   render();
   resync();
 })();
