@@ -14,7 +14,8 @@ const webpushMod = async () => {
   return webpushLib;
 };
 const { q } = require('../lib/db');
-const { numbers, inZone } = require('../lib/compute');
+const compute = require('../lib/compute');
+const { numbers, inZone } = compute;
 const notes = require('../lib/notes');
 
 const env = (k) => process.env[k] || '';
@@ -467,6 +468,21 @@ const routes = {
   'GET purchases': async (req) => {
     const u = await signedIn(req);
     return recentIssues(u.id);
+  },
+
+  // History: totals for a week, month, 3 months, year or all time, against the period before it. Computed with the app's own rules.
+  'GET summary': async (req) => {
+    const u = await signedIn(req);
+    const params = new URL(req.url, 'http://x').searchParams;
+    const range = String(params.get('range') || 'month');
+    if (!compute.RANGES.includes(range)) fail(400, 'Choose week, month, 3m, year or all');
+    const r = compute.rangeFor(range, params.get('anchor'), u.tz, Date.now());
+    const fetchRows = async (from, to) => (from && to
+      ? (await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, from, to])).map(issueOf)
+      : []);
+    const [nowRows, prevRows] = await Promise.all([fetchRows(r.start, r.end), fetchRows(r.prevStart, r.prevEnd)]);
+    const s = compute.summary(nowRows, prevRows, u.tz, Date.now());
+    return { range, title: r.title, prevLabel: r.prevLabel, inProgress: r.inProgress, days: r.days, prevAnchor: r.prevAnchor, nextAnchor: r.nextAnchor, ...s, perDay: Math.round((s.total / r.days) * 100) / 100 };
   },
 
   'POST purchases': async (req) => {

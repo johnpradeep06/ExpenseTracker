@@ -46,6 +46,8 @@
     return out;
   };
   window.spendRows = split;
+  // For the history screens: the rows of one chosen period and of the period to compare it with.
+  window.spendRowsFrom = (nowIssues, prevIssues) => ({ mail_now: nowIssues.map(toRow), mail_prev: prevIssues.map(toRow) });
 
   // A copy of the last good load and any payments added while offline live in this phone's storage.
   const CACHE_KEY = 'spend.cache';

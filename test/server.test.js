@@ -358,6 +358,49 @@ const assert = require('assert');
   ok(r.data.people.filter((x) => x.usage.connected && x.usage.purchases === 0).every((x) => x.usage.status === 'waiting'), 'a setup code with no purchase yet is marked waiting');
   r = await call('GET', 'owner/people', { auth: reese });
   ok(r.status === 401 || r.status === 403, 'a normal person cannot see the usage view');
+  // ---- history summary (week / month / 3 months / year / all) ----
+  const hist = (auth, qs) => new Promise((resolve) => {
+    const req = { method: 'GET', url: '/api/index?route=summary' + (qs ? '&' + qs : ''), headers: auth ? { authorization: 'Bearer ' + auth } : {} };
+    const res = { statusCode: 200, headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(s2) { resolve({ status: this.statusCode, data: JSON.parse(s2) }); } };
+    api(req, res);
+  });
+  r = await call('POST', 'auth/signup', { body: { email: 'hist@example.com', password: 'hist-password-1', invite: await invite('Hist', 7) } });
+  const histTok = r.data.session;
+  const histId = (await pg.query("select id from users where email = 'hist@example.com'")).rows[0].id;
+  const addAt = async (daysAgo, merchant, amount, card, cat) => {
+    const at = new Date(Date.now() - daysAgo * 86400000).toISOString();
+    await pg.query("insert into purchases (user_id, title, body, created_at) values ($1, $2, $3, $4)", [histId, 'Spending - $' + amount, 'Date: ' + at + '\nMerchant: ' + merchant + '\nAmount: $' + amount + '\nCard: ' + card + '\nCategory: ' + (cat || ''), at]);
+  };
+  // today, last month and a year ago
+  await addAt(0, 'Uber Eats', '30.00', 'Amex Gold');
+  await addAt(0, 'Metro', '50.00', 'Visa Debit');
+  await addAt(40, 'Metro', '70.00', 'Visa Debit');
+  await addAt(40, 'DoorDash', '20.00', 'Amex Gold');
+  await addAt(400, 'Costco', '200.00', 'Amex Gold');
+  r = await hist(null, 'range=month');
+  ok(r.status === 401, 'history needs a sign-in');
+  r = await hist(histTok, 'range=century');
+  ok(r.status === 400, 'an unknown range is refused');
+  r = await hist(histTok, 'range=month');
+  ok(r.status === 200 && r.data.range === 'month' && r.data.inProgress === true, 'this month is in progress');
+  ok(r.data.total >= 80 && r.data.count >= 2, 'the month includes what was bought today ($80 or more)');
+  ok(r.data.categories.some((c) => c.category === 'Food Delivery') && r.data.categories.some((c) => c.category === 'Groceries'), 'categories include Food Delivery and Groceries');
+  ok(r.data.cards.length >= 2 && r.data.merchants[0].amount >= 50, 'cards and biggest merchants come with it');
+  ok(!JSON.stringify(r.data).match(/Date:|Merchant:|Card:/), 'no raw purchase text leaks into the summary');
+  r = await hist(histTok, 'range=year');
+  ok(r.status === 200 && r.data.total >= 80, 'the year view works');
+  r = await hist(histTok, 'range=all');
+  ok(r.data.total >= 370 && r.data.prevAnchor === null && r.data.months.length >= 2, 'all time includes the old purchase, has month buckets and no comparison');
+  r = await hist(histTok, 'range=week');
+  ok(r.data.total >= 80 && r.data.nextAnchor === null, 'this week has no next week yet');
+  const lastMonth = new Date(); lastMonth.setMonth(lastMonth.getMonth() - 1);
+  const pad = (n) => (n < 10 ? '0' : '') + n;
+  r = await hist(histTok, 'range=month&anchor=' + lastMonth.getFullYear() + '-' + pad(lastMonth.getMonth() + 1) + '-15');
+  ok(r.data.inProgress === false && r.data.nextAnchor !== null, 'last month is complete and has a next month to go to');
+  r = await hist(histTok, 'range=month');
+  ok(r.data.prevAnchor !== null, 'this month has a previous month to go back to');
+  await call('DELETE', 'account', { auth: histTok });
+
   r = await call('GET', 'nope');
   ok(r.status === 404, 'unknown route 404');
 

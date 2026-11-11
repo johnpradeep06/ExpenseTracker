@@ -359,6 +359,8 @@
     closeSettings();
     closeAll();
     if (window.spendClosePeople) window.spendClosePeople();
+    if (window.spendCloseHistory) window.spendCloseHistory();
+    if (window.spendCloseHeroes) window.spendCloseHeroes();
     session.clear();
     forgetPhone();
     window.spendLimit = 0;

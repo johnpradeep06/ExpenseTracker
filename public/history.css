@@ -1,0 +1,45 @@
+/* Spending history screen. */
+.hist { gap: 12px; }
+.hist-seg { display: flex; gap: 2px; padding: 3px; border-radius: 14px; background: var(--track); }
+.hist-seg button { flex: 1; border: 0; background: none; padding: 8px 0; border-radius: 11px; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.hist-seg button[aria-pressed="true"] { background: var(--card); color: var(--fg); box-shadow: 0 1px 3px rgba(0, 0, 0, .2); }
+.hist-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hist-arrow { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--track); color: var(--fg); font-size: 20px; font-weight: 800; line-height: 1; cursor: pointer; }
+.hist-arrow:disabled { opacity: .3; cursor: default; }
+.hist-arrow[hidden] { display: none; }
+.hist-title { font-size: 19px; font-weight: 800; text-align: center; flex: 1; }
+.hist-body { display: grid; gap: 12px; }
+.hist-card { margin: 0; padding: 16px; box-shadow: none; border: 1px solid var(--line); }
+.hist-card h3 { margin: 0; font-size: 17px; }
+.hist-cap { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .04em; }
+.hist-big { font-size: 40px; font-weight: 800; letter-spacing: -.03em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.hist-big small { font-size: 20px; color: var(--muted); }
+.hist-sub, .hist-note { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.hist-note { text-align: center; padding: 24px 0; }
+.hist-pill { display: inline-block; margin-top: 8px; padding: 5px 11px; border-radius: 99px; font-size: 13px; font-weight: 700; }
+.hist-pill.up { background: var(--up-bg); color: var(--up); }
+.hist-pill.down { background: var(--down-bg); color: var(--down); }
+.hist-pill.flat { background: var(--track); color: var(--muted); }
+.hist-stack { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin-top: 12px; gap: 2px; }
+.hist-stack i { display: block; height: 100%; }
+.hist-chart { display: flex; align-items: flex-end; gap: 6px; height: 150px; margin-top: 12px; }
+.hist-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 5px; height: 100%; min-width: 0; }
+.hist-bar { width: 100%; display: flex; flex-direction: column-reverse; border-radius: 6px; overflow: hidden; }
+.hist-bar i { display: block; width: 100%; }
+.hist-col em { font-style: normal; font-size: 10.5px; color: var(--muted); font-weight: 700; min-height: 12px; }
+.hist-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; border: 0; border-top: 1px solid var(--line); background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.hist-row:first-of-type { border-top: 0; }
+.hist-row.static { cursor: default; }
+.hist-chip { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 19px; background: color-mix(in srgb, var(--c, #888) 20%, var(--card)); }
+.hist-mid { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.hist-mid b { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-rsub { font-size: 12.5px; color: var(--muted); }
+.hist-up { color: var(--up); font-weight: 700; } .hist-down { color: var(--down); font-weight: 700; }
+.hist-meter { display: block; height: 7px; border-radius: 5px; background: var(--track); overflow: hidden; margin-top: 3px; }
+.hist-meter i { display: block; height: 100%; border-radius: 5px; }
+.hist-amt { font-weight: 800; font-variant-numeric: tabular-nums; }
+.hist-more { padding: 0 0 8px 50px; display: grid; gap: 4px; }
+.hist-more[hidden] { display: none; }
+.hist-mrow { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; color: var(--muted); }
+.hist-mrow b { color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }
+#history-open { justify-self: start; margin-top: 2px; }

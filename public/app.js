@@ -44,6 +44,7 @@
     const m = CAT[c] || CAT.Other;
     return document.documentElement.classList.contains('candy') ? [m[0], CANDY[c] || CANDY.Other] : m;
   };
+  window.spendCatMeta = catMeta;
   const MERCHANT_COLORS = ['#E8833A', '#5B6CE0', '#3BA776', '#3B82C4', '#14A3B8', '#D9567A', '#C9A227', '#C2528B', '#A855C7'];
   const colorFor = (s) => {
     let n = 0;
