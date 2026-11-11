@@ -174,7 +174,7 @@ const assert = require('assert');
   ok(r.status === 403, 'a normal person cannot make invites');
   r = await call('GET', 'owner/people', { auth: ana });
   ok(r.status === 200 && r.data.people.some((p) => p.email === 'ana@example.com' && p.owner) && r.data.signupsOpen === true, 'owner sees the people list');
-  ok(!JSON.stringify(r.data).includes('purchase'), 'the list shows no purchase details');
+  ok(!JSON.stringify(r.data).match(/merchant|amount|\"title\"|\"body\"/i), 'the list shows no purchase details, only counts');
   r = await call('POST', 'owner/invites', { auth: ana, body: { note: 'For Di', days: 1 } });
   ok(r.status === 200 && /^inv_/.test(r.data.code), 'owner makes an invite');
   const invDi = r.data.code;
@@ -346,6 +346,18 @@ const assert = require('assert');
   const ana2 = r.data.session; void ana2;
   await call('DELETE', 'account', { auth: reese3 });
 
+  // ---- owner usage view: counts and times only ----
+  r = await call('GET', 'owner/people', { auth: ana2 });
+  const usageKeys = ['alerts', 'connected', 'lastPurchase', 'lastSeen', 'purchases', 'status'];
+  ok(r.data.people.every((x) => x.usage && JSON.stringify(Object.keys(x.usage).sort()) === JSON.stringify(usageKeys)), 'each person has usage: connected, purchases, last purchase, last seen, alerts, status');
+  ok(!JSON.stringify(r.data).match(/merchant|amount|"title"|"body"|Metro|Tim Hortons/i), 'the usage view never includes what was bought');
+  const anaUse = r.data.people.find((x) => x.email === 'ana@example.com').usage;
+  ok(anaUse.lastSeen && new Date(anaUse.lastSeen).getTime() > Date.now() - 3600000, 'last seen is recorded when the app is used');
+  const noCode = r.data.people.find((x) => !x.usage.connected);
+  ok(!noCode || noCode.usage.status === 'not-connected', 'someone without a setup code is marked not connected');
+  ok(r.data.people.filter((x) => x.usage.connected && x.usage.purchases === 0).every((x) => x.usage.status === 'waiting'), 'a setup code with no purchase yet is marked waiting');
+  r = await call('GET', 'owner/people', { auth: reese });
+  ok(r.status === 401 || r.status === 403, 'a normal person cannot see the usage view');
   r = await call('GET', 'nope');
   ok(r.status === 404, 'unknown route 404');
 

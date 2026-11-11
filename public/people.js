@@ -79,6 +79,25 @@
     setTimeout(() => { button.textContent = label; }, 2200);
   };
 
+  const ago = (iso) => {
+    if (!iso) return '';
+    const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+    if (m < 2) return 'just now';
+    if (m < 60) return m + ' min ago';
+    const h = Math.round(m / 60);
+    if (h < 24) return h + ' h ago';
+    const d = Math.round(h / 24);
+    return d === 1 ? 'yesterday' : d + ' days ago';
+  };
+  const usageLine = (u) => {
+    if (!u) return '';
+    const bits = [!u.connected ? 'Shortcut not set up yet' : !u.purchases ? 'Setup code made, no purchase yet' : 'Shortcut working'];
+    if (u.purchases) bits.push(u.purchases + (u.purchases === 1 ? ' purchase' : ' purchases') + (u.lastPurchase ? ', last ' + ago(u.lastPurchase) : ''));
+    bits.push(u.lastSeen ? 'opened ' + ago(u.lastSeen) : 'never opened');
+    return bits.join(' · ');
+  };
+  const DOT = { active: '🟢 ', quiet: '🟡 ', waiting: '🟠 ', 'not-connected': '⚪ ' };
+
   const draw = (data) => {
     const toggle = $('#signups-state');
     toggle.textContent = data.signupsOpen ? 'On' : 'Off';
@@ -150,7 +169,9 @@
         });
       }
       const sub = p.owner ? 'You (owner)' : p.disabled ? 'Access removed' : 'Joined ' + day.format(new Date(p.joined));
-      list.append(row(p.email, sub, b, p.disabled ? 'off' : '', rb));
+      const r = row(p.email, sub, b, p.disabled ? 'off' : '', rb);
+      if (!p.disabled && p.usage) r.querySelector('.person-main').append(el('span', 'usage ' + p.usage.status, (DOT[p.usage.status] || '') + usageLine(p.usage)));
+      list.append(r);
     });
   };
 

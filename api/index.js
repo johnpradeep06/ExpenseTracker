@@ -91,6 +91,8 @@ const signedIn = async (req) => {
   const user = rows[0];
   if (!user || user.session_version !== payload.v) fail(401, 'Please sign in again');
   if (user.disabled) fail(401, 'Your access was removed by the owner');
+  // Remember roughly when the app was last opened (at most once every 10 minutes). Only the time, never what was done.
+  await q("update users set last_seen = now() where id = $1 and (last_seen is null or last_seen < now() - interval '10 minutes')", [user.id]);
   return user;
 };
 
@@ -634,11 +636,21 @@ const routes = {
   // ---- owner: invites and who has access ----
   'GET owner/people': async (req) => {
     await ownerOnly(req);
-    const people = await q('select id, email, created_at, disabled from users order by created_at');
+    // Usage only, never what was bought: is the Shortcut connected, how many purchases, when the last one came, when the app was last opened.
+    const people = await q(`select u.id, u.email, u.created_at, u.disabled, u.last_seen, (u.key_hash is not null) as connected,
+      (select count(*)::int from purchases p where p.user_id = u.id) as purchases,
+      (select max(p.created_at) from purchases p where p.user_id = u.id) as last_purchase,
+      (select count(*)::int from devices d where d.user_id = u.id) as devices
+      from users u order by u.created_at`);
     const invites = await q("select id, note, created_at, expires_at from invites where used_at is null and revoked_at is null and expires_at > now() order by created_at desc limit 50");
     return {
       signupsOpen: await signupsOpen(),
-      people: people.map((p) => ({ id: p.id, email: p.email, joined: iso(p.created_at), disabled: !!p.disabled, owner: String(p.email).toLowerCase() === ownerEmail() })),
+      people: people.map((p) => {
+        const lastP = p.last_purchase ? new Date(p.last_purchase).getTime() : 0;
+        const status = !p.connected ? 'not-connected' : !p.purchases ? 'waiting' : lastP > Date.now() - 7 * DAY ? 'active' : 'quiet';
+        return { id: p.id, email: p.email, joined: iso(p.created_at), disabled: !!p.disabled, owner: String(p.email).toLowerCase() === ownerEmail(),
+          usage: { status, connected: !!p.connected, purchases: p.purchases, lastPurchase: p.last_purchase ? iso(p.last_purchase) : null, lastSeen: p.last_seen ? iso(p.last_seen) : null, alerts: p.devices > 0 } };
+      }),
       invites: invites.map((i) => ({ id: Number(i.id), note: i.note, created_at: iso(i.created_at), expires_at: iso(i.expires_at) }))
     };
   },

@@ -28,6 +28,10 @@ with sync_playwright() as P:
     # owner makes a reset code for Lee
     og.click('#settings-open'); og.wait_for_timeout(400); og.click('#people-open'); og.wait_for_timeout(800)
     ok(og.locator('#people-list button',has_text='Reset password').count()==1,'owner sees one Reset password button (not for self)')
+    pl=og.inner_text('#people-list')
+    ok('no purchase yet' in pl and 'opened' in pl,'the owner sees usage: setup code made but no purchase yet, last opened')
+    ok('Metro' not in pl and '$' not in pl,'the usage lines show no amounts or merchants')
+    og.screenshot(path='/tmp/claude-0/usage.png')
     og.click('#people-list button >> text=Reset password'); og.wait_for_timeout(700)
     code=og.inner_text('#reset-code')
     ok(code.startswith('rst_') and og.locator('#reset-result').is_visible() and 'lee@example.com' in og.inner_text('#reset-for'),'owner gets a reset code for lee@example.com')

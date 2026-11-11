@@ -226,6 +226,7 @@ button { font: inherit; color: inherit; }
 .person-main { min-width: 0; display: grid; gap: 1px; }
 .person-main b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .person-main span { font-size: 13px; color: var(--muted); }
+.person-main span.usage { font-size: 12px; line-height: 1.35; }
 .person-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .person .mini { flex-shrink: 0; margin: 0; width: auto; padding: 8px 12px; font-size: 14px; }
 .person .mini.danger-mini { background: var(--up-bg); color: var(--up); font-weight: 700; }
@@ -279,7 +280,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
     <button type="button" class="link" id="auth-toggle">New here? Create an account</button>
   </form>
   <p class="msg" id="signin-error" hidden></p>
-  <p class="fine">Your purchases are private to your account. Only you can see them, and you can delete your account and all its data any time in the app.</p>
+  <p class="fine">Your purchases are private to your account. Only you can see them, and the owner of this app can only see whether you have connected the Shortcut and how recently you used it, never what you bought. You can delete your account and all its data any time in the app.</p>
 </section>
 
 <section class="setup" id="tour" hidden aria-label="App tour">
@@ -683,7 +684,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
     <button type="button" class="btn-plain" id="sign-out-all">Sign out everywhere</button>
   </section>
 
-  <p class="fine">Your purchases are stored privately on this app's server and only your account can read them. A copy of recent purchases is kept on this phone so the app works offline; signing out deletes that copy.</p>
+  <p class="fine">Your purchases are stored privately on this app's server and only your account can read them (the owner only sees whether you are set up and how recently you used the app, never what you bought). A copy of recent purchases is kept on this phone so the app works offline; signing out deletes that copy.</p>
   <button type="button" class="danger-plain" id="delete-account">Delete my account and all data</button>
   <p class="msg-inline" id="acct-note" hidden></p>
 </div>
