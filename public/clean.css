@@ -1,0 +1,47 @@
+/* Clean look only (the default): every rule here is scoped to "not Fresh, not Arcade", so those two looks are untouched.
+   Three things: 44pt touch targets, a clearer type hierarchy with calmer rows, and cards / header with a visible edge. */
+
+/* ---- 1. Touch targets: at least 44pt. Small round buttons keep their size and get a larger invisible hit area. ---- */
+html:not(.candy):not(.retro) .icon-btn, html:not(.candy):not(.retro) .limit-pill { position: relative; }
+html:not(.candy):not(.retro) .icon-btn::after, html:not(.candy):not(.retro) .limit-pill::after { content: ''; position: absolute; inset: -4px; }
+html:not(.candy):not(.retro) #app .link, html:not(.candy):not(.retro) .set-head .link { position: relative; }
+html:not(.candy):not(.retro) #app .link::after, html:not(.candy):not(.retro) .set-head .link::after { content: ''; position: absolute; left: -6px; right: -6px; top: 50%; height: 44px; transform: translateY(-50%); }
+html:not(.candy):not(.retro) .set-limit { margin-top: 6px; padding: 7px 12px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 10%, transparent); font-size: 13px; }
+html:not(.candy):not(.retro) #history-open { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; margin: 0 0 14px; padding: 0 14px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 9%, transparent); font-size: 15px; text-align: left; }
+html:not(.candy):not(.retro) .foot summary { min-height: 44px; display: flex; align-items: center; margin: -12px 0; }
+html:not(.candy):not(.retro) .more { min-height: 48px; }
+
+/* ---- 2. Type hierarchy and row rhythm ---- */
+html:not(.candy):not(.retro) .card h2 { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+html:not(.candy):not(.retro) #app .card .sub { font-size: 13.5px; line-height: 1.4; margin-bottom: 14px; }
+html:not(.candy):not(.retro) .hero-label, html:not(.candy):not(.retro) .day-head { font-size: 12px; letter-spacing: .07em; }
+html:not(.candy):not(.retro) .day-head { margin-top: 16px; padding-bottom: 4px; border-bottom: 0; }
+html:not(.candy):not(.retro) .day-head:first-child { margin-top: 0; }
+html:not(.candy):not(.retro) .tx, html:not(.candy):not(.retro) .cat, html:not(.candy):not(.retro) .merch { padding: 10px 0; }
+html:not(.candy):not(.retro) .tx-swipe + .tx-swipe .tx, html:not(.candy):not(.retro) .cat + .cat, html:not(.candy):not(.retro) .merch + .merch { box-shadow: 0 -1px 0 var(--line); }
+html:not(.candy):not(.retro) .cat-sub { font-size: 13px; }
+html:not(.candy):not(.retro) .cat-amt { letter-spacing: -.01em; }
+html:not(.candy):not(.retro) .avg-note { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+html:not(.candy):not(.retro) .hero-sub { margin-top: 10px; }
+
+/* ---- 3. Cards and header: a hairline edge so white cards do not melt into the page (and are visible in the dark) ---- */
+html:not(.candy):not(.retro) { --shadow: 0 0 0 1px var(--line), 0 1px 2px rgba(20, 20, 30, .04), 0 12px 32px -8px rgba(20, 20, 30, .10); --radius: 24px; }
+@media (prefers-color-scheme: dark) { html:not(.candy):not(.retro) { --shadow: 0 0 0 1px var(--line); } }
+html:not(.candy):not(.retro) #app .stack { gap: 16px; }
+html:not(.candy):not(.retro) #app .stack > .card { padding: 20px; }
+html:not(.candy):not(.retro) #app .stack > .card.hero { padding-bottom: 16px; background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 13%, var(--card)), var(--card) 55%); }
+html:not(.candy):not(.retro) .top {
+  padding-bottom: 12px; margin-bottom: 8px; box-shadow: 0 1px 0 var(--line);
+  margin-left: calc(-1 * max(16px, env(safe-area-inset-left))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right)));
+  padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right));
+}
+
+/* On phones up to 420pt wide the title was cut off ("Spendi…"): use the compact header there, as the smallest phones already do.
+   The buttons look 36pt but still have the 44pt hit area from above. */
+@media (max-width: 420px) {
+  html:not(.candy):not(.retro) .top h1 { font-size: 24px; }
+  html:not(.candy):not(.retro) .top-actions { gap: 5px; }
+  html:not(.candy):not(.retro) .top .icon-btn { width: 36px; height: 36px; }
+  html:not(.candy):not(.retro) .top .limit-pill { height: 36px; padding: 0 10px 0 9px; font-size: 13px; }
+  html:not(.candy):not(.retro) .top .limit-pill.empty { width: 36px; padding: 0; }
+}
