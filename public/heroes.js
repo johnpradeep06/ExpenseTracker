@@ -10,7 +10,7 @@
 
   // need = best streak (days) to unlock. power = which animation plays.
   const HEROES = [
-    { id: 'captain-penny', name: 'Captain Penny', power: 'shield', say: 'Shield up!', need: 0 },
+    { id: 'captain-penny', name: 'Captain Penny', power: 'shield', say: 'Shield up!', need: 0, still: 'heroes/captain-penny-3d.webp', clip: 'heroes/captain-penny-power.webp', clipMs: 6200 },
     { id: 'loki-pig', name: 'Loki Pig', power: 'illusion', say: 'Which one is real?', need: 2 },
     { id: 'gadget-penny', name: 'Gadget Penny', power: 'repulsor', say: 'Calculating…', need: 3 },
     { id: 'widow-sow', name: 'Widow Sow', power: 'stealth', say: 'Sneaky saver', need: 5 },
@@ -27,14 +27,20 @@
   const sprites = new Set();
   const setFrame = (d) => { d.style.backgroundPosition = (d._f / 7 * 100) + '% ' + (d._row / 4 * 100) + '%'; };
   const sprite = (h, cls) => {
+    if (h.still) {            // a hero drawn as one picture (the 3D Captain): no frames, just a gentle bob from the style sheet
+      const st = el('div', 'hx-still ' + (cls || ''));
+      st.style.backgroundImage = 'url(' + h.still + ')';
+      st._still = true;
+      return st;
+    }
     const d = el('div', 'hx-sp ' + (cls || ''));
     d.style.backgroundImage = 'url(heroes/' + h.id + '-sprite.webp)';
     d._row = 0; d._base = 0; d._f = 0; d._loop = true; d._done = null;
     setFrame(d); sprites.add(d);
     return d;
   };
-  const anim = (d, name, done) => { if (!d) return; d._row = ROW[name]; d._f = 0; d._loop = false; d._done = done || null; setFrame(d); };
-  const base = (d, name) => { d._base = ROW[name]; if (d._loop) { d._row = ROW[name]; setFrame(d); } };
+  const anim = (d, name, done) => { if (!d || d._still) return; d._row = ROW[name]; d._f = 0; d._loop = false; d._done = done || null; setFrame(d); };
+  const base = (d, name) => { if (!d || d._still) return; d._base = ROW[name]; if (d._loop) { d._row = ROW[name]; setFrame(d); } };
   const tick = () => {
     if (document.hidden || reduce.matches) return;
     sprites.forEach((d) => {
@@ -73,6 +79,7 @@
   };
   window.spendHeroName = () => chosen().name;
   showPet();
+  prefetch(chosen());
   if (pet) {
     new MutationObserver(() => { if (petSp) base(petSp, moodRow()); }).observe(pet, { attributes: true, attributeFilter: ['data-mood'] });
     // Tap your hero on the total card to see their power.
@@ -85,10 +92,36 @@
     setTimeout(trick, 5000);
   }
 
+  // ---- 3D clips (animated WebP). Fetched once, then each play gets a fresh copy so it always starts from the first frame. ----
+  const blobs = new Map();
+  const clipBlob = (h) => {
+    if (!blobs.has(h.clip)) blobs.set(h.clip, fetch(h.clip).then((r) => (r.ok ? r.blob() : Promise.reject(new Error('clip'))), (e) => Promise.reject(e)));
+    return blobs.get(h.clip);
+  };
+  function prefetch(h) { if (h && h.clip && !reduce.matches) setTimeout(() => { clipBlob(h).catch(() => blobs.delete(h.clip)); }, 2500); }
+  const playClip = async (h, label) => {
+    let url;
+    try { url = URL.createObjectURL(await clipBlob(h)); } catch (e) { blobs.delete(h.clip); return false; }
+    if (!appShown() || document.hidden) { URL.revokeObjectURL(url); return true; }
+    busy = true;
+    const stage = el('div', 'hx-stage hx-clip');
+    const pic = el('img', 'hx-clip-img'); pic.alt = ''; pic.src = url;
+    const text = el('div', 'hx-say', label || h.say);
+    stage.append(pic, text);
+    document.body.append(stage);
+    setTimeout(() => { stage.remove(); URL.revokeObjectURL(url); busy = false; }, h.clipMs || 6000);
+    return true;
+  };
+
   // ---- the power show ----
   let busy = false;
   const play = (h, label) => {
     if (busy || reduce.matches || !appShown() || document.hidden) return;
+    if (h.clip) {
+      busy = true;      // hold the slot while the clip loads, so two plays never overlap
+      playClip(h, label).then((done) => { if (!done) { busy = false; play(Object.assign({}, h, { clip: null, still: null }), label); } else if (!document.querySelector('.hx-clip')) busy = false; });
+      return;
+    }
     busy = true;
     const stage = el('div', 'hx-stage hx-' + h.power);
     let hero;
@@ -168,6 +201,7 @@
         if (locked) return;
         set('spend.hero', h.id);
         showPet();
+        prefetch(h);
         draw();
         close();
         setTimeout(() => play(h), 350);

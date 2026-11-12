@@ -99,3 +99,13 @@ html.candy .pet.act-hop .hx-pet { animation: hop .65s cubic-bezier(.3, 1.6, .5, 
 html.candy .pet { width: 100px; height: 100px; }
 html.candy .pet .hx-pet.hx-sp { width: 100%; height: 100%; animation: none !important; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .2)); }
 .hx-card .hx-sp { animation: none !important; }
+
+/* The 3D Captain: one picture for the card and the picker (with a gentle bob), and a 6 second animated clip for his power. */
+.hx-still { background-repeat: no-repeat; background-position: center bottom; background-size: contain; }
+.hx-card .hx-card-sp.hx-still { width: 104px; height: 104px; animation: hx-idle 2.6s ease-in-out infinite; }
+html.candy .pet .hx-pet.hx-still { width: 100%; height: 100%; animation: hx-idle 2.4s ease-in-out infinite !important; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .22)); }
+.hx-stage.hx-clip { width: 320px; height: 246px; margin-left: -160px; bottom: 9vh; animation-duration: 6.4s; }
+.hx-clip-img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .3)); }
+.hx-clip .hx-say { top: -30px; animation-duration: 6.4s; }
+@media (prefers-reduced-motion: reduce) { .hx-card .hx-card-sp.hx-still, html.candy .pet .hx-pet.hx-still { animation: none !important; } }
+@media (orientation: landscape) and (max-height: 520px) { .hx-stage.hx-clip { width: 260px; height: 200px; margin-left: -130px; bottom: 6vh; } }
