@@ -454,6 +454,16 @@ const assert = require('assert');
   ok(r.data.forecast === null, 'only the current month has a forecast');
   await call('DELETE', 'account', { auth: fcTok });
 
+  // ---- the service worker file must never ship empty (it carries offline support and the alert handlers) ----
+  {
+    const fs = require('fs'); const path = require('path');
+    const sw = fs.readFileSync(path.join(__dirname, '..', 'public', 'sw.js'), 'utf8');
+    ok(sw.length > 1500 && /const CACHE = 'spend-v\d+'/.test(sw), 'the service worker file is present with a cache version');
+    ok(["addEventListener('fetch'", "addEventListener('push'", "addEventListener('notificationclick'"].every((x) => sw.includes(x)), 'it handles offline loading, alerts and alert taps');
+    const assets = (sw.match(/'\.\/[^']*'/g) || []).map((x) => x.slice(3, -1)).filter(Boolean);
+    ok(assets.length > 15 && assets.every((f) => fs.existsSync(path.join(__dirname, '..', 'public', f))), 'every file it saves for offline exists');
+  }
+
   r = await call('GET', 'nope');
   ok(r.status === 404, 'unknown route 404');
 
