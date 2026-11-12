@@ -78,7 +78,7 @@
     const chip = el('span', 'hist-chip', icon); chip.style.setProperty('--c', color);
     const mid = el('span', 'hist-mid');
     const bits = [clock(r.ts), r.category];
-    if (r.card && (data.cards || []).length > 1) bits.push(cardName(r.card));
+    if (r.card && (data.cards || []).length > 1 && !leanLandscape()) bits.push(cardName(r.card));
     mid.append(el('b', '', r.merchant), el('span', 'hist-rsub', bits.filter(Boolean).join(' · ')));
     b.append(chip, mid, el('span', 'hist-amt' + (r.amount < 0 ? ' in' : ''), r.amount < 0 ? '+' + money(-r.amount) : money(r.amount)));
     b.addEventListener('click', () => edit(r));
@@ -87,8 +87,8 @@
 
   const viewSwitch = (cls) => {
     const sw = el('div', 'hist-view' + (cls ? ' ' + cls : ''));
-    [['calendar', '📅 Calendar'], ['chart', '📊 Chart'], ['list', '🧾 List']].forEach(([id, label]) => {
-      const b = el('button', '', label); b.type = 'button'; b.setAttribute('aria-pressed', String(view === id));
+    [['calendar', '📅', 'Calendar'], ['chart', '📊', 'Chart'], ['list', '🧾', 'List']].forEach(([id, icon, label]) => {
+      const b = el('button', '', cls ? label : icon + ' ' + label); b.type = 'button'; b.setAttribute('aria-pressed', String(view === id));
       b.addEventListener('click', () => { view = id; try { localStorage.setItem('spend.histView', id); } catch (e) { /* storage unavailable */ } draw(); });
       sw.append(b);
     });
@@ -116,12 +116,13 @@
 
     const dayCard = (k) => {
       const g = byDay.get(k) || { total: 0, rows: [] };
-      const card = el('section', 'card hist-card');
+      const card = el('section', 'card hist-card hist-daycard');
       const head = el('div', 'hist-dayhead');
       head.append(el('h3', '', longDay(k)));
       const right = el('span', 'hist-dayright');
-      right.append(el('b', '', money(g.total)));
-      if (limit && g.total > limit) right.append(el('span', 'hist-pill up', money(g.total - limit) + ' over'));
+      const amt = leanLandscape() ? (v) => money(v).replace(/\.00$/, '') : money;
+      right.append(el('b', '', amt(g.total)));
+      if (limit && g.total > limit) right.append(el('span', 'hist-pill up', amt(g.total - limit) + ' over'));
       head.append(right);
       card.append(head);
       if (!g.rows.length) card.append(el('p', 'hist-sub', 'No purchases this day.'));
@@ -131,7 +132,7 @@
 
     if (view === 'calendar') {
       const cal = el('section', 'card hist-card');
-      const dow = el('div', 'hist-dow'); ['M', 'T', 'W', 'T', 'F', 'S', 'S', 'Week'].forEach((x) => dow.append(el('span', '', x)));
+      const dow = el('div', 'hist-dow'); ['M', 'T', 'W', 'T', 'F', 'S', 'S', 'Week'].forEach((x) => dow.append(el('span', x === 'Week' ? 'hist-wkh' : '', x)));
       const grid = el('div', 'hist-cal');
       const lead = range === 'month' ? (first.getDay() + 6) % 7 : 0;
       const cellsInRow = [];
