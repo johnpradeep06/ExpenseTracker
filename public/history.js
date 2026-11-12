@@ -28,7 +28,9 @@
   const nextBtn = el('button', 'hist-arrow', '›'); nextBtn.type = 'button'; nextBtn.setAttribute('aria-label', 'Later');
   nav.append(prevBtn, navTitle, nextBtn);
   const body = el('div', 'hist-body');
-  sheet.append(grab, head, seg, nav, body);
+  const top = el('div', 'hist-top');
+  top.append(head, seg, nav);
+  sheet.append(grab, top, body);
   document.body.append(backdrop, sheet);
 
   let range = 'month';
@@ -87,7 +89,7 @@
     const days = [];
     for (let d = new Date(first); d <= periodEnd; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) days.push(keyOf(d));
     if (!selDay || days.indexOf(selDay) < 0) selDay = days.indexOf(data.today) >= 0 && data.today <= data.endDay ? data.today : data.endDay;
-    const wrap = el('div', 'hist-views');
+    const wrap = el('div', 'hist-views hc-views');
 
     const sw = el('div', 'hist-view');
     [['calendar', '📅 Calendar'], ['chart', '📊 Chart'], ['list', '🧾 List']].forEach(([id, label]) => {
@@ -114,9 +116,20 @@
 
     if (view === 'calendar') {
       const cal = el('section', 'card hist-card');
-      const dow = el('div', 'hist-dow'); ['M', 'T', 'W', 'T', 'F', 'S', 'S'].forEach((x) => dow.append(el('span', '', x)));
+      const dow = el('div', 'hist-dow'); ['M', 'T', 'W', 'T', 'F', 'S', 'S', 'Week'].forEach((x) => dow.append(el('span', '', x)));
       const grid = el('div', 'hist-cal');
-      if (range === 'month') for (let i = 0; i < (first.getDay() + 6) % 7; i++) grid.append(el('div', 'hist-cd empty'));
+      const lead = range === 'month' ? (first.getDay() + 6) % 7 : 0;
+      const cellsInRow = [];
+      const flushWeek = () => {
+        if (!cellsInRow.length) return;
+        const real = cellsInRow.filter((k) => k && k <= data.endDay);
+        const sum = real.reduce((t, k) => t + ((byDay.get(k) || { total: 0 }).total), 0);
+        const wk = el('b', 'hist-wk' + (real.length ? '' : ' fut'), real.length ? '$' + Math.round(sum) : '–');
+        wk.title = 'Total for this week';
+        grid.append(wk);
+        cellsInRow.length = 0;
+      };
+      for (let i = 0; i < lead; i++) { grid.append(el('div', 'hist-cd empty')); cellsInRow.push(null); }
       days.forEach((k) => {
         const d = dayDate(k);
         const g = byDay.get(k);
@@ -131,7 +144,11 @@
         if (!isFuture && total > 0) t.append(el('small', '', '$' + Math.round(total)));
         if (!isFuture) t.addEventListener('click', () => { selDay = k; draw(); });
         grid.append(t);
+        cellsInRow.push(k);
+        if (cellsInRow.length === 7) flushWeek();
       });
+      while (cellsInRow.length && cellsInRow.length < 7) { grid.append(el('div', 'hist-cd empty')); cellsInRow.push(null); }
+      flushWeek();
       const legend = el('div', 'hist-legend');
       [['ok', line ? 'Under ' + whole(line) + (limit ? ' limit' : ' average') : 'Spending'], ['over', 'Over'], ['zero', 'No spend']].forEach(([c, t]) => { const sp = el('span', '', t); sp.prepend(el('i', 'lg-' + c)); legend.append(sp); });
       cal.append(dow, grid, legend);
@@ -205,17 +222,121 @@
     return box;
   };
 
+  // Numbers that go with a week or a month: per day, the biggest day, the busiest weekday, no-spend and over-limit days.
+  const buildKpis = () => {
+    const rows = data.rows || [];
+    const byDay = new Map();
+    rows.forEach((r) => byDay.set(r.day, (byDay.get(r.day) || 0) + r.amount));
+    const limit = data.limit > 0 ? data.limit : 0;
+    const line = limit || data.perDay || 0;
+    const first = dayDate(data.startDay), last = dayDate(data.endDay);
+    const elapsed = [];
+    for (let d = new Date(first); d <= last; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) elapsed.push(keyOf(d));
+    let big = null, none = 0, over = 0;
+    const dow = [0, 0, 0, 0, 0, 0, 0], dowN = [0, 0, 0, 0, 0, 0, 0];
+    elapsed.forEach((k) => {
+      const v = byDay.get(k) || 0;
+      if (!big || v > big.v) big = { k, v };
+      if (v <= 0) none++;
+      if (line && v > line) over++;
+      const w = (dayDate(k).getDay() + 6) % 7;
+      dow[w] += Math.max(0, v); dowN[w]++;
+    });
+    const avg = dow.map((t, i) => (dowN[i] ? t / dowN[i] : 0));
+    const bestDow = avg.indexOf(Math.max(...avg));
+    const names = ['Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays', 'Sundays'];
+    const card = el('section', 'card hist-card hc-kpi');
+    const grid = el('div', 'hist-kpis');
+    const tile = (label, value) => { const t = el('div', 'hist-k'); t.append(el('span', '', label), el('b', '', value)); return t; };
+    grid.append(tile('Per day', money(data.perDay)));
+    grid.append(tile('Biggest day', big && big.v > 0 ? whole(big.v) + ' · ' + dayDate(big.k).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : '–'));
+    grid.append(tile('No-spend days', String(none)));
+    grid.append(tile(line ? 'Over ' + (limit ? 'limit' : 'average') : 'Busiest day', line ? over + (over === 1 ? ' day' : ' days') : (avg[bestDow] > 0 ? names[bestDow] : '–')));
+    card.append(el('h3', '', range === 'week' ? 'This week in numbers' : 'This month in numbers'), grid);
+    if (range === 'month' && avg[bestDow] > 0 && elapsed.length >= 14) card.append(el('p', 'hist-sub', 'You spend the most on ' + names[bestDow] + ' (about ' + whole(avg[bestDow]) + ' on average).'));
+    return card;
+  };
+
+  // A few plain-language highlights.
+  const buildInsights = () => {
+    const lines = [];
+    const risers = data.categories.filter((c) => typeof c.change === 'number' && c.change >= 0.2 && c.amount >= 10).sort((a, b) => b.change - a.change);
+    if (risers[0]) lines.push(['📈', risers[0].category + ' is up ' + pct(risers[0].change) + ' on ' + data.prevLabel]);
+    const fallers = data.categories.filter((c) => typeof c.change === 'number' && c.change <= -0.2 && c.prevAmount >= 10).sort((a, b) => a.change - b.change);
+    if (fallers[0]) lines.push(['📉', fallers[0].category + ' is down ' + pct(fallers[0].change) + ' on ' + data.prevLabel]);
+    if (data.merchants[0]) lines.push(['🏪', data.merchants[0].merchant + ' is where most went: ' + whole(data.merchants[0].amount)]);
+    if (data.categories[0]) lines.push(['🧾', data.categories[0].category + ' is your biggest category (' + pct(data.categories[0].share) + ')']);
+    if (!lines.length) return null;
+    const card = el('section', 'card hist-card hc-ins');
+    card.append(el('h3', '', 'Highlights'));
+    lines.slice(0, 4).forEach(([icon, text]) => { const r = el('div', 'hist-ins'); r.append(el('span', '', icon), el('span', '', text)); card.append(r); });
+    return card;
+  };
+
+  // Every day of the period as a small square, coloured by how much was spent (3 months and year).
+  const buildHeat = () => {
+    const daily = data.daily || {};
+    const first = dayDate(data.startDay), last = dayDate(data.endDay);
+    const limit = data.limit > 0 ? data.limit : 0;
+    const line = limit || (data.total > 0 ? data.total / Math.max(1, data.days) : 0);
+    const lead = (first.getDay() + 6) % 7;
+    const cells = [];
+    for (let i = 0; i < lead; i++) cells.push(null);
+    let none = 0, over = 0;
+    for (let d = new Date(first); d <= last; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+      const v = daily[keyOf(d)] || 0;
+      const lvl = v <= 0 ? 0 : !line || v <= line * 0.5 ? 1 : v <= line ? 2 : 3;
+      if (v <= 0) none++;
+      if (lvl === 3) over++;
+      cells.push({ k: keyOf(d), v, lvl });
+    }
+    const weeks = Math.ceil(cells.length / 7);
+    const card = el('section', 'card hist-card hc-heat');
+    card.append(el('h3', '', 'Every day'), el('p', 'hist-sub', 'Each square is a day. The darker the red, the more you spent.'));
+    // month names above the squares
+    const labels = el('div', 'hist-heatlabels');
+    let prevM = -1, runStart = 0;
+    const flush = (endCol) => { if (prevM >= 0 && endCol > runStart) { const sp = el('span', '', MONN[prevM]); sp.style.flexGrow = String(endCol - runStart); labels.append(sp); } };
+    for (let c = 0; c < weeks; c++) {
+      const cell = cells.slice(c * 7, c * 7 + 7).find(Boolean);
+      const m = cell ? dayDate(cell.k).getMonth() : prevM;
+      if (m !== prevM) { flush(c); prevM = m; runStart = c; }
+    }
+    flush(weeks);
+    const heat = el('div', 'hist-heat'); heat.style.gridTemplateColumns = 'repeat(' + weeks + ', 1fr)';
+    cells.forEach((c) => {
+      const i = el('i', c ? 'h' + c.lvl : 'hx');
+      if (c) i.title = longDay(c.k) + ': ' + money(c.v);
+      heat.append(i);
+    });
+    const legend = el('div', 'hist-legend');
+    [['h0', 'No spend'], ['h1', 'Low'], ['h2', 'Near ' + (limit ? 'limit' : 'average')], ['h3', 'Over']].forEach(([c, t]) => { const sp = el('span', '', t); const sw = el('i', 'lg-h ' + c); sp.prepend(sw); legend.append(sp); });
+    card.append(labels, heat, legend);
+    const kp = el('div', 'hist-kpis');
+    const tile = (label, value) => { const t = el('div', 'hist-k'); t.append(el('span', '', label), el('b', '', value)); return t; };
+    const monthsWith = data.months.filter((m) => m.total > 0);
+    kp.append(tile('Per month', monthsWith.length ? whole(data.total / monthsWith.length) : '–'));
+    const bm = data.months.slice().sort((a, b) => b.total - a.total)[0];
+    kp.append(tile('Busiest month', bm && bm.total > 0 ? MONN[Number(bm.key.slice(5, 7)) - 1] + ' · ' + whole(bm.total) : '–'));
+    kp.append(tile('No-spend days', String(none)));
+    kp.append(tile(line ? 'Over ' + (limit ? 'limit' : 'average') : 'Days tracked', line ? over + ' days' : String(data.days)));
+    card.append(kp);
+    return card;
+  };
+  const MONN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
   const note = (text) => { body.replaceChildren(el('p', 'hist-note', text)); };
 
   const draw = () => {
     body.replaceChildren();
+    body.classList.remove('with-views');
     navTitle.textContent = data.title;
     prevBtn.disabled = !data.prevAnchor;
     nextBtn.disabled = !data.nextAnchor;
     prevBtn.hidden = nextBtn.hidden = range === 'all';
 
     // total + comparison
-    const tot = el('section', 'card hist-card');
+    const tot = el('section', 'card hist-card hc-total');
     const dollars = Math.floor(Math.abs(data.total));
     const cents = Math.round((Math.abs(data.total) - dollars) * 100);
     const big = el('div', 'hist-big', (data.total < 0 ? '-' : '') + '$' + dollars.toLocaleString('en-CA'));
@@ -237,9 +358,9 @@
     if (data.forecast && range === 'month') {
       const f = data.forecast;
       const box = el('div', 'hist-forecast');
-      const top = el('div', 'hist-fc-top');
-      top.append(el('span', 'hist-fc-label', '🔮 On pace for'), el('b', '', whole(f.point)));
-      box.append(top);
+      const fcTop = el('div', 'hist-fc-top');
+      fcTop.append(el('span', 'hist-fc-label', '🔮 On pace for'), el('b', '', whole(f.point)));
+      box.append(fcTop);
       box.append(el('span', 'hist-fc-range', 'Likely between ' + whole(f.low) + ' and ' + whole(f.high) + ' by the end of the month'));
       const why = f.method === 'weekly-pattern' ? 'Learned from ' + f.daysOfData + ' days, including which days of the week you spend more' : 'Rough estimate from the typical day so far (' + f.daysOfData + ' days). It gets smarter after 3 weeks';
       box.append(el('span', 'hist-fc-why', (f.confidence === 'good' ? 'High' : f.confidence === 'medium' ? 'Medium' : 'Low') + ' confidence · ' + why));
@@ -255,13 +376,15 @@
     }
     body.append(tot);
 
-    if ((range === 'week' || range === 'month') && data.rows && data.count) body.append(buildViews());
+    if ((range === 'week' || range === 'month') && data.rows && data.count) { body.append(buildViews()); body.append(buildKpis()); }
+    if ((range === '3m' || range === 'year') && data.daily && data.count) body.append(buildHeat());
 
     if (!data.count) { body.append(el('p', 'hist-note', 'No spending in this period.')); return; }
+    body.classList.toggle('with-views', range === 'week' || range === 'month');
 
     // month by month bars (3 months, year, all time)
     if (data.months.length > 1) {
-      const card = el('section', 'card hist-card');
+      const card = el('section', 'card hist-card hc-months');
       card.append(el('h3', '', 'Month by month'), el('p', 'hist-sub', 'Each bar is split by category'));
       const max = Math.max(...data.months.map((m) => Math.max(m.total, 0)), 1);
       const chart = el('div', 'hist-chart');
@@ -282,7 +405,7 @@
     }
 
     // categories
-    const cats = el('section', 'card hist-card');
+    const cats = el('section', 'card hist-card hc-cats');
     cats.append(el('h3', '', 'By category'), el('p', 'hist-sub', 'Tap one to see where it went'));
     const top = data.categories[0] ? data.categories[0].amount : 1;
     data.categories.forEach((c) => {
@@ -313,9 +436,12 @@
     });
     body.append(cats);
 
+    const ins = buildInsights();
+    if (ins) body.append(ins);
+
     // cards
     if (data.cards.length > 1 || (data.cards.length === 1 && data.cards[0].card)) {
-      const cc = el('section', 'card hist-card');
+      const cc = el('section', 'card hist-card hc-cards');
       cc.append(el('h3', '', 'Cards'));
       data.cards.forEach((c) => {
         const row = el('div', 'hist-row static');
@@ -329,7 +455,7 @@
 
     // merchants
     if (data.merchants.length) {
-      const mc = el('section', 'card hist-card');
+      const mc = el('section', 'card hist-card hc-merch');
       mc.append(el('h3', '', 'Biggest merchants'));
       const topM = data.merchants[0].amount || 1;
       data.merchants.forEach((m) => {
@@ -391,4 +517,27 @@
   if (btn) btn.addEventListener('click', open);
   if (window.spendSwipeToClose) window.spendSwipeToClose(sheet, close);
   window.spendCloseHistory = close;
+
+  // Turn the phone sideways and the report opens by itself; turn it back and it closes. "Done" keeps it closed until the next turn.
+  const sideways = window.matchMedia ? window.matchMedia('(orientation: landscape) and (max-height: 520px)') : null;
+  let autoOpened = false;
+  let dismissed = false;
+  const appReady = () => { const a = $('#app'); return !!(a && !a.hidden && window.spendSession && window.spendSession.get()); };
+  const syncOrientation = () => {
+    if (!sideways) return;
+    if (sideways.matches) {
+      if (!dismissed && sheet.hidden && appReady() && !document.body.classList.contains('sheet-open')) { open(); autoOpened = true; }
+    } else {
+      dismissed = false;
+      if (autoOpened && !sheet.hidden) close();
+      autoOpened = false;
+    }
+  };
+  if (sideways) {
+    if (sideways.addEventListener) sideways.addEventListener('change', syncOrientation); else if (sideways.addListener) sideways.addListener(syncOrientation);
+    done.addEventListener('click', () => { if (sideways.matches) dismissed = true; });
+    // The app shows a moment after the page loads (sign-in check, first data): look again when data arrives.
+    if (window.dash && window.dash.onData) window.dash.onData(() => { if (!autoOpened && sideways.matches) syncOrientation(); });
+    setTimeout(syncOrientation, 1200);
+  }
 })();

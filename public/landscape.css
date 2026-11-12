@@ -1,0 +1,54 @@
+/* Phones turned sideways (landscape, short screens): the spending report fills the screen in columns, the home page
+   uses two columns, panels slide in from the right, and the sign-in page splits in two. Portrait is untouched. */
+@media (orientation: landscape) and (max-height: 520px) {
+  /* home page: two columns */
+  .page { max-width: none; }
+  .stack { display: block; column-count: 2; column-gap: 14px; }
+  .stack > * { break-inside: avoid; margin-bottom: 14px; }
+  .top { padding-top: max(6px, env(safe-area-inset-top)); }
+
+  /* panels slide in from the right and use the whole height */
+  .sheet { left: auto; right: 0; top: 0; bottom: 0; width: min(560px, 64vw); max-width: none; max-height: none; height: 100vh; height: 100dvh; margin: 0; border-radius: 26px 0 0 26px; box-shadow: -10px 0 40px rgba(0, 0, 0, .3); animation: none; padding-right: max(20px, env(safe-area-inset-right)); }
+  .sheet.tall { min-height: 0; }
+  .hx-grid { grid-template-columns: repeat(4, 1fr); }
+  .grab { display: none; }
+
+  /* the report: the whole screen, a bar on top, then columns of cards */
+  #history-sheet { left: 0; right: 0; width: auto; border-radius: 0; box-shadow: none; padding: 8px max(20px, env(safe-area-inset-right)) 14px max(20px, env(safe-area-inset-left)); display: block; background: var(--bg); }
+  .hist-top { display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 4; background: var(--bg); padding: 4px 0 8px; }
+  .hist-top .set-head { display: contents; }
+  .hist-top h2 { order: 1; font-size: 19px; white-space: nowrap; }
+  .hist-top .hist-seg { order: 2; width: 290px; flex: none; }
+  .hist-top .hist-nav { order: 3; flex: 1; justify-content: center; gap: 12px; }
+  .hist-top .hist-nav .hist-title { flex: none; min-width: 150px; font-size: 17px; }
+  .hist-top .link { order: 4; margin-left: auto; }
+  /* cards in a grid: the calendar (or chart / list) on the left, the numbers in the middle, the breakdown on the right */
+  .hist-body { display: grid; grid-template-columns: minmax(280px, 1.15fr) 1fr; gap: 12px; align-items: start; grid-auto-flow: row dense; }
+  .hist-body > .hist-card, .hist-body > .hist-views { margin: 0; }
+  .hist-views { display: grid; gap: 10px; grid-column: 1; grid-row: 1 / span 8; }
+  .with-views .hc-total { grid-column: 2; grid-row: 1; }
+  .with-views .hc-kpi { grid-column: 2; grid-row: 2; }
+  .with-views .hc-cats { grid-column: 2; }
+  .with-views .hc-ins, .with-views .hc-cards, .with-views .hc-merch { grid-column: 2; }
+  .hc-heat, .hc-months { grid-column: 1 / -1; }
+  .hist-view { margin-bottom: 8px; }
+  .hist-cd { aspect-ratio: auto; height: 38px; }
+  .hist-big { font-size: 34px; }
+}
+@media (orientation: landscape) and (max-height: 520px) and (min-width: 780px) {
+  .with-views .hc-total { grid-column: 2; grid-row: 1; }
+  .with-views .hc-kpi { grid-column: 2; grid-row: 2; }
+  .with-views .hc-ins { grid-column: 2; grid-row: 3; }
+  .with-views .hc-cats { grid-column: 3; grid-row: 1 / span 3; }
+  .with-views .hc-cards, .with-views .hc-merch { grid-column: 3; }
+  .hist-body { grid-template-columns: 1fr 1fr 1fr; }
+  .hist-body.with-views { grid-template-columns: minmax(290px, 1.15fr) 1fr 1fr; }
+}
+
+/* sign-in on a short screen: the intro on the left, the form on the right */
+@media (orientation: landscape) and (max-height: 520px) {
+  #signin { grid-template-columns: 1fr 1fr; column-gap: 40px; align-items: center; max-width: 52rem; margin-top: 3vh; }
+  #signin > .logo, #signin > h1, #signin > p { grid-column: 1; }
+  #signin > #auth-form, #signin > #signin-error { grid-column: 2; grid-row: 1 / span 3; }
+  #signin > .fine { grid-column: 2; }
+}

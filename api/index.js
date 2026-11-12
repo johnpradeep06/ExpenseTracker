@@ -482,7 +482,7 @@ const routes = {
       : []);
     const [nowRows, prevRows] = await Promise.all([fetchRows(r.start, r.end), fetchRows(r.prevStart, r.prevEnd)]);
     const wantRows = params.get('rows') === '1' && (range === 'week' || range === 'month');
-    const s = compute.summary(nowRows, prevRows, u.tz, Date.now(), wantRows);
+    const s = compute.summary(nowRows, prevRows, u.tz, Date.now(), wantRows, range === '3m' || range === 'year');
     // This month's forecast, learned from the person's own history (time series once there are 3 weeks of it).
     let forecast = null;
     if (range === 'month' && r.inProgress) {
