@@ -408,6 +408,52 @@ const assert = require('assert');
   ok(r.data.prevAnchor !== null, 'this month has a previous month to go back to');
   await call('DELETE', 'account', { auth: histTok });
 
+  // ---- forecast (time series) ----
+  {
+    const fc = require('../lib/forecast');
+    let seed = 7;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const base = [20, 20, 20, 20, 45, 70, 40];        // weekends cost more
+    const daily = [];
+    for (let i = 0; i < 56; i++) daily.push(Math.max(0, base[i % 7] + (rnd() - 0.5) * 20));
+    const truth = 300 + 10 + (() => { let sum = 0; for (let h = 0; h < 16; h++) sum += base[(56 + 1 + h) % 7]; return sum; })();
+    const f1 = fc.forecastMonth({ daily, todaySoFar: 10, remaining: 16, spentBefore: 300, seed: 1 });
+    ok(f1 && f1.method === 'weekly-pattern', 'with 8 weeks of history the time-series model is used');
+    ok(Math.abs(f1.point - truth) / truth < 0.12, 'the forecast lands within 12% of the true pattern (' + f1.point + ' vs about ' + Math.round(truth) + ')');
+    ok(f1.low < f1.point && f1.point < f1.high && f1.low >= 310, 'the range surrounds the forecast and never goes below what is already spent');
+    ok(f1.weekly.length === 7 && Math.max(...f1.weekly) === f1.weekly[5], 'it learned that Saturday is the biggest day');
+    const f1b = fc.forecastMonth({ daily, todaySoFar: 10, remaining: 16, spentBefore: 300, seed: 1 });
+    ok(JSON.stringify(f1) === JSON.stringify(f1b), 'the same data gives the same forecast every time');
+    const f2 = fc.forecastMonth({ daily: daily.slice(0, 14), todaySoFar: 0, remaining: 16, spentBefore: 100, seed: 1 });
+    ok(f2 && f2.method === 'typical-day' && f2.confidence === 'low', 'under 3 weeks of history it falls back to the typical day, with low confidence');
+    ok(fc.forecastMonth({ daily: [5, 6, 7], todaySoFar: 0, remaining: 10, spentBefore: 0 }) === null, 'under a week of history there is no forecast');
+    const quiet = fc.forecastMonth({ daily: new Array(40).fill(0), todaySoFar: 0, remaining: 10, spentBefore: 0, seed: 1 });
+    ok(quiet && quiet.point === 0 && quiet.high === 0, 'a person who spends nothing is forecast at zero');
+    const spiky = daily.slice(); spiky[30] = 2500;      // one huge purchase must not set the pace for the month
+    const f3 = fc.forecastMonth({ daily: spiky, todaySoFar: 10, remaining: 16, spentBefore: 300, seed: 1 });
+    ok(f3.point < f1.point * 1.4, 'one huge purchase in the past does not blow up the forecast');
+    ok([f1, f2, f3].every((x) => [x.point, x.low, x.high].every((v) => Number.isFinite(v))), 'no forecast is NaN or infinite');
+  }
+  r = await call('POST', 'auth/signup', { body: { email: 'fc@example.com', password: 'forecast-password-1', invite: await invite('Fc', 7) } });
+  const fcTok = r.data.session;
+  const fcId = (await pg.query("select id from users where email = 'fc@example.com'")).rows[0].id;
+  for (let d = 40; d >= 1; d--) {                       // 40 days of history, bigger on weekends
+    const at = new Date(Date.now() - d * 86400000);
+    const amt = [0, 5, 6].includes((at.getUTCDay() + 6) % 7) ? '60.00' : '20.00';
+    await pg.query("insert into purchases (user_id, title, body, created_at) values ($1, $2, $3, $4)", [fcId, 'Spending - $' + amt, 'Date: ' + at.toISOString() + '\nMerchant: Metro\nAmount: $' + amt + '\nCard: Visa\nCategory: ', at.toISOString()]);
+  }
+  const hist2 = (auth, qs) => new Promise((resolve) => {
+    const req = { method: 'GET', url: '/api/index?route=summary' + (qs ? '&' + qs : ''), headers: { authorization: 'Bearer ' + auth } };
+    const res = { statusCode: 200, headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(s2) { resolve({ status: this.statusCode, data: JSON.parse(s2) }); } };
+    api(req, res);
+  });
+  r = await hist2(fcTok, 'range=month');
+  ok(r.status === 200 && r.data.forecast && r.data.forecast.point > 0 && r.data.forecast.low <= r.data.forecast.high, 'the month summary carries a forecast');
+  ok(r.data.forecast.method === 'weekly-pattern' && r.data.forecast.daysOfData >= 30, 'a person with 40 days of history gets the time-series forecast');
+  r = await hist2(fcTok, 'range=year');
+  ok(r.data.forecast === null, 'only the current month has a forecast');
+  await call('DELETE', 'account', { auth: fcTok });
+
   r = await call('GET', 'nope');
   ok(r.status === 404, 'unknown route 404');
 

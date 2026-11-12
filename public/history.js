@@ -234,6 +234,17 @@
       }
       tot.append(pill);
     }
+    if (data.forecast && range === 'month') {
+      const f = data.forecast;
+      const box = el('div', 'hist-forecast');
+      const top = el('div', 'hist-fc-top');
+      top.append(el('span', 'hist-fc-label', '🔮 On pace for'), el('b', '', whole(f.point)));
+      box.append(top);
+      box.append(el('span', 'hist-fc-range', 'Likely between ' + whole(f.low) + ' and ' + whole(f.high) + ' by the end of the month'));
+      const why = f.method === 'weekly-pattern' ? 'Learned from ' + f.daysOfData + ' days, including which days of the week you spend more' : 'Rough estimate from the typical day so far (' + f.daysOfData + ' days). It gets smarter after 3 weeks';
+      box.append(el('span', 'hist-fc-why', (f.confidence === 'good' ? 'High' : f.confidence === 'medium' ? 'Medium' : 'Low') + ' confidence · ' + why));
+      tot.append(box);
+    }
     if (data.categories.length) {
       const stack = el('div', 'hist-stack');
       data.categories.forEach((c) => {

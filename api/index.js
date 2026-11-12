@@ -483,7 +483,16 @@ const routes = {
     const [nowRows, prevRows] = await Promise.all([fetchRows(r.start, r.end), fetchRows(r.prevStart, r.prevEnd)]);
     const wantRows = params.get('rows') === '1' && (range === 'week' || range === 'month');
     const s = compute.summary(nowRows, prevRows, u.tz, Date.now(), wantRows);
-    return { range, startDay: r.startDay, endDay: r.endDay, today: r.today, limit: limitOf(u), title: r.title, prevLabel: r.prevLabel, inProgress: r.inProgress, days: r.days, prevAnchor: r.prevAnchor, nextAnchor: r.nextAnchor, ...s, perDay: Math.round((s.total / r.days) * 100) / 100 };
+    // This month's forecast, learned from the person's own history (time series once there are 3 weeks of it).
+    let forecast = null;
+    if (range === 'month' && r.inProgress) {
+      try {
+        const since = new Date(Date.now() - 120 * DAY).toISOString();
+        const hist = (await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 order by created_at desc limit 20000", [u.id, since])).map(issueOf);
+        forecast = compute.forecast(hist, u.tz, Date.now(), new Date(u.created_at).getTime());
+      } catch (e) { console.error('forecast failed:', e && e.message); }
+    }
+    return { range, forecast, startDay: r.startDay, endDay: r.endDay, today: r.today, limit: limitOf(u), title: r.title, prevLabel: r.prevLabel, inProgress: r.inProgress, days: r.days, prevAnchor: r.prevAnchor, nextAnchor: r.nextAnchor, ...s, perDay: Math.round((s.total / r.days) * 100) / 100 };
   },
 
   'POST purchases': async (req) => {

@@ -27,6 +27,8 @@ with sync_playwright() as P:
     ok('$80' in t and 'Food Delivery' in t and 'Groceries' in t,'this month: $80 split into Food Delivery and Groceries')
     pg.screenshot(path='/tmp/claude-0/hist-month.png')
     # calendar / chart / list for the month
+    ok(pg.locator('.hist-forecast').count()==1 and 'On pace for' in pg.inner_text('.hist-forecast') and 'confidence' in pg.inner_text('.hist-forecast'),'this month shows a forecast with a range and a confidence label')
+    pg.screenshot(path='/tmp/claude-0/hist-forecast.png')
     ok(pg.locator('.hist-view button[aria-pressed=true]').inner_text().endswith('Calendar'),'the month opens on the Calendar')
     ok(pg.locator('.hist-cd.today').count()==1 and pg.locator('.hist-cd.sel').count()==1,'today is outlined and selected')
     ok('Uber Eats' in pg.inner_text('#history-sheet') and 'Metro' in pg.inner_text('#history-sheet'),'the selected day lists its purchases')
@@ -60,6 +62,7 @@ with sync_playwright() as P:
     ok(pg.locator('.hist-bar').count()>=2,'3 months shows month-by-month bars')
     pg.screenshot(path='/tmp/claude-0/hist-3m.png')
     pg.click('.hist-seg button >> text=Year'); pg.wait_for_timeout(1000)
+    ok(pg.locator('.hist-forecast').count()==0,'the year view has no forecast')
     ok('$375' in pg.inner_text('#history-sheet'),'the year total is $375 (after the edit)')
     pg.click('.hist-seg button >> text=All'); pg.wait_for_timeout(1000)
     ok(pg.locator('.hist-arrow').first.is_hidden(),'All time has no arrows')
