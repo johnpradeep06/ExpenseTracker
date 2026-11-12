@@ -59,6 +59,16 @@
   rangeSel.addEventListener('change', () => { range = rangeSel.value; anchor = null; selDay = null; openCats.clear(); load(); });
   // The simpler report (sideways phone, Clean look) only does week and month: that is where a calendar and a daily chart make sense.
   const rootEl = document.documentElement;
+  const cleanLook = () => !rootEl.classList.contains('candy') && !rootEl.classList.contains('retro');
+  // Calendar amounts in the Clean look: whole dollars up to $999, then $1k, $1.5k, $12k, so any amount fits a small tile.
+  const short = (v) => {
+    const n = Math.round(Math.abs(v));
+    if (n < 1000) return '$' + Math.round(v);
+    const unit = (x) => String(x >= 10 ? Math.round(x) : Math.round(x * 10) / 10);
+    const body = Number(unit(n / 1000)) < 1000 ? unit(n / 1000) + 'k' : unit(n / 1e6) + 'M';
+    return (v < 0 ? '-$' : '$') + body;
+  };
+  const calAmt = (v) => (cleanLook() ? short(v) : '$' + Math.round(v));
   const leanLandscape = () => !!(sideways && sideways.matches) && !rootEl.classList.contains('candy') && !rootEl.classList.contains('retro');
 
   const clock = (ts) => (ts ? new Date(ts).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' }) : '');
@@ -140,7 +150,7 @@
         if (!cellsInRow.length) return;
         const real = cellsInRow.filter((k) => k && k <= data.endDay);
         const sum = real.reduce((t, k) => t + ((byDay.get(k) || { total: 0 }).total), 0);
-        const wk = el('b', 'hist-wk' + (real.length ? '' : ' fut'), real.length ? '$' + Math.round(sum) : '–');
+        const wk = el('b', 'hist-wk' + (real.length ? '' : ' fut'), real.length ? calAmt(sum) : '–');
         wk.title = 'Total for this week';
         grid.append(wk);
         cellsInRow.length = 0;
@@ -157,7 +167,7 @@
         if (k === data.today) t.classList.add('today');
         if (k === selDay) t.classList.add('sel');
         t.append(el('span', '', String(d.getDate())));
-        if (!isFuture && total > 0) t.append(el('small', '', '$' + Math.round(total)));
+        if (!isFuture && total > 0) t.append(el('small', '', calAmt(total)));
         if (!isFuture) t.addEventListener('click', () => { selDay = k; draw(); });
         grid.append(t);
         cellsInRow.push(k);

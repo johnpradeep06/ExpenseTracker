@@ -5,7 +5,7 @@ BASE='http://127.0.0.1:8790'
 H={'Authorization':'Bearer dev-admin','Content-Type':'application/json'}
 post=lambda path,body: json.loads(u.urlopen(u.Request(BASE+path, data=json.dumps(body).encode(), headers=H, method='POST')).read())
 now=datetime.datetime.now(datetime.timezone.utc); issues=[]
-for ago,m,a,c in [(0,'Metro',30,'Visa'),(1,'Uber Eats',24,'Amex'),(2,'Tim Hortons',6,'Visa'),(3,'Costco',90,'Amex'),(5,'Netflix',15,'Visa'),(8,'Lyft',20,'Visa'),(40,'Costco',140,'Amex'),(70,'Metro',60,'Visa'),(120,'Costco',80,'Amex')]:
+for ago,m,a,c in [(0,'Metro',30,'Visa'),(1,'Uber Eats',24,'Amex'),(2,'Tim Hortons',6,'Visa'),(3,'Costco',90,'Amex'),(5,'Netflix',15,'Visa'),(8,'Lyft',20,'Visa'),(40,'Costco',140,'Amex'),(70,'Metro',60,'Visa'),(120,'Costco',80,'Amex'),(4,'Rent',1500,'Visa'),(6,'Laptop',12345,'Amex')]:
     t=(now-datetime.timedelta(days=ago)).replace(hour=15,minute=0,second=0,microsecond=0); iso=t.strftime('%Y-%m-%dT%H:%M:%SZ')
     issues.append({"title":f"Spending - ${a} - {iso[:10]}","body":f"Date: {iso}\nMerchant: {m}\nAmount: ${a}\nCard: {c}\nCategory: ","state":"open","created_at":iso})
 res=[]; errs=[]
@@ -33,6 +33,11 @@ with sync_playwright() as P:
     ok(pg.locator('.hist-range option').all_inner_texts()==['Week','Month'],'the range picker offers only Week and Month')
     ok(pg.locator('.hist-top .lv button').count()==3,'Calendar, Chart and List switch sits in the top row')
     ok(pg.evaluate("document.documentElement.scrollWidth<=innerWidth"),'no sideways overflow')
+    tiles=pg.evaluate("[...document.querySelectorAll('.hist-cd small, .hist-wk')].map(e=>e.textContent)")
+    ok(not [t for t in tiles if len(t.replace('$',''))>4 and t!='–'] and not [t for t in tiles if t.lstrip('$').isdigit() and int(t.lstrip('$'))>=1000],'no tile or weekly total shows a 4-digit amount: from $1,000 it shortens to $1k, $1.5k')
+    if (now-datetime.timedelta(days=4)).month==now.month: ok('$1.5k' in tiles,'$1,500 shows as $1.5k')
+    if (now-datetime.timedelta(days=6)).month==now.month: ok('$12k' in tiles,'$12,345 shows as $12k')
+    ok(pg.evaluate("(()=>{const bad=[];document.querySelectorAll('.hist-cd small').forEach(x=>{if(x.getBoundingClientRect().width>x.parentElement.clientWidth)bad.push(x.textContent)});document.querySelectorAll('.hist-wk').forEach(w=>{if(w.scrollWidth>w.clientWidth+1)bad.push(w.textContent)});return bad.length===0})()"),'every amount fits inside its tile or the weekly column')
     ok(pg.evaluate("(()=>{const r=document.querySelector('.hist-top .lv').getBoundingClientRect();return Math.abs((r.left+r.right)/2-innerWidth/2)<=4})()"),'the view switch is centred on the screen')
     ok(pg.locator('.hist-top .lv button').all_inner_texts()==['Calendar','Chart','List'],'the view switch shows words only, no icons')
     ok(pg.evaluate("getComputedStyle(document.querySelector('.hist-wkh')).color")=='rgba(0, 0, 0, 0)','the Week column has no visible heading')
