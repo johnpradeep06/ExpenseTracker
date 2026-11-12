@@ -76,6 +76,23 @@
   };
   const kpiRow = () => (stateOf(['kpi']) === 'ok' ? rowsOf('kpi')[0] : null);
 
+  // The jar: frame 0 is full of candies, frame 24 is empty. When the level changes it steps through the frames, like candies leaving.
+  let jarFrame = null;
+  let jarTimer = null;
+  const putJar = (el, f) => { el.style.backgroundPosition = (f % 5 / 4 * 100) + '% ' + (Math.floor(f / 5) / 4 * 100) + '%'; };
+  const showJar = (el, ratio) => {
+    const target = Math.max(0, Math.min(24, Math.round((1 - ratio) * 24)));
+    clearInterval(jarTimer);
+    if (jarFrame === null || calm() || !freshOn()) { jarFrame = target; putJar(el, target); return; }
+    putJar(el, jarFrame);
+    if (jarFrame === target) return;
+    jarTimer = setInterval(() => {
+      if (!el.isConnected) { clearInterval(jarTimer); jarFrame = target; return; }
+      jarFrame += jarFrame < target ? 1 : -1;
+      putJar(el, jarFrame);
+      if (jarFrame === target) clearInterval(jarTimer);
+    }, 45);
+  };
   let activeCat = null;
   let activeCard = null; // raw card name; '' means purchases with no card
   // Names you give your cards (for example "Family card"). Kept on this phone.
@@ -214,9 +231,9 @@
       // Candy theme: a jar of candies that empties as you spend, and today's candies by category.
       const jar = h('div', 'jar' + (ratio < 0.3 ? ' low' : ''));
       const glass = h('div', 'jar-glass');
-      const jfill = h('div', 'jar-fill');
-      jfill.style.height = 'calc(' + Math.round(ratio * 100) + '% - 6px)';
-      glass.append(jfill);
+      const sprite = h('div', 'jar-sprite');
+      glass.append(sprite);
+      showJar(sprite, left < 0 ? 0 : ratio);
       const side = h('div', 'jar-side');
       side.append(h('span', 'jar-left', left >= 0 ? money(left) + ' of candy left today' : 'The candy jar is empty'));
       const todayKey = dayKey(today);
