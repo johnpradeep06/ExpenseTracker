@@ -45,6 +45,86 @@
   .hist-body.with-views { grid-template-columns: minmax(290px, 1.15fr) 1fr 1fr; }
 }
 
+/* ====================================================================================================================
+   The simpler sideways report (Clean look only; Fresh and Arcade keep the layout above): one row of controls, then a
+   calendar, a chart or a list, and nothing else. Week and month only. Everything fits one screen without scrolling.
+   ==================================================================================================================== */
+@media (orientation: landscape) and (max-height: 520px) {
+  html:not(.candy):not(.retro) #history-sheet { overflow: hidden; padding-top: 8px; padding-bottom: 14px; }
+  /* what is not a calendar, a chart or a list stays in portrait */
+  html:not(.candy):not(.retro) .hc-total, html:not(.candy):not(.retro) .hc-kpi, html:not(.candy):not(.retro) .hc-ins, html:not(.candy):not(.retro) .hc-cats, html:not(.candy):not(.retro) .hc-cards, html:not(.candy):not(.retro) .hc-merch, html:not(.candy):not(.retro) .hc-heat, html:not(.candy):not(.retro) .hc-months,
+  html:not(.candy):not(.retro) .hist-top h2, html:not(.candy):not(.retro) .hist-seg, html:not(.candy):not(.retro) .hist-views > .hist-view, html:not(.candy):not(.retro) .hist-legend, html:not(.candy):not(.retro) .hist-card h3, html:not(.candy):not(.retro) .hist-card > .hist-sub, html:not(.candy):not(.retro) .under-chart { display: none !important; }
+
+  /* one row: period on the left, the three views in the middle, range and close on the right, all on one centre line */
+  html:not(.candy):not(.retro) .hist-top { display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: 44px; align-items: center; column-gap: 12px; height: 44px; padding: 0; background: var(--bg); box-shadow: none; }
+  html:not(.candy):not(.retro) .hist-top .hist-nav { grid-column: 1; grid-row: 1; justify-self: start; flex: none; gap: 0; }
+  html:not(.candy):not(.retro) .hist-arrow { width: 36px; height: 36px; font-size: 17px; background: var(--card); box-shadow: var(--shadow); color: var(--muted); }
+  html:not(.candy):not(.retro) .hist-arrow:disabled { opacity: .35; }
+  html:not(.candy):not(.retro) .hist-top .hist-title { flex: none; width: 140px; min-width: 0; text-align: center; font-size: 16px; font-weight: 700; line-height: 36px; }
+  html:not(.candy):not(.retro) .hist-top .lv { grid-column: 2; grid-row: 1; margin: 0; justify-self: center; display: flex; gap: 0; padding: 3px; border-radius: 13px; background: var(--track); height: 42px; align-items: center; }
+  html:not(.candy):not(.retro) .lv button { min-height: 36px; padding: 0 14px; border-radius: 10px; background: none; color: var(--muted); font-size: 14px; font-weight: 600; white-space: nowrap; }
+  html:not(.candy):not(.retro) .lv button[aria-pressed="true"] { background: var(--card); color: var(--fg); box-shadow: 0 1px 3px rgba(0, 0, 0, .14); }
+  html:not(.candy):not(.retro) .hist-top .hist-range { grid-column: 3; grid-row: 1; justify-self: end; display: block; margin-right: 46px; height: 36px; padding: 0 6px; border: 0; border-radius: 10px; background: transparent; font: inherit; font-size: 14px; font-weight: 600; color: var(--muted); -webkit-appearance: none; appearance: none; text-align: right; text-align-last: right; cursor: pointer; }
+  html:not(.candy):not(.retro) .hist-top .set-head { display: contents; }
+  html:not(.candy):not(.retro) .hist-top .set-head .link { grid-column: 3; grid-row: 1; justify-self: end; position: relative; width: 36px; height: 36px; padding: 0; border-radius: 50%; background: var(--card); box-shadow: var(--shadow); font-size: 0; }
+  html:not(.candy):not(.retro) .hist-top .set-head .link::before { content: '✕'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; color: var(--fg); }
+
+  /* the page under the row fills what is left of the screen */
+  html:not(.candy):not(.retro) .hist-body { display: block; height: calc(100vh - 78px); height: calc(100dvh - 78px); min-height: 0; }
+  html:not(.candy):not(.retro) .hist-views { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 16px; height: 100%; grid-column: auto; grid-row: auto; }
+  html:not(.candy):not(.retro) .hist-views.view-calendar { grid-template-columns: minmax(340px, 420px) minmax(0, 1fr); }
+  html:not(.candy):not(.retro) .hist-views > .hist-card { height: 100%; margin: 0; padding: 12px 14px; overflow: auto; border-radius: 20px; }
+
+  /* calendar: compact tiles so six weeks plus the total fit the short screen */
+  html:not(.candy):not(.retro) .hist-dow { margin-bottom: 3px; font-size: 10.5px; }
+  html:not(.candy):not(.retro) .hist-cal, html:not(.candy):not(.retro) .hist-dow { gap: 3px; }
+  html:not(.candy):not(.retro) .hist-cd { aspect-ratio: auto; height: 31px; border-radius: 9px; font-size: 12.5px; }
+  html:not(.candy):not(.retro) .hist-cd small { font-size: 9.5px; }
+  html:not(.candy):not(.retro) .hist-wk { font-size: 11.5px; }
+  html:not(.candy):not(.retro) .hist-tot { display: flex; justify-content: flex-end; align-items: baseline; gap: 10px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  html:not(.candy):not(.retro) .hist-tot b { font-size: 14px; color: var(--fg); font-variant-numeric: tabular-nums; }
+  html:not(.candy):not(.retro) .hist-dayhead { margin-bottom: 2px; }
+
+  /* chart: one reading line, then a chart that takes the rest of the card */
+  html:not(.candy):not(.retro) .view-chart > .hist-card { display: flex; flex-direction: column; }
+  html:not(.candy):not(.retro) .hist-read { display: flex; justify-content: space-between; align-items: baseline; }
+  html:not(.candy):not(.retro) .hist-read b { font-size: 16px; }
+  html:not(.candy):not(.retro) .hist-read span { font-size: 13px; color: var(--muted); }
+  html:not(.candy):not(.retro) .hist-days { flex: 1; height: auto; min-height: 110px; margin-top: 26px; }
+  html:not(.candy):not(.retro) .hist-dc i { background: color-mix(in srgb, var(--muted) 42%, var(--card)); border-radius: 4px 4px 0 0; }
+  html:not(.candy):not(.retro) .hist-dc i.over { background: color-mix(in srgb, var(--up) 50%, var(--card)); }
+  html:not(.candy):not(.retro) .hist-dc.sel i { background: var(--accent); }
+  html:not(.candy):not(.retro) .hist-dc.sel i.over { background: var(--up); }
+  html:not(.candy):not(.retro) .hist-axis { margin-top: 6px; }
+
+  /* list: filters and search on one line, the purchases in two columns */
+  html:not(.candy):not(.retro) .view-list { grid-template-columns: minmax(0, 1fr); }
+  html:not(.candy):not(.retro) .view-list > .hist-listbox { height: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 210px; grid-template-rows: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+  html:not(.candy):not(.retro) .view-list .hist-chips { grid-column: 1; grid-row: 1; margin: 0; }
+  html:not(.candy):not(.retro) .view-list .hist-search { grid-column: 2; grid-row: 1; height: 36px; padding: 0 14px; border-radius: 99px; }
+  html:not(.candy):not(.retro) .view-list .hist-list { grid-column: 1 / -1; grid-row: 2; height: 100%; margin: 0; overflow: auto; column-count: 2; column-gap: 28px; padding: 12px 16px; }
+  html:not(.candy):not(.retro) .view-list .hist-dh { break-after: avoid; }
+  html:not(.candy):not(.retro) .view-list .hist-tx { break-inside: avoid; }
+
+  /* quiet calendar: neutral tiles, colour only for the selected day and for amounts over the limit; weekly totals as plain text */
+  html:not(.candy):not(.retro) .hist-cd.ok, html:not(.candy):not(.retro) .hist-cd.over, html:not(.candy):not(.retro) .hist-cd.zero { background: var(--track); color: var(--fg); }
+  html:not(.candy):not(.retro) .hist-cd.over small { color: var(--up); font-weight: 700; }
+  html:not(.candy):not(.retro) .hist-cd.future { background: none; }
+  html:not(.candy):not(.retro) .hist-cd.today span { color: var(--accent); }
+  html:not(.candy):not(.retro) .hist-cd.sel { background: var(--accent); color: #fff; box-shadow: none; outline: 0; }
+  html:not(.candy):not(.retro) .hist-cd.sel small, html:not(.candy):not(.retro) .hist-cd.sel.today span { color: rgba(255, 255, 255, .88); }
+  html:not(.candy):not(.retro) .hist-wk, html:not(.candy):not(.retro) .hist-wk.fut { background: none; color: var(--muted); font-weight: 600; }
+  html:not(.candy):not(.retro) .hist-views.view-calendar { grid-template-columns: minmax(320px, 360px) minmax(0, 1fr); }
+  html:not(.candy):not(.retro) .hist-top .hist-range { padding-right: 18px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2375757c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 6px center; }
+}
+
+/* wider phones get a little more air in that row */
+@media (orientation: landscape) and (max-height: 520px) and (min-width: 780px) {
+  html:not(.candy):not(.retro) .hist-top .hist-title { width: 150px; }
+  html:not(.candy):not(.retro) .lv button { padding: 0 18px; }
+  html:not(.candy):not(.retro) .hist-views.view-calendar { grid-template-columns: minmax(340px, 420px) minmax(0, 1fr); }
+}
+
 /* sign-in on a short screen: the intro on the left, the form on the right */
 @media (orientation: landscape) and (max-height: 520px) {
   #signin { grid-template-columns: 1fr 1fr; column-gap: 40px; align-items: center; max-width: 52rem; margin-top: 3vh; }

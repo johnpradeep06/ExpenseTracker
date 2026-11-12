@@ -1,4 +1,4 @@
-const CACHE = 'spend-v55';
+const CACHE = 'spend-v57';
 const ASSETS = ['./', './index.html', './api.js', './runtime.js', './calcs.js', './app.js', './loader.js', './main.js', './add.js', './push.js', './settings.js', './people.js', './theme.js', './game.js', './heroes.js', './heroes.css', './history.js', './history.css', './landscape.css', './clean.css', './jar/jar-sprite.webp', './retro.css', './candy.css', './vendor/d3.min.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {

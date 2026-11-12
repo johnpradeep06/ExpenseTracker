@@ -111,3 +111,6 @@
 .lg-h { outline: none; }
 .hist-heatlabels { display: flex; font-size: 10px; color: var(--muted); font-weight: 700; margin-top: 10px; }
 .hist-heatlabels span { overflow: hidden; white-space: nowrap; }
+
+/* Pieces that only the simpler sideways report uses (shown by landscape.css); in portrait they stay out of the way. */
+.hist-range, .hist-tot, .hist-read, .hist-view.lv { display: none; }

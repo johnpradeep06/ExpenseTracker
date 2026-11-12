@@ -29,7 +29,10 @@
   nav.append(prevBtn, navTitle, nextBtn);
   const body = el('div', 'hist-body');
   const top = el('div', 'hist-top');
-  top.append(head, seg, nav);
+  const topRow = top; // draw() has its own local called top, so it reaches the header row by this name
+  const rangeSel = el('select', 'hist-range'); rangeSel.setAttribute('aria-label', 'Period');
+  [['week', 'Week'], ['month', 'Month']].forEach(([v, l]) => { const o = el('option', '', l); o.value = v; rangeSel.append(o); });
+  top.append(head, seg, nav, rangeSel);
   sheet.append(grab, top, body);
   document.body.append(backdrop, sheet);
 
@@ -49,7 +52,14 @@
     b.addEventListener('click', () => { range = id; anchor = null; selDay = null; openCats.clear(); load(); });
     seg.append(b);
   });
-  const syncSeg = () => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.range === range)));
+  const syncSeg = () => {
+    seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.range === range)));
+    rangeSel.value = range === 'week' ? 'week' : 'month';
+  };
+  rangeSel.addEventListener('change', () => { range = rangeSel.value; anchor = null; selDay = null; openCats.clear(); load(); });
+  // The simpler report (sideways phone, Clean look) only does week and month: that is where a calendar and a daily chart make sense.
+  const rootEl = document.documentElement;
+  const leanLandscape = () => !!(sideways && sideways.matches) && !rootEl.classList.contains('candy') && !rootEl.classList.contains('retro');
 
   const clock = (ts) => (ts ? new Date(ts).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' }) : '');
   const dayDate = (k) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k || ''); return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null; };
@@ -75,6 +85,16 @@
     return b;
   };
 
+  const viewSwitch = (cls) => {
+    const sw = el('div', 'hist-view' + (cls ? ' ' + cls : ''));
+    [['calendar', '📅 Calendar'], ['chart', '📊 Chart'], ['list', '🧾 List']].forEach(([id, label]) => {
+      const b = el('button', '', label); b.type = 'button'; b.setAttribute('aria-pressed', String(view === id));
+      b.addEventListener('click', () => { view = id; try { localStorage.setItem('spend.histView', id); } catch (e) { /* storage unavailable */ } draw(); });
+      sw.append(b);
+    });
+    return sw;
+  };
+
   // Everything for a week or a month: totals per day, then the calendar, the chart or the list.
   const buildViews = () => {
     const rows = data.rows || [];
@@ -91,13 +111,8 @@
     if (!selDay || days.indexOf(selDay) < 0) selDay = days.indexOf(data.today) >= 0 && data.today <= data.endDay ? data.today : data.endDay;
     const wrap = el('div', 'hist-views hc-views');
 
-    const sw = el('div', 'hist-view');
-    [['calendar', '📅 Calendar'], ['chart', '📊 Chart'], ['list', '🧾 List']].forEach(([id, label]) => {
-      const b = el('button', '', label); b.type = 'button'; b.setAttribute('aria-pressed', String(view === id));
-      b.addEventListener('click', () => { view = id; try { localStorage.setItem('spend.histView', id); } catch (e) { /* storage unavailable */ } draw(); });
-      sw.append(b);
-    });
-    wrap.append(sw);
+    wrap.classList.add('view-' + view);
+    wrap.append(viewSwitch());
 
     const dayCard = (k) => {
       const g = byDay.get(k) || { total: 0, rows: [] };
@@ -151,7 +166,8 @@
       flushWeek();
       const legend = el('div', 'hist-legend');
       [['ok', line ? 'Under ' + whole(line) + (limit ? ' limit' : ' average') : 'Spending'], ['over', 'Over'], ['zero', 'No spend']].forEach(([c, t]) => { const sp = el('span', '', t); sp.prepend(el('i', 'lg-' + c)); legend.append(sp); });
-      cal.append(dow, grid, legend);
+      const foot = el('div', 'hist-tot'); foot.append(el('span', '', (range === 'week' ? 'Week' : 'Month') + ' total'), el('b', '', whole(data.total)));
+      cal.append(dow, grid, legend, foot);
       wrap.append(cal, dayCard(selDay));
       return wrap;
     }
@@ -161,21 +177,29 @@
       const over = days.filter((k) => k <= data.endDay && line && (byDay.get(k) || { total: 0 }).total > line).length;
       card.append(el('h3', '', 'Day by day'), el('p', 'hist-sub', line ? 'Red bars are days over ' + (limit ? 'your ' + whole(limit) + ' limit' : 'your average') + ' · ' + over + ' of ' + days.filter((k) => k <= data.endDay).length + ' days over' : 'Each bar is one day'));
       const max = Math.max(line * 1.15, ...days.map((k) => (byDay.get(k) || { total: 0 }).total), 1);
+      const readout = el('div', 'hist-read');
+      const setRead = (k) => { const g = byDay.get(k) || { total: 0, rows: [] }; readout.replaceChildren(el('b', '', longDay(k) + ' · ' + whole(g.total)), el('span', '', g.rows.length + (g.rows.length === 1 ? ' purchase' : ' purchases'))); };
+      setRead(selDay);
       const chart = el('div', 'hist-days');
-      if (line) { const lim = el('div', 'hist-lim'); lim.style.bottom = (line / max * 110 + 0) + 'px'; lim.append(el('span', '', whole(line))); chart.append(lim); }
+      if (line) { const lim = el('div', 'hist-lim'); lim.style.bottom = (line / max * 100) + '%'; lim.append(el('span', '', whole(line))); chart.append(lim); }
       days.forEach((k) => {
         const g = byDay.get(k);
         const total = g ? Math.max(g.total, 0) : 0;
-        const col = el(k > data.endDay ? 'div' : 'button', 'hist-dc'); if (k <= data.endDay) col.type = 'button';
-        const bar = el('i', k > data.endDay ? 'fut' : line && total > line ? 'over' : ''); bar.style.height = (k > data.endDay ? 3 : Math.max(3, Math.round(total / max * 110))) + 'px';
+        const col = el(k > data.endDay ? 'div' : 'button', 'hist-dc' + (k === selDay ? ' sel' : '')); if (k <= data.endDay) col.type = 'button';
+        const bar = el('i', k > data.endDay ? 'fut' : line && total > line ? 'over' : ''); bar.style.height = k > data.endDay ? '3px' : 'max(3px, ' + (total / max * 100).toFixed(2) + '%)';
         col.append(bar);
         col.setAttribute('aria-label', longDay(k) + ' ' + money(total));
-        if (k <= data.endDay) col.addEventListener('click', () => { const t = body.querySelector('[data-day="' + k + '"]'); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
+        if (k <= data.endDay) col.addEventListener('click', () => {
+          selDay = k; setRead(k);
+          chart.querySelectorAll('.hist-dc').forEach((c) => c.classList.toggle('sel', c === col));
+          const t = body.querySelector('[data-day="' + k + '"]'); if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        });
         chart.append(col);
       });
       const axis = el('div', 'hist-axis'); axis.append(el('span', '', String(dayDate(days[0]).getDate())), el('span', '', String(dayDate(days[days.length - 1]).getDate())));
-      card.append(chart, axis);
-      wrap.append(card, buildList(rows));
+      card.append(readout, chart, axis);
+      const under = buildList(rows); under.classList.add('under-chart');
+      wrap.append(card, under);
       return wrap;
     }
 
@@ -329,6 +353,7 @@
 
   const draw = () => {
     body.replaceChildren();
+    topRow.querySelectorAll('.lv').forEach((n) => n.remove());
     body.classList.remove('with-views');
     navTitle.textContent = data.title;
     prevBtn.disabled = !data.prevAnchor;
@@ -376,7 +401,7 @@
     }
     body.append(tot);
 
-    if ((range === 'week' || range === 'month') && data.rows && data.count) { body.append(buildViews()); body.append(buildKpis()); }
+    if ((range === 'week' || range === 'month') && data.rows && data.count) { body.append(buildViews()); body.append(buildKpis()); topRow.insertBefore(viewSwitch('lv'), rangeSel); }
     if ((range === '3m' || range === 'year') && data.daily && data.count) body.append(buildHeat());
 
     if (!data.count) { body.append(el('p', 'hist-note', 'No spending in this period.')); return; }
@@ -508,7 +533,7 @@
       if (mine !== token || sheet.hidden) return;
       const keep = sheet.scrollTop;
       data = r; draw(); sheet.scrollTop = keep;
-    } catch (e) { /* keep what is showing */ }
+    } catch (e) { console.error('history refresh failed:', e && e.message); }
   };
   if (window.dash && window.dash.onData) window.dash.onData(() => { if (sheet.hidden) return; clearTimeout(refreshTimer); refreshTimer = setTimeout(quiet, 400); });
   const addSheet = $('#add-sheet');
@@ -525,6 +550,7 @@
   const appReady = () => { const a = $('#app'); return !!(a && !a.hidden && window.spendSession && window.spendSession.get()); };
   const syncOrientation = () => {
     if (!sideways) return;
+    if (sideways.matches && leanLandscape() && !sheet.hidden && range !== 'week' && range !== 'month') { range = 'month'; anchor = null; selDay = null; openCats.clear(); load(); }
     if (sideways.matches) {
       if (!dismissed && sheet.hidden && appReady() && !document.body.classList.contains('sheet-open')) { open(); autoOpened = true; }
     } else {
