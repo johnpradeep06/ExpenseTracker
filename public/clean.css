@@ -72,27 +72,9 @@ html:not(.candy):not(.retro) .htr-thumb { position: absolute; z-index: 0; top: 3
 
 /* 7D / 30D / 1Y: the same label/amount/sub rhythm as the original card, then a live copy of its "today" line, then a bar chart */
 html:not(.candy):not(.retro) .htr-today .set-limit { margin-top: 6px; padding: 7px 12px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 10%, transparent); font-size: 13px; }
-html:not(.candy):not(.retro) .htr-plot { margin-top: 16px; }
-html:not(.candy):not(.retro) .htr-row { display: flex; align-items: flex-end; gap: 10px; }
-html:not(.candy):not(.retro) .htr-bars { position: relative; flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 3px; height: 110px; border-bottom: 1px solid var(--line); }
-html:not(.candy):not(.retro) .htr-bars.wide { gap: 5px; }
-html:not(.candy):not(.retro) .htr-bc { flex: 1; position: relative; display: flex; align-items: flex-end; height: 100%; min-width: 0; }
-html:not(.candy):not(.retro) .htr-bc i { display: block; position: relative; width: 100%; border-radius: 3px 3px 0 0; background: color-mix(in srgb, var(--muted) 40%, var(--card)); }
-html:not(.candy):not(.retro) .htr-bars.wide .htr-bc i { border-radius: 4px 4px 0 0; }
-html:not(.candy):not(.retro) .htr-bc i.o { background: color-mix(in srgb, var(--up) 48%, var(--card)); }
-html:not(.candy):not(.retro) .htr-bc i.f { background: var(--track); }
-html:not(.candy):not(.retro) .htr-bc.t i { background: var(--accent); }
-html:not(.candy):not(.retro) .htr-bc.t i.o { background: var(--up); }
-html:not(.candy):not(.retro) .htr-bc i b { position: absolute; left: 50%; bottom: calc(100% + 3px); transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--up); white-space: nowrap; font-variant-numeric: tabular-nums; }
-html:not(.candy):not(.retro) .htr-bc.t i.o b, html:not(.candy):not(.retro) .htr-bc.t i:not(.o) b { color: var(--fg); }
-/* the dashed reference line spans just the bars; its text lives in a column of its own, so a tall bar can never grow up underneath and hide it */
-html:not(.candy):not(.retro) .htr-lim { position: absolute; left: 0; right: 0; border-top: 1.5px dashed color-mix(in srgb, var(--fg) 42%, transparent); pointer-events: none; }
-html:not(.candy):not(.retro) .htr-limcol { flex: none; position: relative; width: 72px; height: 110px; }
-html:not(.candy):not(.retro) .htr-limcol span { position: absolute; left: 0; right: 0; transform: translateY(calc(-100% - 3px)); font-size: 10.5px; font-weight: 700; line-height: 1.25; color: var(--muted); }
-html:not(.candy):not(.retro) .htr-axisrow { display: flex; gap: 10px; margin-top: 6px; }
-html:not(.candy):not(.retro) .htr-axis { flex: 1; min-width: 0; display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
-html:not(.candy):not(.retro) .htr-axis.wide span { flex: 1; text-align: center; }
-html:not(.candy):not(.retro) .htr-spacer { flex: none; width: 72px; }
+/* the chart itself is unstyled here on purpose: it is built with the exact same classes (.line-svg, .dot, .area,
+   .avg-line, ...) as the original "Last 14 days" chart in the main stylesheet, so it already looks identical */
+html:not(.candy):not(.retro) .htr-chart { margin-top: 16px; min-height: 164px; }
 html:not(.candy):not(.retro) .htr-note { margin: 8px 0 0; font-size: 13px; color: var(--up); }
 html:not(.candy):not(.retro) .htr-note:empty { display: none; }
 

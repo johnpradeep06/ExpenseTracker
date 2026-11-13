@@ -28,6 +28,7 @@
   const dayDate = (k) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k || ''); return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null; };
   const keyOf = (d) => { const p = (n) => (n < 10 ? '0' : '') + n; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
   const longDay = (k) => { const d = dayDate(k); return d ? d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' }) : k; };
+  const dayShortDate = (d) => (d ? d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : '');
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const MON3 = MONTHS.map((m) => m.slice(0, 3));
   const errLine = (e) => (e && e.status ? e.message : 'Could not reach the server. Check your connection and try again.');
@@ -79,9 +80,11 @@
     const amt = el('div', 'hero-amt');
     const sub = el('div', 'hero-sub');
     todayHost = el('div', 'htr-today');
-    const chart = el('div', 'htr-chart');
+    const chart = el('div', 'htr-chart sp-js-full');
+    const read = el('p', 'scrub');
+    read.setAttribute('aria-live', 'polite');
     const note = el('p', 'htr-note');
-    trendEl.append(label, amt, sub, todayHost, chart, note);
+    trendEl.append(label, amt, sub, todayHost, chart, read, note);
     pgMain.append(trendEl);
   };
 
@@ -99,105 +102,94 @@
     todayHost.append(clone);
   };
 
-  // A day-by-day (7D, 30D) or month-by-month (1Y) bar chart. Bars are capped at 3x the reference line, so one huge
-  // purchase cannot flatten every other bar into nothing; a bar that is cut shows its real amount above it. The
-  // reference line's own label lives in a column of its own next to the bars, never above them, so a tall bar can
-  // never grow up underneath it and hide it.
-  const barsHtml = (vals, opts) => {
-    const cap = opts.cap;
-    const row = el('div', 'htr-row');
-    const wrap = el('div', 'htr-bars' + (opts.wide ? ' wide' : ''));
-    if (opts.lineLeft) row.append(lineCol(opts, cap));
-    if (opts.line) {
-      const lim = el('div', 'htr-lim');
-      lim.style.bottom = Math.min(100, (opts.line / cap) * 100).toFixed(1) + '%';
-      wrap.append(lim);
+  // One line-chart renderer for every range, built the same way as the original "Last 14 days" chart (same classes,
+  // so it reads as the same chart, not a different one): a gradient-filled monotone line, a dashed reference line
+  // with its label in the margin to the right, a dot per point (bigger for "today", red if over the reference,
+  // faint if zero), and touch-and-hold to read a point — exactly the interaction the 14-day chart already has.
+  const lineChart = (container, vals, opts) => {
+    container.replaceChildren();
+    const d3 = window.d3;
+    const W = Math.max(container.clientWidth, 260);
+    const H = 150, top = 14, bottom = 20, plotEnd = W - 54;
+    const maxV = Math.max(d3.max(vals) || 0, opts.line || 0) || 1;
+    const y = d3.scaleLinear([0, maxV * 1.12], [H - bottom, top]);
+    const idx = vals.map((v, i) => i);
+    const x = d3.scalePoint(idx, [10, plotEnd - 4]);
+    const px = (i) => x(i);
+    const gradId = 'htr-area-' + (opts.gradId || '1');
+    const svg = d3.select(container).append('svg').attr('class', 'line-svg').attr('width', '100%').attr('viewBox', '0 0 ' + W + ' ' + H).attr('role', 'img').attr('aria-label', opts.ariaLabel || '');
+    const grad = svg.append('defs').append('linearGradient').attr('id', gradId).attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 1);
+    grad.append('stop').attr('offset', '0%').attr('class', 'grad-top');
+    grad.append('stop').attr('offset', '100%').attr('class', 'grad-bot');
+    svg.append('line').attr('class', 'base').attr('x1', 0).attr('x2', plotEnd).attr('y1', y(0)).attr('y2', y(0));
+    svg.append('path').attr('class', 'area').attr('fill', 'url(#' + gradId + ')').attr('d', d3.area().x(px).y0(y(0)).y1((i) => y(vals[i])).curve(d3.curveMonotoneX)(idx));
+    svg.append('path').attr('class', 'line').attr('d', d3.line().x(px).y((i) => y(vals[i])).curve(d3.curveMonotoneX)(idx));
+    if (opts.line > 0) {
+      const ay = y(opts.line);
+      svg.append('line').attr('class', 'avg-line').attr('x1', 0).attr('x2', plotEnd).attr('y1', ay).attr('y2', ay);
+      const ly = Math.min(ay, y(0) - 12);
+      svg.append('text').attr('class', 'avg-label').attr('x', plotEnd + 5).attr('y', ly - 3).text(opts.lineLabel);
+      svg.append('text').attr('class', 'avg-label avg-amt').attr('x', plotEnd + 5).attr('y', ly + 11).text(opts.lineText);
     }
-    vals.forEach((v, i) => {
-      const future = v === null;
-      const over = !future && opts.limit && v > opts.limit;
-      const clip = !future && v > cap;
-      const h = future ? 0 : Math.min(100, (v / cap) * 100);
-      const bc = el('div', 'htr-bc' + (i === opts.today ? ' t' : ''));
-      const bar = el('i', future ? 'f' : over ? 'o' : '');
-      bar.style.height = future ? '3px' : Math.max(2.5, h) + '%';
-      if (clip) bar.append(el('b', '', short(v)));
-      bc.append(bar);
-      bc.title = opts.titleOf ? opts.titleOf(i, v) : '';
-      wrap.append(bc);
-    });
-    row.append(wrap);
-    if (opts.line && !opts.lineLeft) row.append(lineCol(opts, cap));
-    const axis = el('div', 'htr-axis' + (opts.wide ? ' wide' : ''));
-    opts.axis.forEach((t) => axis.append(el('span', '', t)));
-    const axisRow = el('div', 'htr-axisrow');
-    axisRow.append(axis);
-    if (opts.line) axisRow.append(el('span', 'htr-spacer'));
-    const box = el('div', 'htr-plot');
-    box.append(row, axisRow);
-    return box;
-  };
-  const lineCol = (opts, cap) => {
-    const col = el('div', 'htr-limcol');
-    const label = el('span', '', opts.lineLabel);
-    label.style.bottom = Math.min(100, (opts.line / cap) * 100).toFixed(1) + '%';
-    col.append(label);
-    return col;
+    const guide = svg.append('line').attr('class', 'guide').attr('y1', top - 4).attr('y2', y(0)).attr('visibility', 'hidden');
+    const radius = (i) => (i === opts.today ? 5.5 : vals[i] > 0 ? 3.8 : 2.6);
+    const dots = svg.append('g').selectAll('circle').data(idx).join('circle')
+      .attr('class', (i) => 'dot' + (vals[i] === 0 ? ' zero' : '') + (opts.over && vals[i] > opts.over ? ' over' : '') + (i === opts.today ? ' today' : ''))
+      .attr('cx', px).attr('cy', (i) => y(vals[i])).attr('r', radius);
+    const axis = svg.append('g').attr('class', 'bars-axis');
+    axis.append('text').attr('x', 2).attr('y', H - 4).attr('text-anchor', 'start').text(opts.axisStart);
+    axis.append('text').attr('x', plotEnd + 6).attr('y', H - 4).attr('text-anchor', 'end').text(opts.axisEnd);
+    if (opts.read) {
+      const read = trendEl.querySelector('.scrub');
+      const rest = opts.readHint;
+      read.textContent = rest;
+      const show = (event, i) => { read.textContent = opts.read(i); guide.attr('x1', px(i)).attr('x2', px(i)).attr('visibility', 'visible'); dots.attr('r', (p) => (p === i ? radius(p) + 2 : radius(p))); };
+      const hide = () => { read.textContent = rest; guide.attr('visibility', 'hidden'); dots.attr('r', radius); };
+      svg.append('g').selectAll('rect').data(idx).join('rect')
+        .attr('x', (i) => px(i) - x.step() / 2).attr('width', x.step()).attr('y', 0).attr('height', H - bottom).attr('fill', 'transparent')
+        .on('pointerenter', show).on('pointermove', show).on('pointerdown', show).on('pointerleave', hide).on('pointercancel', hide);
+    }
   };
 
-  const renderTrendDaily = (days, data) => {
+  const renderTrendDailyLine = (days, data) => {
     const limit = data.limit > 0 ? data.limit : 0;
     const today = dayDate(data.today);
     const keys = [];
     for (let i = days - 1; i >= 0; i--) keys.push(keyOf(new Date(today.getFullYear(), today.getMonth(), today.getDate() - i)));
     const byDay = data.daily || {};
     const vals = keys.map((k) => byDay[k] || 0);
-    const line = limit || data.perDay || Math.max(...vals, 1);
-    const axis = days === 7
-      ? keys.map((k) => dayDate(k).toLocaleDateString('en-CA', { weekday: 'narrow' }))
-      : [keys[0].slice(5).replace('-', '/'), '', data.today.slice(5).replace('-', '/')];
-    const chart = trendEl.querySelector('.htr-chart');
-    chart.replaceChildren(barsHtml(vals, {
-      cap: Math.max(line * 3, 1), line, lineLabel: limit ? 'Your limit ' + whole(limit) : 'Average ' + whole(line), limit, today: keys.length - 1, wide: days === 7,
-      titleOf: (i) => longDay(keys[i]) + ' · ' + money(vals[i]),
-      axis: days === 7 ? axis : [axis[0], axis[2]]
-    }));
+    const line = limit || data.perDay || 0;
+    lineChart(trendEl.querySelector('.htr-chart'), vals, {
+      gradId: 'd' + days, line, over: line, today: keys.length - 1,
+      lineLabel: limit ? 'Your limit' : 'Daily avg', lineText: whole(line),
+      ariaLabel: 'Spending for each of the last ' + days + ' days' + (line ? ', with the ' + (limit ? 'limit' : 'average') + ' of ' + money(line) : ''),
+      axisStart: dayShortDate(dayDate(keys[0])), axisEnd: 'Today',
+      read: (i) => longDay(keys[i]) + ' · ' + money(vals[i]), readHint: 'Touch and hold the line to see a day'
+    });
   };
 
-  const renderTrendMonthly = (data) => {
+  const renderTrendMonthlyLine = (data) => {
     const today = dayDate(data.today);
     const map = new Map((data.months || []).map((m) => [m.key, m.total]));
     const keys = [];
     for (let i = 11; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); keys.push(d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1)); }
     const vals = keys.map((k) => map.get(k) || 0);
-    const line = vals.reduce((a, b) => a + b, 0) / 12 || 1;
-    const chart = trendEl.querySelector('.htr-chart');
-    chart.replaceChildren(barsHtml(vals, {
-      cap: Math.max(line * 1.2, ...vals, 1), line, lineLabel: 'Average ' + short(line) + ' a month', lineLeft: true, today: 11, wide: true, limit: 0,
-      titleOf: (i) => MONTHS[Number(keys[i].slice(5, 7)) - 1] + ' ' + keys[i].slice(0, 4) + ' · ' + money(vals[i]),
-      axis: keys.map((k) => MON3[Number(k.slice(5, 7)) - 1][0])
-    }));
+    const line = vals.reduce((a, b) => a + b, 0) / 12 || 0;
+    lineChart(trendEl.querySelector('.htr-chart'), vals, {
+      gradId: 'y', line, over: 0, today: 11,
+      lineLabel: 'Average', lineText: whole(line),
+      ariaLabel: 'Spending for each of the last 12 months' + (line ? ', averaging ' + money(line) : ''),
+      axisStart: MON3[Number(keys[0].slice(5, 7)) - 1], axisEnd: 'Now',
+      read: (i) => MONTHS[Number(keys[i].slice(5, 7)) - 1] + ' ' + keys[i].slice(0, 4) + ' · ' + money(vals[i]), readHint: 'Touch and hold the line to see a month'
+    });
   };
 
-  const loadTrend = async (days) => {
-    if (days === 14) { hero14.hidden = false; trendEl.hidden = true; return; }
-    hero14.hidden = true;
-    trendEl.hidden = false;
-    const mine = ++trendToken;
+  const renderTrendFor = (days, data) => {
     trendEl.querySelector('.hero-label').textContent = 'Last ' + (days === 365 ? '12 months' : days + ' days');
-    trendEl.querySelector('.hero-amt').replaceChildren(el('span', '', '—'));
-    trendEl.querySelector('.hero-sub').textContent = 'Loadingâ€¦';
+    trendEl.querySelector('.hero-amt').replaceChildren(moneyBig(data.total));
+    trendEl.querySelector('.hero-sub').textContent = (data.total > 0 ? money(data.perDay) + ' a day · ' : '') + data.count + (data.count === 1 ? ' purchase' : ' purchases');
     trendEl.querySelector('.htr-note').textContent = '';
-    try {
-      const r = await window.spendApi('GET', 'trend?days=' + days);
-      if (mine !== trendToken) return;
-      trendEl.querySelector('.hero-amt').replaceChildren(moneyBig(r.total));
-      trendEl.querySelector('.hero-sub').textContent = (r.total > 0 ? money(r.perDay) + ' a day · ' : '') + r.count + (r.count === 1 ? ' purchase' : ' purchases');
-      if (days === 365) renderTrendMonthly(r); else renderTrendDaily(days, r);
-    } catch (e) {
-      if (mine !== trendToken) return;
-      trendEl.querySelector('.htr-note').textContent = errLine(e);
-    }
+    if (days === 365) renderTrendMonthlyLine(data); else renderTrendDailyLine(days, data);
   };
 
   const moneyBig = (v) => {
@@ -208,12 +200,45 @@
     return w;
   };
 
+  // Every range but 14D is fetched once, in the background, as soon as there is real data to fetch for (see
+  // loadIfReady below) and kept in memory: switching ranges afterwards is just re-drawing numbers already on the
+  // phone, not a new round trip, so it is instant. A range tapped before its own fetch has landed (rare - normally
+  // the prefetch wins the race) waits for that one fetch and then draws, without blanking what was already showing.
+  const trendCache = {};
+  const trendPromises = {};
+  const fetchTrend = (days, force) => {
+    if (!force && trendCache[days]) return Promise.resolve(trendCache[days]);
+    if (!force && trendPromises[days]) return trendPromises[days];
+    const p = window.spendApi('GET', 'trend?days=' + days)
+      .then((r) => { trendCache[days] = r; delete trendPromises[days]; return r; })
+      .catch((e) => { delete trendPromises[days]; throw e; });
+    trendPromises[days] = p;
+    return p;
+  };
+  const showRange = async (d) => {
+    if (d === 14) { hero14.hidden = false; trendEl.hidden = true; return; }
+    hero14.hidden = true;
+    trendEl.hidden = false;
+    if (trendCache[d]) { renderTrendFor(d, trendCache[d]); return; }
+    const mine = ++trendToken;
+    try {
+      const r = await fetchTrend(d);
+      if (mine !== trendToken || range !== d) return;
+      renderTrendFor(d, r);
+    } catch (e) {
+      if (mine !== trendToken || range !== d) return;
+      trendEl.querySelector('.htr-note').textContent = errLine(e);
+    }
+  };
+  // Quietly redraw whichever range just finished prefetching, but only if it is still the one on screen.
+  const prefetchAll = (force) => { [7, 30, 365].forEach((d) => fetchTrend(d, force).then((r) => { if (range === d && built && !trendEl.hidden) renderTrendFor(d, r); }).catch(() => {})); };
+
   const setRange = (d) => {
     if (d === range) return;
     range = d;
     writeRange(d);
     positionThumb();
-    loadTrend(d);
+    showRange(d);
   };
 
   // ---- widget 2: a small month calendar, with a corner button for any month and year ------------------------------
@@ -395,12 +420,23 @@
     const kpi = window.dash && window.dash.data('kpi');
     if (!kpi || kpi.status !== 'ok') return;
     loaded = true;
-    loadTrend(range);
+    showRange(range);
+    prefetchAll();
     loadMonth(new Date().getFullYear(), new Date().getMonth());
+  };
+  // After that first load, each normal refresh (a pull, a new purchase, the periodic poll) quietly replaces the
+  // cache in the background, same as the rest of the home screen - so a range you switch to is never more than one
+  // refresh cycle stale, while switching itself still never waits on the network. At most once every 10 seconds,
+  // so a burst of refreshes does not turn into a burst of requests.
+  let lastRefresh = 0;
+  const refreshTrendCache = () => {
+    if (!loaded || Date.now() - lastRefresh < 10000) return;
+    lastRefresh = Date.now();
+    prefetchAll(true);
   };
 
   const sync = () => { if (cleanLook()) build(); else teardown(); };
   sync();
   window.addEventListener('spend:theme', sync);
-  if (window.dash) window.dash.onData(() => { if (!built) return; queueMicrotask(syncTodayStrip); loadIfReady(); });
+  if (window.dash) window.dash.onData(() => { if (!built) return; queueMicrotask(syncTodayStrip); loadIfReady(); refreshTrendCache(); });
 })();
