@@ -135,7 +135,8 @@
     }
     const guide = svg.append('line').attr('class', 'guide').attr('y1', top - 4).attr('y2', y(0)).attr('visibility', 'hidden');
     const radius = (i) => (i === opts.today ? 5.5 : vals[i] > 0 ? 3.8 : 2.6);
-    const dots = svg.append('g').selectAll('circle').data(idx).join('circle')
+    const dotIdx = opts.onlyToday ? idx.filter((i) => i === opts.today) : idx;
+    const dots = svg.append('g').selectAll('circle').data(dotIdx).join('circle')
       .attr('class', (i) => 'dot' + (vals[i] === 0 ? ' zero' : '') + (opts.over && vals[i] > opts.over ? ' over' : '') + (i === opts.today ? ' today' : ''))
       .attr('cx', px).attr('cy', (i) => y(vals[i])).attr('r', radius);
     const axis = svg.append('g').attr('class', 'bars-axis');
@@ -159,14 +160,19 @@
     const keys = [];
     for (let i = days - 1; i >= 0; i--) keys.push(keyOf(new Date(today.getFullYear(), today.getMonth(), today.getDate() - i)));
     const byDay = data.daily || {};
-    const vals = keys.map((k) => byDay[k] || 0);
+    const real = keys.map((k) => byDay[k] || 0);
     const line = limit || data.perDay || 0;
+    // 30 days of daily points is too many dots, and one big day flattens the rest: the 30-day chart plots each day's
+    // 7-day average instead (one calm line), with a dot only for today. Touching it still reads the real day.
+    const smooth = days === 30;
+    const vals = smooth ? real.map((v, i) => { let t = 0, n = 0; for (let k = Math.max(0, i - 6); k <= i; k++) { t += real[k]; n++; } return t / n; }) : real;
     lineChart(trendEl.querySelector('.htr-chart'), vals, {
-      gradId: 'd' + days, line, over: line, today: keys.length - 1,
+      gradId: 'd' + days, line, over: line, today: keys.length - 1, onlyToday: smooth,
       lineLabel: limit ? 'Your limit' : 'Daily avg', lineText: whole(line),
-      ariaLabel: 'Spending for each of the last ' + days + ' days' + (line ? ', with the ' + (limit ? 'limit' : 'average') + ' of ' + money(line) : ''),
+      ariaLabel: 'Spending for each of the last ' + days + ' days' + (smooth ? ', as a 7-day average' : '') + (line ? ', with the ' + (limit ? 'limit' : 'average') + ' of ' + money(line) : ''),
       axisStart: dayShortDate(dayDate(keys[0])), axisEnd: 'Today',
-      read: (i) => longDay(keys[i]) + ' · ' + money(vals[i]), readHint: 'Touch and hold the line to see a day'
+      read: (i) => longDay(keys[i]) + ' · ' + money(real[i]) + (smooth ? ' · 7-day avg ' + whole(vals[i]) : ''),
+      readHint: smooth ? 'Smoothed over 7 days · touch and hold for a day' : 'Touch and hold the line to see a day'
     });
   };
 
