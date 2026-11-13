@@ -136,6 +136,8 @@
     note('#onboard-error', '');
     setLink($('#tap-link'), $('#tap-missing'), TAP_URL);
     setLink($('#notif-link'), $('#notif-missing'), NOTIF_URL);
+    // The picture of the Add Shortcut button goes to the same place, because people tap it.
+    [['#tap-add', TAP_URL], ['#notif-add', NOTIF_URL]].forEach(([sel, url]) => { if (url) $(sel).href = url; else $(sel).removeAttribute('href'); });
     $('#step-home').hidden = installed();
     $('#copy-code').disabled = true;
     $('#setup-code').textContent = 'Loading…';

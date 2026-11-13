@@ -66,9 +66,11 @@ with sync_playwright() as P:
         if n == 1:
             ok(vis('#tap-link') and '500cbb0903604c33a92973012fe0b1ed' in pg.get_attribute('#tap-link', 'href') and pg.get_attribute('#tap-link', 'target') == '_blank', 'step 2 has the tap-to-pay Shortcut link')
             ok(not vis('#tap-missing'), 'and no "ask for the link" message when the link exists')
+            ok(pg.get_attribute('#tap-add', 'href') == pg.get_attribute('#tap-link', 'href') and pg.get_attribute('#tap-add', 'target') == '_blank', 'tapping the picture of Add Shortcut opens the same Shortcut')
             ok(vis('#wiz-back'), 'Back appears from step 2')
         if n == 3:
             ok(vis('#notif-link') and 'b7315a1815c944479b2022f220bb2e3d' in pg.get_attribute('#notif-link', 'href'), 'step 4 has the online-payment Shortcut link')
+            ok(pg.get_attribute('#notif-add', 'href') == pg.get_attribute('#notif-link', 'href') and pg.get_attribute('#notif-add', 'target') == '_blank', 'and its Add Shortcut picture opens it too')
         if n in (4, 5, 6):
             img = pg.locator('.wiz-step:not([hidden]) img')
             ok(img.count() == 1 and img.evaluate('i => i.complete && i.naturalWidth === 690') and len(img.get_attribute('alt')) > 20, 'step %d shows its real screenshot, loaded, with a description' % (n + 1))

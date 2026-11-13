@@ -52,7 +52,7 @@
 #onboard .wiz-sc-icon svg { width: 36px; height: 36px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #onboard .wiz-nm { font-size: 20px; font-weight: 700; }
 #onboard .wiz-ds { color: #98989d; font-size: 14px; margin: 4px 0 14px; }
-#onboard .wiz-blue { display: block; background: #0a84ff; color: #fff; font-weight: 600; font-size: 17px; border-radius: 14px; padding: 13px; }
+#onboard .wiz-blue { text-decoration: none; cursor: pointer; display: block; background: #0a84ff; color: #fff; font-weight: 600; font-size: 17px; border-radius: 14px; padding: 13px; }
 #onboard .wiz-cancel { color: #0a84ff; font-size: 16px; margin-top: 12px; }
 #onboard .wiz-ios { background: #2c2c2e; border-radius: 22px; padding: 16px 18px; width: 100%; }
 #onboard .wiz-row { display: flex; align-items: center; gap: 12px; }
