@@ -85,7 +85,8 @@
     read.setAttribute('aria-live', 'polite');
     const note = el('p', 'htr-note');
     trendEl.append(label, amt, sub, todayHost, chart, read, note);
-    pgMain.append(trendEl);
+    // The switch always sits at the bottom of the card, under the chart, on every range (as it does on 14D).
+    if (rngEl && rngEl.parentNode === pgMain) pgMain.insertBefore(trendEl, rngEl); else pgMain.append(trendEl);
   };
 
   // Mirrors the real "over today / Change limit" line into the trend widget, whichever range is showing. It is the

@@ -81,6 +81,7 @@ with sync_playwright() as P:
     pg.click('.htr-rng button >> text=7D')
     pg.wait_for_timeout(900)
     ok(not vis('#hero14') and vis('.htr'), '7D switches to the trend widget')
+    ok(pg.evaluate("(()=>{const r=document.querySelector('.htr-rng').getBoundingClientRect(), c=document.querySelector('.htr .htr-chart').getBoundingClientRect();return r.top>=c.bottom})()"),'on 7D the switch sits under the chart, at the bottom, same as 14D')
     ok(amt('.htr .hero-amt') == str(int(TOTAL_7D)), '7D total excludes the 10-day-old purchase: ' + pg.inner_text('.htr .hero-amt'))
     ok(pg.locator('.htr .line-svg').count() == 1, '7D is a line chart, same as 14D - not a bar chart')
     ok(pg.locator('.htr .dot').count() == 7, '7D draws one point per day')
