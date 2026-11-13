@@ -42,7 +42,6 @@
 .hist-more[hidden] { display: none; }
 .hist-mrow { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; color: var(--muted); }
 .hist-mrow b { color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }
-#history-open { justify-self: start; margin-top: 2px; }
 
 /* Week and month: calendar, chart and list */
 #add-backdrop { z-index: 31; } #add-sheet { z-index: 32; }

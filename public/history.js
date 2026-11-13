@@ -552,6 +552,10 @@
   const btn = $('#history-open');
   if (btn) btn.addEventListener('click', open);
   if (window.spendSwipeToClose) window.spendSwipeToClose(sheet, close);
+  // The portrait "See by week, month or year" row is gone (the hero widgets cover day-to-day use now); the full
+  // report with its forecast, breakdowns and purchase lists still opens by itself when the phone is turned sideways,
+  // and this stays callable from anywhere that wants to open it directly.
+  window.spendOpenHistory = open;
   window.spendCloseHistory = close;
 
   // Turn the phone sideways and the report opens by itself; turn it back and it closes. "Done" keeps it closed until the next turn.
