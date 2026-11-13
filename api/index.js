@@ -495,6 +495,26 @@ const routes = {
     return { range, forecast, startDay: r.startDay, endDay: r.endDay, today: r.today, limit: limitOf(u), title: r.title, prevLabel: r.prevLabel, inProgress: r.inProgress, days: r.days, prevAnchor: r.prevAnchor, nextAnchor: r.nextAnchor, ...s, perDay: Math.round((s.total / r.days) * 100) / 100 };
   },
 
+  // The home screen's own timeline (7 / 30 / 365 days, always ending today, never navigated). 30 days and under come
+  // back with a daily total for each day, so the app can draw bars; 365 days comes back as month totals instead,
+  // since a year of individual purchases would be a slow, pointless download for a bar chart with 12 bars.
+  'GET trend': async (req) => {
+    const u = await signedIn(req);
+    const params = new URL(req.url, 'http://x').searchParams;
+    const days = Number(params.get('days'));
+    if (!compute.TRAILING_DAYS.includes(days)) fail(400, 'Choose 7, 30 or 365 days');
+    const r = compute.trailingRange(days, u.tz, Date.now());
+    const rows = (await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, r.start, r.end])).map(issueOf);
+    const withDaily = days <= 30;
+    const s = compute.summary(rows, [], u.tz, Date.now(), false, withDaily);
+    return {
+      days, total: s.total, count: s.count, perDay: Math.round((s.total / days) * 100) / 100,
+      daily: withDaily ? s.daily : undefined,
+      months: days === 365 ? s.months.map((m) => ({ key: m.key, total: m.total })) : undefined,
+      startDay: r.startDay, endDay: r.endDay, today: r.today, limit: limitOf(u)
+    };
+  },
+
   'POST purchases': async (req) => {
     const u = await signedIn(req);
     const b = await readBody(req);

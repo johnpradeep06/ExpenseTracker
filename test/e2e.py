@@ -89,7 +89,7 @@ pg.screenshot(path='/tmp/e2e-app.png')
 # 3. Daily limit from the top button
 pg.click('#limit-open'); pg.fill('#limit-input', '50'); pg.click('#limit-save'); pg.wait_for_timeout(600)
 ok('$50' in t('#limit-open'), 'limit set from the top button: ' + t('#limit-open'))
-ok('over today' in t('.avg-note'), 'chart says over today: ' + t('.avg-note').split(' / ')[0])
+ok('over today' in t('#hero14 .avg-note'), 'chart says over today: ' + t('#hero14 .avg-note').split(' / ')[0])
 
 # 4. Add, edit, delete, undo a payment by hand
 pg.click('#add-open'); pg.fill('#add-merchant', 'Metro'); pg.fill('#add-amount', '10'); pg.click('#add-save'); pg.wait_for_timeout(800)

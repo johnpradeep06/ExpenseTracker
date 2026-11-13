@@ -406,6 +406,27 @@ const assert = require('assert');
   ok(r.data.inProgress === false && r.data.nextAnchor !== null, 'last month is complete and has a next month to go to');
   r = await hist(histTok, 'range=month');
   ok(r.data.prevAnchor !== null, 'this month has a previous month to go back to');
+
+  // ---- trend (the home screen's own 7 / 30 / 365-day timeline) ----
+  const trend = (auth, qs) => new Promise((resolve) => {
+    const req = { method: 'GET', url: '/api/index?route=trend' + (qs ? '&' + qs : ''), headers: auth ? { authorization: 'Bearer ' + auth } : {} };
+    const res = { statusCode: 200, headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(s2) { resolve({ status: this.statusCode, data: JSON.parse(s2) }); } };
+    api(req, res);
+  });
+  r = await trend(null, 'days=7');
+  ok(r.status === 401, 'trend needs a sign-in');
+  r = await trend(histTok, 'days=10');
+  ok(r.status === 400, 'an unsupported day count is refused');
+  r = await trend(histTok, 'days=7');
+  ok(r.status === 200 && r.data.days === 7 && r.data.total >= 80 && r.data.count === 2, 'the last 7 days is just what was bought today');
+  ok(r.data.daily && Object.values(r.data.daily).reduce((a, b) => a + b, 0) >= 80, 'the 7-day page gets a daily breakdown');
+  ok(!('months' in r.data), 'the 7-day page has no month buckets');
+  r = await trend(histTok, 'days=30');
+  ok(r.data.total >= 80 && r.data.total < 170, '30 days still misses the purchase from 40 days ago');
+  r = await trend(histTok, 'days=365');
+  ok(r.data.total >= 170 && r.data.total < 370 && r.data.count === 4, '365 days reaches 40 days back but not the 400-day-old purchase');
+  ok(!('daily' in r.data), 'the 365-day page has no day-by-day breakdown');
+  ok(Array.isArray(r.data.months) && r.data.months.length >= 1 && r.data.months.every((m) => /^\d{4}-\d{2}$/.test(m.key) && typeof m.total === 'number'), 'the 365-day page is grouped into months instead');
   await call('DELETE', 'account', { auth: histTok });
 
   // ---- forecast (time series) ----

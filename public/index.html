@@ -378,6 +378,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 
   <div class="stack">
     <section class="card hero" id="headline" aria-label="Last two weeks at a glance">
+     <div class="hero-pager" id="hero-pager">
+      <div class="hero-pg" id="hero-pg-main">
       <div class="pet" id="pet" data-mood="happy" aria-hidden="true">
         <svg viewBox="0 0 100 90">
           <defs>
@@ -447,10 +449,16 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
           </g>
         </svg>
       </div>
+      <div class="hero14" id="hero14">
       <div class="hero-label">Last 14 days</div>
       <div class="hero-amt" data-draw="h_amt">—</div>
       <div class="hero-sub" data-draw="h_sub">—</div>
       <div class="pill" data-draw="h_pill" hidden></div>
+      <div class="bars sp-js-full">
+        <div data-draw="days"></div>
+        <p class="scrub" aria-live="polite"></p>
+      </div>
+      </div>
       <div class="game" id="game" hidden>
         <button type="button" class="goal-row" id="goal-open">
           <span class="goal-emoji" id="goal-emoji" aria-hidden="true">🎯</span>
@@ -472,10 +480,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
           <button type="button" class="link" id="real-skip">Not now</button>
         </div>
       </div>
-      <div class="bars sp-js-full">
-        <div data-draw="days"></div>
-        <p class="scrub" aria-live="polite"></p>
       </div>
+     </div>
     </section>
 
     <section class="card sp-js-full" id="latest">
@@ -730,5 +736,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 <script src="game.js"></script>
 <script src="heroes.js"></script>
 <script src="history.js"></script>
+<script src="hero.js"></script>
 </body>
 </html>

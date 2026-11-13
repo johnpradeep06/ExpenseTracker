@@ -45,3 +45,95 @@ html:not(.candy):not(.retro) .top {
   html:not(.candy):not(.retro) .top .limit-pill { height: 36px; padding: 0 10px 0 9px; font-size: 13px; }
   html:not(.candy):not(.retro) .top .limit-pill.empty { width: 36px; padding: 0; }
 }
+
+/* ====================================================================================================================
+   4. The hero as two swipeable widgets (hero.js): "Last 14 days" (with a 7D/14D/30D/1Y switch added under it) and,
+   one swipe away, a small month calendar. Built and torn down entirely by hero.js; nothing here runs for Fresh or
+   Arcade, and the markup it rearranges (#hero14, the original card) is simply shown, unhidden, when this file and
+   hero.js are not in play. --on-accent is new: the colour of text sitting on a solid accent-coloured tile.
+   ==================================================================================================================== */
+html:not(.candy):not(.retro) { --on-accent: #fff; }
+@media (prefers-color-scheme: dark) { html:not(.candy):not(.retro) { --on-accent: #062a1c; } }
+
+html:not(.candy):not(.retro) #headline { position: relative; }
+html:not(.candy):not(.retro) .hero-pager { display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: none; touch-action: pan-x pan-y; }
+/* the 14-day chart normally only allows a vertical native drag (so a horizontal one is free for its own touch-and-drag
+   reading); inside this pager a swipe also has to be free to move between the two widgets, so both directions are
+   let through here, same as the pager itself. Reading a day by touch still works, exactly as before. */
+html:not(.candy):not(.retro) #hero-pg-main .line-svg { touch-action: pan-x pan-y; }
+html:not(.candy):not(.retro) .hero-pager::-webkit-scrollbar { display: none; }
+html:not(.candy):not(.retro) .hero-pg { flex: 0 0 100%; min-width: 0; min-height: 0; scroll-snap-align: center; scroll-snap-stop: always; }
+
+/* the switch: 7D / 14D / 30D / 1Y, same look as the Week / Month / Year switch in the full report */
+html:not(.candy):not(.retro) .htr-rng { position: relative; display: flex; margin: 14px 0 2px; padding: 3px; border-radius: 14px; background: var(--track); }
+html:not(.candy):not(.retro) .htr-rng button { position: relative; z-index: 1; flex: 1; border: 0; background: none; padding: 8px 0; border-radius: 11px; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--muted); cursor: pointer; }
+html:not(.candy):not(.retro) .htr-rng button[aria-pressed="true"] { color: var(--fg); }
+html:not(.candy):not(.retro) .htr-thumb { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 4); border-radius: 11px; background: var(--card); box-shadow: 0 1px 3px rgba(0, 0, 0, .2); transform: translateX(calc(var(--p, 1) * 100%)); transition: transform .2s ease; }
+@media (prefers-reduced-motion: reduce) { html:not(.candy):not(.retro) .htr-thumb { transition: none; } }
+
+/* 7D / 30D / 1Y: the same label/amount/sub rhythm as the original card, then a live copy of its "today" line, then a bar chart */
+html:not(.candy):not(.retro) .htr-today .set-limit { margin-top: 6px; padding: 7px 12px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 10%, transparent); font-size: 13px; }
+html:not(.candy):not(.retro) .htr-plot { margin-top: 16px; }
+html:not(.candy):not(.retro) .htr-row { display: flex; align-items: flex-end; gap: 10px; }
+html:not(.candy):not(.retro) .htr-bars { position: relative; flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 3px; height: 110px; border-bottom: 1px solid var(--line); }
+html:not(.candy):not(.retro) .htr-bars.wide { gap: 5px; }
+html:not(.candy):not(.retro) .htr-bc { flex: 1; position: relative; display: flex; align-items: flex-end; height: 100%; min-width: 0; }
+html:not(.candy):not(.retro) .htr-bc i { display: block; position: relative; width: 100%; border-radius: 3px 3px 0 0; background: color-mix(in srgb, var(--muted) 40%, var(--card)); }
+html:not(.candy):not(.retro) .htr-bars.wide .htr-bc i { border-radius: 4px 4px 0 0; }
+html:not(.candy):not(.retro) .htr-bc i.o { background: color-mix(in srgb, var(--up) 48%, var(--card)); }
+html:not(.candy):not(.retro) .htr-bc i.f { background: var(--track); }
+html:not(.candy):not(.retro) .htr-bc.t i { background: var(--accent); }
+html:not(.candy):not(.retro) .htr-bc.t i.o { background: var(--up); }
+html:not(.candy):not(.retro) .htr-bc i b { position: absolute; left: 50%; bottom: calc(100% + 3px); transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--up); white-space: nowrap; font-variant-numeric: tabular-nums; }
+html:not(.candy):not(.retro) .htr-bc.t i.o b, html:not(.candy):not(.retro) .htr-bc.t i:not(.o) b { color: var(--fg); }
+/* the dashed reference line spans just the bars; its text lives in a column of its own, so a tall bar can never grow up underneath and hide it */
+html:not(.candy):not(.retro) .htr-lim { position: absolute; left: 0; right: 0; border-top: 1.5px dashed color-mix(in srgb, var(--fg) 42%, transparent); pointer-events: none; }
+html:not(.candy):not(.retro) .htr-limcol { flex: none; position: relative; width: 72px; height: 110px; }
+html:not(.candy):not(.retro) .htr-limcol span { position: absolute; left: 0; right: 0; transform: translateY(calc(-100% - 3px)); font-size: 10.5px; font-weight: 700; line-height: 1.25; color: var(--muted); }
+html:not(.candy):not(.retro) .htr-axisrow { display: flex; gap: 10px; margin-top: 6px; }
+html:not(.candy):not(.retro) .htr-axis { flex: 1; min-width: 0; display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+html:not(.candy):not(.retro) .htr-axis.wide span { flex: 1; text-align: center; }
+html:not(.candy):not(.retro) .htr-spacer { flex: none; width: 72px; }
+html:not(.candy):not(.retro) .htr-note { margin: 8px 0 0; font-size: 13px; color: var(--up); }
+html:not(.candy):not(.retro) .htr-note:empty { display: none; }
+
+/* widget 2: the mini month calendar */
+html:not(.candy):not(.retro) .hero-pg-cal .hero-amt { margin-top: 4px; }
+html:not(.candy):not(.retro) .htr-crow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+html:not(.candy):not(.retro) .htr-pick { display: flex; align-items: center; gap: 6px; border: 0; border-radius: 99px; padding: 7px 12px 7px 14px; background: var(--track); font: inherit; font-size: 13.5px; font-weight: 700; color: var(--fg); cursor: pointer; }
+html:not(.candy):not(.retro) .htr-pick svg { width: 9px; height: 6px; stroke: var(--muted); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+html:not(.candy):not(.retro) .hcal-dow, html:not(.candy):not(.retro) .hcal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+html:not(.candy):not(.retro) .hcal-dow { margin: 14px 0 5px; font-size: 11px; font-weight: 700; color: var(--muted); text-align: center; }
+html:not(.candy):not(.retro) .hcal-d { height: 40px; border: 0; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0; font: inherit; font-size: 13px; font-weight: 600; line-height: 1.05; background: var(--track); color: var(--fg); cursor: pointer; font-variant-numeric: tabular-nums; }
+html:not(.candy):not(.retro) .hcal-d small { font-size: 10px; font-weight: 700; color: var(--muted); margin-top: 1px; }
+html:not(.candy):not(.retro) .hcal-d.over small { color: var(--up); }
+html:not(.candy):not(.retro) .hcal-d.blank, html:not(.candy):not(.retro) .hcal-d.future { background: none; cursor: default; }
+html:not(.candy):not(.retro) .hcal-d.future { color: color-mix(in srgb, var(--muted) 55%, transparent); }
+html:not(.candy):not(.retro) .hcal-d.today span, html:not(.candy):not(.retro) .hcal-d.today small { color: var(--accent); }
+html:not(.candy):not(.retro) .hcal-d.sel { background: var(--accent); color: var(--on-accent); }
+html:not(.candy):not(.retro) .hcal-d.sel span, html:not(.candy):not(.retro) .hcal-d.sel small, html:not(.candy):not(.retro) .hcal-d.sel.today span, html:not(.candy):not(.retro) .hcal-d.sel.today small { color: var(--on-accent); }
+html:not(.candy):not(.retro) .hcal-d.sel.over small { color: #ffcfc2; }
+@media (prefers-color-scheme: dark) { html:not(.candy):not(.retro) .hcal-d.sel.over small { color: #8a1d0c; } }
+html:not(.candy):not(.retro) .hcal-read { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 14px; font-variant-numeric: tabular-nums; }
+html:not(.candy):not(.retro) .hcal-read b { font-weight: 700; }
+html:not(.candy):not(.retro) .hcal-read span { color: var(--muted); }
+
+/* the corner popover: pick any month and year */
+html:not(.candy):not(.retro) .hero-scrim { position: absolute; inset: 0; z-index: 4; border-radius: inherit; background: rgba(0, 0, 0, .3); }
+html:not(.candy):not(.retro) .hero-pop { position: absolute; z-index: 5; width: 240px; padding: 10px; border-radius: 18px; background: color-mix(in srgb, var(--card) 96%, transparent); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: var(--shadow), 0 14px 40px rgba(0, 0, 0, .35); }
+html:not(.candy):not(.retro) .hero-pop-yr { display: flex; align-items: center; justify-content: space-between; margin: 0 0 6px; }
+html:not(.candy):not(.retro) .hero-pop-yr b { font-size: 16px; }
+html:not(.candy):not(.retro) .hero-pop-yr button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--track); color: var(--fg); font-size: 17px; line-height: 1; cursor: pointer; }
+html:not(.candy):not(.retro) .hero-pop-yr button:disabled { opacity: .3; cursor: default; }
+html:not(.candy):not(.retro) .hero-pop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+html:not(.candy):not(.retro) .hero-pop-grid button { height: 40px; border: 0; border-radius: 11px; background: none; font: inherit; font-size: 14.5px; font-weight: 600; color: var(--fg); cursor: pointer; }
+html:not(.candy):not(.retro) .hero-pop-grid button:disabled { color: color-mix(in srgb, var(--muted) 50%, transparent); cursor: default; }
+html:not(.candy):not(.retro) .hero-pop-grid button.on { background: var(--accent); color: var(--on-accent); font-weight: 800; }
+html:not(.candy):not(.retro) .hero-pop-foot { display: flex; justify-content: center; margin-top: 4px; padding-top: 5px; border-top: 1px solid var(--line); }
+html:not(.candy):not(.retro) .hero-pop-foot button { border: 0; background: none; padding: 8px 12px; font: inherit; font-size: 14px; font-weight: 700; color: var(--accent); cursor: pointer; }
+
+/* page dots, like a home screen's widgets */
+html:not(.candy):not(.retro) .hero-dots { display: flex; justify-content: center; padding: 4px 0 0; }
+html:not(.candy):not(.retro) .hero-dots > div { display: flex; gap: 7px; padding: 5px 9px; border-radius: 99px; background: var(--track); }
+html:not(.candy):not(.retro) .hero-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg); opacity: .28; cursor: pointer; transition: opacity .12s, transform .12s; }
+@media (prefers-reduced-motion: reduce) { html:not(.candy):not(.retro) .hero-dots i { transition: none; } }
