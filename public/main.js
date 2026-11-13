@@ -132,6 +132,7 @@
   const showOnboard = async () => {
     dash.stop();
     show('#onboard');
+    if (window.spendWizard) window.spendWizard.reset();
     note('#onboard-error', '');
     setLink($('#tap-link'), $('#tap-missing'), TAP_URL);
     setLink($('#notif-link'), $('#notif-missing'), NOTIF_URL);

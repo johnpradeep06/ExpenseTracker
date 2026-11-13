@@ -171,10 +171,6 @@ button { font: inherit; color: inherit; }
 #auth-form { margin: 0; max-width: none; }
 #shortcut-missing { display: block; margin-top: 6px; }
 .install-tip { background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
-.steps { margin: 0; padding-left: 22px; display: grid; gap: 16px; font-size: 15px; }
-.steps li { padding-left: 2px; }
-.steps ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; color: var(--muted); }
-.steps .primary, .steps .link-btn { display: inline-flex; justify-content: center; margin-top: 8px; text-decoration: none; }
 .code-box { margin-top: 8px; padding: 12px 14px; border-radius: 14px; background: var(--card); border: 1px dashed var(--line); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; word-break: break-all; user-select: all; -webkit-user-select: all; }
 .acct { margin: 6px 0 0; font-size: 15px; }
 .acct b { word-break: break-all; }
@@ -249,8 +245,6 @@ button { font: inherit; color: inherit; }
 .dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--track); }
 .dots span.on { background: var(--accent); }
 .tour-actions { grid-template-columns: 1fr 2fr; }
-.steps .hint { display: block; margin-top: 8px; }
-.steps .fine { display: block; margin-top: 6px; }
 .first-status { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--track); font-size: 14.5px; }
 .first-status.done { background: var(--down-bg); color: var(--down); font-weight: 600; }
 .first-status.done .sp-dot { background: var(--down); }
@@ -263,6 +257,7 @@ body.sheet-open { overflow: hidden; overscroll-behavior: none; }
 button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .is-loading, .icon-btn.spin svg { animation: none; } .seg-part { transition: none; } }
 </style>
+<link rel="stylesheet" href="setup.css">
 <link rel="stylesheet" href="retro.css">
 <link rel="stylesheet" href="candy.css">
 <link rel="stylesheet" href="heroes.css">
@@ -307,38 +302,78 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 </section>
 
 <section class="setup" id="onboard" hidden>
-  <h1>Connect your iPhone</h1>
-  <p>Two small Shortcuts send each Apple Pay purchase here the moment you pay. It takes about 5 minutes, once.</p>
-  <ol class="steps">
-    <li>
-      <b>Copy your setup code.</b> It links your Shortcuts to your account. Keep it private.
-      <div class="code-box"><code id="setup-code">Loading…</code></div>
-      <button type="button" class="primary" id="copy-code" disabled>Copy setup code</button>
-    </li>
-    <li>
-      <b>Add the tap-to-pay Shortcut.</b> It catches payments when you tap your card or phone.
-      <a class="primary link-btn" id="tap-link" href="#" target="_blank" rel="noopener" hidden>Add &ldquo;Log tap purchase&rdquo;</a>
-      <span class="fine" id="tap-missing">Ask the person who invited you for the link.</span>
-    </li>
-    <li>
-      <b>Add the online-payment Shortcut.</b> It catches Apple Pay payments made in apps and websites.
-      <a class="primary link-btn" id="notif-link" href="#" target="_blank" rel="noopener" hidden>Add &ldquo;Log notification purchase&rdquo;</a>
-      <span class="fine" id="notif-missing">Ask the person who invited you for the link.</span>
-      <span class="fine hint">For each one: tap <b>Add Shortcut</b> and paste your setup code when it asks. If it doesn&rsquo;t ask, open the Shortcut and replace the words &ldquo;Paste here&rdquo; in the Text box with your code.</span>
-    </li>
-    <li>
-      <b>Turn each one on.</b> Open the Shortcut. At the top you&rsquo;ll see a box that says <b>&ldquo;Automation is turned off&rdquo;</b>. Tap it, switch it on, and choose <b>Run Immediately</b> (not &ldquo;Ask Before Running&rdquo;). Do this for both Shortcuts.
-    </li>
-    <li>
-      <b>Make a small Apple Pay purchase.</b> It should show up here within a few seconds.
-      <div class="first-status waiting" id="first-status" role="status"><span class="sp-dot"></span><span id="first-text">Waiting for your first purchase…</span></div>
-    </li>
-    <li id="step-home">
-      <b>For alerts, add this app to your Home Screen.</b> Tap <b>Share</b>, then <b>Add to Home Screen</b>, open it from the new icon, sign in, then turn on alerts in Settings (the gear).
-    </li>
-  </ol>
-  <button type="button" class="primary" id="onboard-done">Done, show my spending</button>
-  <p class="msg" id="onboard-error" hidden></p>
+  <div class="wiz" id="wiz">
+    <div class="wiz-top">
+      <button type="button" class="wiz-back" id="wiz-back" aria-label="Back" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <span class="wiz-count" id="wiz-count" aria-live="polite">Step 1 of 8</span>
+    </div>
+    <div class="wiz-bars" id="wiz-bars" aria-hidden="true"></div>
+    <div class="wiz-view">
+      <article class="wiz-step" data-step="1">
+        <h1>Copy your setup code</h1>
+        <p class="wiz-sub">This code links your iPhone to your account. <b>Tap Copy.</b> Keep it private.</p>
+        <div class="code-box"><code id="setup-code">Loading…</code></div>
+        <button type="button" class="primary wiz-copy" id="copy-code" disabled>Copy setup code</button>
+      </article>
+      <article class="wiz-step" data-step="2" hidden>
+        <h1>Add the tap-to-pay Shortcut</h1>
+        <p class="wiz-sub">It catches payments when you tap your card or phone. Tap <b>Open Shortcut</b>, then <b>Add Shortcut</b> at the bottom.</p>
+        <a class="primary link-btn wiz-open" id="tap-link" href="#" target="_blank" rel="noopener" hidden>Open &ldquo;Log tap purchase&rdquo;</a>
+        <span class="fine" id="tap-missing">Ask the person who invited you for the link.</span>
+        <div class="wiz-stage"><span class="wiz-tag">What you will see</span>
+          <div class="wiz-sheet"><div class="wiz-sc-icon" style="background:linear-gradient(160deg,#5e5ce6,#3634a3)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5a8 8 0 0 1 8-8M5 17a12 12 0 0 1 12-12M5 8a4 4 0 0 1 4-4"/><circle cx="6" cy="18" r="1.6"/></svg></div><div class="wiz-nm">Log tap purchase</div><div class="wiz-ds">Sends each tap-to-pay purchase to My spending</div><span class="wiz-blue wiz-glow">Add Shortcut</span><div class="wiz-cancel">Cancel</div></div><span class="wiz-touch" style="left:80%;top:76%"></span></div>
+      </article>
+      <article class="wiz-step" data-step="3" hidden>
+        <h1>Paste your code</h1>
+        <p class="wiz-sub">Tap the box that says <b>Paste here</b>. Then tap <b>Paste</b> on the little menu, and <b>Done</b> at the top.</p>
+        <div class="wiz-stage"><span class="wiz-tag">Inside &ldquo;Log tap purchase&rdquo;</span>
+          <div class="wiz-ios wiz-glow"><div class="wiz-row"><span class="wiz-ic" style="background:#ffcc0a"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h9"/></svg></span><span class="wiz-t">Text</span><span class="wiz-x">&#10005;</span></div><div class="wiz-line"></div><div class="wiz-ph">Paste here</div></div>
+          <div class="wiz-bubble" style="left:40%;top:36%">Paste</div><span class="wiz-touch" style="left:52%;top:70%"></span></div>
+      </article>
+      <article class="wiz-step" data-step="4" hidden>
+        <h1>Add the online-payment Shortcut</h1>
+        <p class="wiz-sub">It catches Apple Pay in apps and websites. Tap <b>Open Shortcut</b>, then <b>Add Shortcut</b>.</p>
+        <a class="primary link-btn wiz-open" id="notif-link" href="#" target="_blank" rel="noopener" hidden>Open &ldquo;Log notification purchase&rdquo;</a>
+        <span class="fine" id="notif-missing">Ask the person who invited you for the link.</span>
+        <div class="wiz-stage"><span class="wiz-tag">What you will see</span>
+          <div class="wiz-sheet"><div class="wiz-sc-icon" style="background:linear-gradient(160deg,#ff9f0a,#c76a00)"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 11h18"/></svg></div><div class="wiz-nm">Log notification purchase</div><div class="wiz-ds">Sends each Wallet notification to My spending</div><span class="wiz-blue wiz-glow">Add Shortcut</span><div class="wiz-cancel">Cancel</div></div><span class="wiz-touch" style="left:80%;top:76%"></span></div>
+      </article>
+      <article class="wiz-step" data-step="5" hidden>
+        <h1>Paste your code here too</h1>
+        <p class="wiz-sub">Same thing: tap the <b>Text</b> box where it says <b>Paste here</b>, paste, then tap <b>Done</b>.</p>
+        <div class="wiz-stage"><span class="wiz-tag">Inside &ldquo;Log notification purchase&rdquo;</span>
+          <div class="wiz-wrap"><img src="setup/shortcut-paste.png" width="690" height="491" alt="The Text box inside the Log notification purchase Shortcut, where you paste your code" loading="lazy"><span class="wiz-hl wiz-glow" style="left:3%;top:52%;width:94%;height:46%;border-radius:20px"></span><span class="wiz-touch" style="left:72%;top:88%"></span></div></div>
+      </article>
+      <article class="wiz-step" data-step="6" hidden>
+        <h1>Open its settings</h1>
+        <p class="wiz-sub">In the box that says <b>When I receive a notification</b>, tap the little <b>arrow</b> on the right.</p>
+        <div class="wiz-stage"><span class="wiz-tag">Inside &ldquo;Log notification purchase&rdquo;</span>
+          <div class="wiz-wrap"><img src="setup/shortcut-arrow.png" width="690" height="255" alt="The notification box in the Shortcut, with a small arrow on its right" loading="lazy"><span class="wiz-hl wiz-glow" style="left:51%;top:30%;width:11%;height:30%;border-radius:50%"></span><span class="wiz-touch" style="left:56.5%;top:44%"></span></div></div>
+      </article>
+      <article class="wiz-step" data-step="7" hidden>
+        <h1>Turn Automation on</h1>
+        <p class="wiz-sub">Switch <b>Automation</b> on so it turns <b>green</b>. <b>Notify</b> can stay off.</p>
+        <div class="wiz-stage"><span class="wiz-tag">Inside &ldquo;Log notification purchase&rdquo;</span>
+          <div class="wiz-wrap"><img src="setup/shortcut-automation.png" width="690" height="211" alt="The Automation switch turned on (green) and the Notify switch turned off" loading="lazy"><span class="wiz-hl wiz-glow" style="left:76%;top:29%;width:17%;height:25%;border-radius:99px"></span><span class="wiz-touch" style="left:89%;top:44%"></span></div></div>
+        <p class="wiz-sub wiz-after">Then open <b>Log tap purchase</b> and do the same: paste your code, tap the arrow, turn Automation on.</p>
+      </article>
+      <article class="wiz-step" data-step="8" hidden>
+        <h1>Make a small purchase</h1>
+        <p class="wiz-sub">Pay for anything with Apple Pay. It will show up here in a few seconds.</p>
+        <div class="first-status waiting" id="first-status" role="status"><span class="sp-dot"></span><span id="first-text">Waiting for your first purchase…</span></div>
+      </article>
+      <article class="wiz-step" data-step="9" hidden>
+        <div class="wiz-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+        <h1 class="wiz-center">You&rsquo;re all set</h1>
+        <p class="wiz-sub wiz-center">Every Apple Pay purchase will now appear here on its own.</p>
+        <div class="wiz-tip" id="step-home"><b>Want alerts?</b> Tap Share, then <b>Add to Home Screen</b>, open the app from the new icon, sign in, and turn on alerts in Settings (the gear).</div>
+      </article>
+    </div>
+    <button type="button" class="primary wiz-next" id="wiz-next"><span>Next</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    <button type="button" class="btn-plain wiz-skip" id="onboard-done">Skip for now</button>
+    <p class="msg" id="onboard-error" hidden></p>
+    <p class="fine wiz-help">Stuck? Ask the person who invited you.</p>
+  </div>
 </section>
 
 <div id="app" hidden>
@@ -727,6 +762,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 <script src="calcs.js"></script>
 <script src="app.js"></script>
 <script src="loader.js"></script>
+<script src="setup.js"></script>
 <script src="main.js"></script>
 <script src="add.js"></script>
 <script src="push.js"></script>

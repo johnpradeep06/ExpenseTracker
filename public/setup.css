@@ -1,0 +1,70 @@
+/* The step-by-step "Connect your iPhone" guide. The pictures of the phone are always dark, like the iPhone's own screen;
+   everything around them follows the app's colors. */
+#onboard.setup { margin-top: 4vh; touch-action: pan-y; overscroll-behavior-x: none; }
+#onboard .wiz { display: grid; gap: 14px; }
+#onboard .wiz-top { display: flex; align-items: center; gap: 12px; min-height: 34px; }
+#onboard .wiz-back { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: var(--track); color: var(--fg); display: grid; place-items: center; cursor: pointer; flex: none; }
+#onboard .wiz-back[hidden] { display: none; }
+#onboard .wiz-back svg, #onboard .wiz-next svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+#onboard .wiz-count { font-size: 13px; font-weight: 700; color: var(--muted); }
+#onboard .wiz-bars { display: flex; gap: 4px; }
+#onboard .wiz-bars i { flex: 1; height: 4px; border-radius: 4px; background: var(--track); transition: background .25s; }
+#onboard .wiz-bars i.on { background: var(--accent); }
+#onboard .wiz-view { display: block; overflow-x: clip; }
+#onboard .wiz-step { display: grid; gap: 10px; align-content: start; animation: wiz-in .28s ease both; }
+#onboard .wiz-step[hidden] { display: none; }
+#onboard .wiz-step.wiz-in-back { animation-name: wiz-in-back; }
+@keyframes wiz-in { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+@keyframes wiz-in-back { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
+#onboard .wiz-step h1 { font-size: 26px; line-height: 1.15; letter-spacing: -.02em; outline: none; }
+#onboard .wiz-sub { font-size: 16px; line-height: 1.45; color: var(--muted); }
+#onboard .wiz-sub b { color: var(--fg); }
+#onboard .wiz-after { margin-top: 2px; }
+#onboard .wiz-center { text-align: center; }
+#onboard .wiz-open { display: inline-flex; justify-content: center; align-items: center; text-decoration: none; justify-self: start; padding: 11px 16px; font-size: 15px; }
+#onboard .wiz-open[hidden] { display: none; }
+#onboard .wiz-copy { width: 100%; }
+#onboard .wiz-next { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; font-size: 17px; }
+#onboard .wiz-next[hidden] { display: none; }
+#onboard .wiz-skip { margin: 0; width: 100%; text-align: center; background: none; color: var(--muted); font-size: 14.5px; }
+#onboard .wiz-done { width: 100%; font-size: 17px; margin: 0; }
+#onboard .wiz-help { text-align: center; margin: 0; }
+#onboard .wiz-check { width: 76px; height: 76px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); display: grid; place-items: center; margin: 14px auto 2px; }
+#onboard .wiz-check svg { width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+#onboard .wiz-tip { padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); font-size: 14.5px; color: var(--muted); }
+#onboard .wiz-tip b { color: var(--fg); }
+#onboard .wiz-tip[hidden] { display: none; }
+
+/* The picture of the phone screen */
+#onboard .wiz-stage { position: relative; margin-top: 6px; border-radius: 20px; overflow: hidden; background: #000; color: #fff; min-height: 220px; display: flex; align-items: center; justify-content: center; padding: 32px 16px 18px; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+#onboard .wiz-tag { position: absolute; top: 9px; left: 12px; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: rgba(255, 255, 255, .5); }
+#onboard .wiz-wrap { position: relative; width: 100%; }
+#onboard .wiz-wrap img { display: block; width: 100%; height: auto; border-radius: 14px; }
+#onboard .wiz-hl { position: absolute; pointer-events: none; }
+#onboard .wiz-touch { position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: rgba(255, 255, 255, .5); border: 2px solid rgba(255, 255, 255, .95); box-shadow: 0 2px 10px rgba(0, 0, 0, .4); pointer-events: none; animation: wiz-tap 1.5s ease-in-out infinite; z-index: 4; }
+#onboard .wiz-touch::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .8); animation: wiz-ripple 1.5s ease-out infinite; }
+@keyframes wiz-tap { 0%, 100% { transform: scale(1); } 40% { transform: scale(.78); } }
+@keyframes wiz-ripple { 0%, 30% { transform: scale(1); opacity: .9; } 100% { transform: scale(2.2); opacity: 0; } }
+#onboard .wiz-glow { border-radius: 16px; animation: wiz-glow 1.5s ease-in-out infinite; }
+@keyframes wiz-glow { 0%, 100% { box-shadow: 0 0 0 2px rgba(10, 132, 255, .75); } 50% { box-shadow: 0 0 0 6px rgba(10, 132, 255, .5); } }
+#onboard .wiz-sheet { background: #1c1c1e; border-radius: 24px; padding: 20px 18px 16px; width: 100%; text-align: center; }
+#onboard .wiz-sc-icon { width: 70px; height: 70px; border-radius: 17px; margin: 0 auto 10px; display: grid; place-items: center; }
+#onboard .wiz-sc-icon svg { width: 36px; height: 36px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#onboard .wiz-nm { font-size: 20px; font-weight: 700; }
+#onboard .wiz-ds { color: #98989d; font-size: 14px; margin: 4px 0 14px; }
+#onboard .wiz-blue { display: block; background: #0a84ff; color: #fff; font-weight: 600; font-size: 17px; border-radius: 14px; padding: 13px; }
+#onboard .wiz-cancel { color: #0a84ff; font-size: 16px; margin-top: 12px; }
+#onboard .wiz-ios { background: #2c2c2e; border-radius: 22px; padding: 16px 18px; width: 100%; }
+#onboard .wiz-row { display: flex; align-items: center; gap: 12px; }
+#onboard .wiz-ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; flex: none; }
+#onboard .wiz-ic svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#onboard .wiz-t { font-size: 20px; font-weight: 600; flex: 1; }
+#onboard .wiz-x { width: 28px; height: 28px; border-radius: 50%; background: #48484a; display: grid; place-items: center; color: #aaa; font-size: 15px; }
+#onboard .wiz-line { height: 1px; background: #48484a; margin: 12px -18px; }
+#onboard .wiz-ph { color: #8e8e93; font-size: 20px; min-height: 64px; }
+#onboard .wiz-bubble { position: absolute; background: #3a3a3c; border-radius: 12px; padding: 9px 20px; font-size: 17px; font-weight: 600; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); animation: wiz-pop 3s ease-in-out infinite; z-index: 3; }
+@keyframes wiz-pop { 0%, 35% { opacity: 0; transform: translateY(6px); } 50%, 90% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  #onboard .wiz-step, #onboard .wiz-touch, #onboard .wiz-touch::after, #onboard .wiz-glow, #onboard .wiz-bubble { animation: none; }
+  #onboard .wiz-bubble { opacity: 1; }
+}

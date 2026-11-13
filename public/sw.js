@@ -1,5 +1,5 @@
-const CACHE = 'spend-v65';
-const ASSETS = ['./', './index.html', './api.js', './runtime.js', './calcs.js', './app.js', './loader.js', './main.js', './add.js', './push.js', './settings.js', './people.js', './theme.js', './game.js', './heroes.js', './heroes.css', './history.js', './history.css', './landscape.css', './clean.css', './hero.js', './jar/jar-sprite.webp', './retro.css', './candy.css', './vendor/d3.min.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
+const CACHE = 'spend-v66';
+const ASSETS = ['./', './index.html', './api.js', './runtime.js', './calcs.js', './app.js', './loader.js', './main.js', './add.js', './push.js', './settings.js', './people.js', './theme.js', './game.js', './heroes.js', './heroes.css', './history.js', './history.css', './landscape.css', './clean.css', './hero.js', './setup.js', './setup.css', './jar/jar-sprite.webp', './retro.css', './candy.css', './vendor/d3.min.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
