@@ -65,8 +65,33 @@ with sync_playwright() as P:
     post('/api/admin/import', {"email": em, "issues": issues, "dailyLimit": 50})
     pg.click('#tour-skip')
     pg.wait_for_timeout(900)
+    api_calls = []
+    pg.on('request', lambda r: api_calls.append(r.url.replace(BASE, '')) if '/api/' in r.url and r.method == 'GET' else None)
     pg.click('#onboard-done')
     pg.wait_for_timeout(4000)
+    trend_calls = [u for u in api_calls if '/api/trend' in u]
+    ok(len(trend_calls) == 1 and 'days=all' in trend_calls[0], 'opening the app asks for all three ranges in ONE trend call: %s' % trend_calls)
+    ok(len(api_calls) == len(set(api_calls)), 'and no request is sent twice when the app opens (%d requests: %s)' % (len(api_calls), ', '.join(sorted(set(u.split('?')[0][5:] for u in api_calls)))))
+    ok(len(api_calls) <= 6, 'the app opens with no more than 6 server calls (was 9 before this fix)')
+    n_before = len(api_calls)
+    pg.wait_for_timeout(12000)
+    ok(len([u for u in api_calls[n_before:] if '/api/trend' in u]) == 0, 'sitting on the calendar does not keep re-fetching ranges nobody is looking at')
+    # a refresh long after the first load, while the calendar is showing, must not fetch ranges; getting to them then does, once
+    pg.evaluate("Date.now = (o => () => o() + 60000)(Date.now)")
+    n_before = len(api_calls)
+    pg.evaluate("window.dash.reload()")
+    pg.wait_for_timeout(2500)
+    ok(len([u for u in api_calls[n_before:] if '/api/trend' in u]) == 0, 'a refresh while the calendar is showing does not fetch the other ranges')
+    n_before = len(api_calls)
+    swipe(60, 330)
+    pg.wait_for_timeout(800)
+    ok(len([u for u in api_calls[n_before:] if '/api/trend' in u]) == 0, 'swiping to 14D fetches nothing (14D does not use those numbers)')
+    pg.locator('.htr-rng button', has_text='7D').click()
+    pg.wait_for_timeout(1500)
+    ok(len([u for u in api_calls[n_before:] if '/api/trend' in u]) == 1, 'choosing 7D refreshes the old numbers, once')
+    pg.locator('.htr-rng button', has_text='14D').click()
+    pg.wait_for_timeout(300)
+    swipe(330, 60)
 
     # ---- the calendar widget opens first ----
     ok(pg.evaluate("Math.round(document.querySelector('.hero-pager').scrollLeft/document.querySelector('.hero-pager').clientWidth)") == 1, 'the month calendar is the widget that opens first')

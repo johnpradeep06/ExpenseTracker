@@ -503,21 +503,30 @@ const routes = {
   // The home screen's own timeline (7 / 30 / 365 days, always ending today, never navigated). 30 days and under come
   // back with a daily total for each day, so the app can draw bars; 365 days comes back as month totals instead,
   // since a year of individual purchases would be a slow, pointless download for a bar chart with 12 bars.
+  // days=7, 30 or 365 gives one range. days=all gives all three from a single trip to the database, which is what the
+  // app asks for: the database is far away, so three separate calls (each with its own connection) were the slow part.
   'GET trend': async (req) => {
     const u = await signedIn(req);
     const params = new URL(req.url, 'http://x').searchParams;
-    const days = Number(params.get('days'));
-    if (!compute.TRAILING_DAYS.includes(days)) fail(400, 'Choose 7, 30 or 365 days');
-    const r = compute.trailingRange(days, u.tz, Date.now());
-    const rows = issuesOf(u.id, await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, r.start, r.end]));
-    const withDaily = days <= 30;
-    const s = compute.summary(rows, [], u.tz, Date.now(), false, withDaily);
-    return {
-      days, total: s.total, count: s.count, perDay: Math.round((s.total / days) * 100) / 100,
-      daily: withDaily ? s.daily : undefined,
-      months: days === 365 ? s.months.map((m) => ({ key: m.key, total: m.total })) : undefined,
-      startDay: r.startDay, endDay: r.endDay, today: r.today, limit: limitOf(u)
+    const want = String(params.get('days'));
+    const list = want === 'all' ? compute.TRAILING_DAYS : [Number(want)];
+    if (list.some((d) => !compute.TRAILING_DAYS.includes(d))) fail(400, 'Choose 7, 30, 365 or all');
+    const widest = compute.trailingRange(Math.max(...list), u.tz, Date.now());
+    const rows = issuesOf(u.id, await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, widest.start, widest.end]));
+    const one = (days) => {
+      const r = compute.trailingRange(days, u.tz, Date.now());
+      const mine = days === Math.max(...list) ? rows : rows.filter((x) => x.created_at >= r.start && x.created_at < r.end);
+      const withDaily = days <= 30;
+      const sm = compute.summary(mine, [], u.tz, Date.now(), false, withDaily);
+      return {
+        days, total: sm.total, count: sm.count, perDay: Math.round((sm.total / days) * 100) / 100,
+        daily: withDaily ? sm.daily : undefined,
+        months: days === 365 ? sm.months.map((m) => ({ key: m.key, total: m.total })) : undefined,
+        startDay: r.startDay, endDay: r.endDay, today: r.today, limit: limitOf(u)
+      };
     };
+    if (want !== 'all') return one(list[0]);
+    return { ranges: { 7: one(7), 30: one(30), 365: one(365) } };
   },
 
   'POST purchases': async (req) => {

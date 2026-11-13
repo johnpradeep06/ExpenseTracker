@@ -428,6 +428,16 @@ const assert = require('assert');
   ok(r.data.total >= 170 && r.data.total < 370 && r.data.count === 4, '365 days reaches 40 days back but not the 400-day-old purchase');
   ok(!('daily' in r.data), 'the 365-day page has no day-by-day breakdown');
   ok(Array.isArray(r.data.months) && r.data.months.length >= 1 && r.data.months.every((m) => /^\d{4}-\d{2}$/.test(m.key) && typeof m.total === 'number'), 'the 365-day page is grouped into months instead');
+  // all three ranges in one call must be exactly what three separate calls give (this is what the app now asks for)
+  {
+    const one = {};
+    for (const d of [7, 30, 365]) one[d] = (await trend(histTok, 'days=' + d)).data;
+    const all = await trend(histTok, 'days=all');
+    ok(all.status === 200 && all.data.ranges && Object.keys(all.data.ranges).join() === '7,30,365', 'days=all returns the 7, 30 and 365 day pages together');
+    ok([7, 30, 365].every((d) => JSON.stringify(all.data.ranges[d]) === JSON.stringify(one[d])), 'each page in days=all is identical to asking for it on its own');
+    ok((await trend(null, 'days=all')).status === 401, 'days=all needs a sign-in too');
+    ok((await trend(histTok, 'days=all,10')).status === 400, 'and a made-up value is still refused');
+  }
   await call('DELETE', 'account', { auth: histTok });
 
   // ---- forecast (time series) ----

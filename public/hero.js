@@ -208,25 +208,25 @@
     return w;
   };
 
-  // Every range but 14D is fetched once, in the background, as soon as there is real data to fetch for (see
+  // Every range but 14D comes from ONE request, in the background, shortly after there is real data to fetch for (see
   // loadIfReady below) and kept in memory: switching ranges afterwards is just re-drawing numbers already on the
   // phone, not a new round trip, so it is instant. A range tapped before its own fetch has landed (rare - normally
   // the prefetch wins the race) waits for that one fetch and then draws, without blanking what was already showing.
   const trendCache = {};
-  const trendPromises = {};
-  const fetchTrend = (days, force) => {
-    if (!force && trendCache[days]) return Promise.resolve(trendCache[days]);
-    if (!force && trendPromises[days]) return trendPromises[days];
-    const p = window.spendApi('GET', 'trend?days=' + days)
-      .then((r) => { trendCache[days] = r; delete trendPromises[days]; return r; })
-      .catch((e) => { delete trendPromises[days]; throw e; });
-    trendPromises[days] = p;
-    return p;
+  let trendAll = null; // the one request for all three ranges, while it is in flight
+  const fetchAll = () => {
+    if (trendAll) return trendAll; // never a second request while one is already on its way
+    trendAll = window.spendApi('GET', 'trend?days=all')
+      .then((r) => { [7, 30, 365].forEach((d) => { if (r && r.ranges && r.ranges[d]) trendCache[d] = r.ranges[d]; }); trendAll = null; return r; })
+      .catch((e) => { trendAll = null; throw e; });
+    return trendAll;
   };
+  const fetchTrend = (days) => (trendCache[days] ? Promise.resolve(trendCache[days]) : fetchAll().then(() => trendCache[days]));
   const showRange = async (d) => {
     if (d === 14) { hero14.hidden = false; trendEl.hidden = true; return; }
     hero14.hidden = true;
     trendEl.hidden = false;
+    if (stale) { stale = false; lastRefresh = Date.now(); prefetchAll(true); }
     if (trendCache[d]) { renderTrendFor(d, trendCache[d]); return; }
     const mine = ++trendToken;
     try {
@@ -238,8 +238,11 @@
       trendEl.querySelector('.htr-note').textContent = errLine(e);
     }
   };
-  // Quietly redraw whichever range just finished prefetching, but only if it is still the one on screen.
-  const prefetchAll = (force) => { [7, 30, 365].forEach((d) => fetchTrend(d, force).then((r) => { if (range === d && built && !trendEl.hidden) renderTrendFor(d, r); }).catch(() => {})); };
+  // Quietly redraw whichever range is on screen once the numbers land. Without force, nothing is fetched if all three are already here.
+  const prefetchAll = (force) => {
+    if (!force && [7, 30, 365].every((d) => trendCache[d])) return;
+    fetchAll().then(() => { if (built && !trendEl.hidden && trendCache[range]) renderTrendFor(range, trendCache[range]); }).catch(() => {});
+  };
 
   const setRange = (d) => {
     if (d === range) return;
@@ -390,6 +393,7 @@
   const onPagerScroll = () => {
     if (!dotsEl) return;
     const p = pager.scrollLeft / (pager.clientWidth || 1);
+    if (stale && trendOnScreen()) { stale = false; lastRefresh = Date.now(); prefetchAll(true); }
     [...dotsEl.querySelectorAll('i')].forEach((d, i) => { const o = Math.max(0, 1 - Math.abs(p - i)); d.style.opacity = (0.28 + 0.72 * o).toFixed(2); d.style.transform = 'scale(' + (1 + 0.2 * o).toFixed(2) + ')'; });
   };
 
@@ -432,17 +436,24 @@
     pager.scrollTo({ left: pager.clientWidth, behavior: 'instant' });
     onPagerScroll();
     showRange(range);
-    prefetchAll();
+    // The calendar (the widget that is showing) goes first; the other ranges follow in one quiet request a moment later.
+    lastRefresh = Date.now();
+    setTimeout(() => { if (built) prefetchAll(); }, 1500);
     loadMonth(new Date().getFullYear(), new Date().getMonth());
   };
   // After that first load, each normal refresh (a pull, a new purchase, the periodic poll) quietly replaces the
   // cache in the background, same as the rest of the home screen - so a range you switch to is never more than one
-  // refresh cycle stale, while switching itself still never waits on the network. At most once every 10 seconds,
+  // refresh cycle stale, while switching itself still never waits on the network. At most once every 30 seconds,
   // so a burst of refreshes does not turn into a burst of requests.
   let lastRefresh = 0;
+  let stale = false;
+  const trendOnScreen = () => built && !trendEl.hidden && pager.scrollLeft < pager.clientWidth / 2;
   const refreshTrendCache = () => {
-    if (!loaded || Date.now() - lastRefresh < 10000) return;
+    if (!loaded || Date.now() - lastRefresh < 30000) return;
+    // Numbers nobody is looking at are not refreshed; they are marked old and refreshed when you get to them.
+    if (!trendOnScreen()) { stale = true; return; }
     lastRefresh = Date.now();
+    stale = false;
     prefetchAll(true);
   };
 
