@@ -1,8 +1,9 @@
 /* The home screen's hero, Clean look only: a swipeable pair of widgets, like two home-screen widgets side by side.
    Widget 1 is the "Last 14 days" card you already know, with a 7D / 14D / 30D / 1Y switch added under it — the three
    new ranges reuse its own "over today / Change limit" line (copied live from the original, never recomputed here,
-   so the capture math can never drift) and draw their own chart from GET /api/trend. Widget 2, one swipe away, is a
-   small month calendar with a corner button to jump to any month and year.
+   so the capture math can never drift) and draw their own chart from GET /api/trend. Widget 2 is a small month
+   calendar with a corner button to jump to any month and year; it is the one that opens first, and the range
+   widget is one swipe to the right.
    Fresh and Arcade are untouched: this file does nothing at all unless the Clean look is on, and the original
    "Last 14 days" card (built by app.js) is still there underneath, unmodified, for them. */
 (function () {
@@ -421,6 +422,9 @@
     const kpi = window.dash && window.dash.data('kpi');
     if (!kpi || kpi.status !== 'ok') return;
     loaded = true;
+    // The calendar widget is the one that opens first; the range widget is a swipe to the right.
+    pager.scrollTo({ left: pager.clientWidth, behavior: 'instant' });
+    onPagerScroll();
     showRange(range);
     prefetchAll();
     loadMonth(new Date().getFullYear(), new Date().getMonth());

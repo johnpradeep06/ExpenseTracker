@@ -68,6 +68,9 @@ with sync_playwright() as P:
     pg.click('#onboard-done')
     pg.wait_for_timeout(4000)
 
+    # ---- the calendar widget opens first ----
+    ok(pg.evaluate("Math.round(document.querySelector('.hero-pager').scrollLeft/document.querySelector('.hero-pager').clientWidth)") == 1, 'the month calendar is the widget that opens first')
+    ok('spent this month' in pg.inner_text('.hero-pg-cal .hero-label').lower(), 'and it is showing this month')
     # ---- widget 1: the range switch ----
     ok(vis('.htr-rng') and pg.locator('.htr-rng button').count() == 4, 'the 7D / 14D / 30D / 1Y switch is under the card')
     ok(pg.locator('.htr-rng button').all_inner_texts() == ['7D', '14D', '30D', '1Y'], 'the four ranges read left to right')
