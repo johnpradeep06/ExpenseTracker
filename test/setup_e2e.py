@@ -72,13 +72,18 @@ with sync_playwright() as P:
             ok(vis('#notif-link') and 'b7315a1815c944479b2022f220bb2e3d' in pg.get_attribute('#notif-link', 'href'), 'step 4 has the online-payment Shortcut link')
             ok(pg.get_attribute('#notif-add', 'href') == pg.get_attribute('#notif-link', 'href') and pg.get_attribute('#notif-add', 'target') == '_blank', 'and its Add Shortcut picture opens it too')
         if n in (4, 5, 6):
-            img = pg.locator('.wiz-step:not([hidden]) img')
-            ok(img.count() == 1 and img.evaluate('i => i.complete && i.naturalWidth === 690') and len(img.get_attribute('alt')) > 20, 'step %d shows its real screenshot, loaded, with a description' % (n + 1))
+            img = pg.locator('.wiz-step:not([hidden]) img').first
+            ok(img.evaluate('i => i.complete && i.naturalWidth === 690') and len(img.get_attribute('alt')) > 20, 'step %d shows its real screenshot, loaded, with a description' % (n + 1))
             tag = pg.locator('.wiz-step:not([hidden]) .wiz-tag').inner_text().lower()
             ok('log notification purchase' in tag, 'and it says which Shortcut the picture is from')
             ok(vis('.wiz-step:not([hidden]) .wiz-touch') and vis('.wiz-step:not([hidden]) .wiz-hl'), 'and a pointer and a highlight show what to tap')
         if n == 6:
             ok('green' in pg.inner_text('.wiz-step:not([hidden]) .wiz-sub') and 'Log tap purchase' in pg.inner_text('.wiz-step:not([hidden])'), 'step 7 says to turn Automation on, and to do the same in the tap Shortcut')
+    pg.evaluate('window.spendWizard.go(4)'); pg.wait_for_timeout(200)
+    full = pg.locator('.wiz-step:not([hidden]) .wiz-img-a')
+    ok(full.evaluate('i => i.naturalHeight > 1000') and 'whole' in pg.locator('.wiz-step:not([hidden]) .wiz-tag').inner_text().lower(), 'step 5 shows the whole Shortcut, not just the Text box')
+    ok(pg.locator('.wiz-step:not([hidden]) .wiz-img-b').evaluate('i => i.complete && i.naturalHeight > 1000') and 'example' in pg.inner_text('.wiz-step:not([hidden]) .wiz-eg'), 'with an example pasted code that fades in, and a note that it is only an example')
+    pg.evaluate('window.spendWizard.go(8)'); pg.wait_for_timeout(200)
     ok(seen == TITLES, 'the nine screens come in the right order: ' + ' > '.join(seen))
     ok(cnt() == 'All done' and not vis('#wiz-next'), 'the last screen says all done and has no Next')
     ok(pg.inner_text('#onboard-done') == 'Show my spending' and 'primary' in pg.get_attribute('#onboard-done', 'class'), 'there the way out becomes the main button')

@@ -41,6 +41,9 @@
 #onboard .wiz-wrap { position: relative; width: 100%; }
 #onboard .wiz-wrap img { display: block; width: 100%; height: auto; border-radius: 14px; }
 #onboard .wiz-hl { position: absolute; pointer-events: none; }
+#onboard .wiz-img-b { position: absolute; left: 0; top: 0; opacity: 0; animation: wiz-pasted 6s ease-in-out infinite; }
+@keyframes wiz-pasted { 0%, 38% { opacity: 0; } 46%, 90% { opacity: 1; } 100% { opacity: 0; } }
+#onboard .wiz-eg { margin: 0; text-align: center; }
 #onboard .wiz-touch { position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: rgba(255, 255, 255, .5); border: 2px solid rgba(255, 255, 255, .95); box-shadow: 0 2px 10px rgba(0, 0, 0, .4); pointer-events: none; animation: wiz-tap 1.5s ease-in-out infinite; z-index: 4; }
 #onboard .wiz-touch::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .8); animation: wiz-ripple 1.5s ease-out infinite; }
 @keyframes wiz-tap { 0%, 100% { transform: scale(1); } 40% { transform: scale(.78); } }
@@ -65,6 +68,7 @@
 #onboard .wiz-bubble { position: absolute; background: #3a3a3c; border-radius: 12px; padding: 9px 20px; font-size: 17px; font-weight: 600; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); animation: wiz-pop 3s ease-in-out infinite; z-index: 3; }
 @keyframes wiz-pop { 0%, 35% { opacity: 0; transform: translateY(6px); } 50%, 90% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  #onboard .wiz-step, #onboard .wiz-touch, #onboard .wiz-touch::after, #onboard .wiz-glow, #onboard .wiz-bubble { animation: none; }
+  #onboard .wiz-step, #onboard .wiz-touch, #onboard .wiz-touch::after, #onboard .wiz-glow, #onboard .wiz-bubble, #onboard .wiz-img-b { animation: none; }
   #onboard .wiz-bubble { opacity: 1; }
+  #onboard .wiz-img-b { animation: none; opacity: 1; }
 }
