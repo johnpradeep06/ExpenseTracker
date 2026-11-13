@@ -17,6 +17,7 @@ const { q } = require('../lib/db');
 const compute = require('../lib/compute');
 const { numbers, inZone } = compute;
 const notes = require('../lib/notes');
+const vault = require('../lib/vault');
 
 const env = (k) => process.env[k] || '';
 const SITE = () => env('SITE_URL') || 'https://my-spending-two.vercel.app';
@@ -69,6 +70,8 @@ const bearer = (req) => {
 
 const iso = (v) => new Date(v).toISOString();
 const issueOf = (r) => ({ number: Number(r.id), title: r.title, body: r.body, state: r.state, created_at: iso(r.created_at) });
+// Purchase text is stored scrambled (lib/vault.js), so every row read from the database is opened for its owner here.
+const issuesOf = (userId, rows) => rows.map((r) => issueOf(vault.openRow(userId, r)));
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 
 // ---- sessions -------------------------------------------------------------------------------------------------
@@ -307,7 +310,7 @@ const pushTo = async (userId, message, only) => {
 // ---- numbers for one person ------------------------------------------------------------------------------------
 const recentIssues = async (userId) => {
   const rows = await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at > $2 order by created_at desc limit 3000", [userId, new Date(Date.now() - 29 * DAY).toISOString()]);
-  return rows.map(issueOf);
+  return issuesOf(userId, rows);
 };
 const numbersFor = async (user) => numbers(await recentIssues(user.id), user.tz, Date.now());
 const limitOf = (user) => Number(user.daily_limit) || 0;
@@ -326,8 +329,10 @@ const afterPurchase = async (user, purchaseId) => {
 const addPurchase = async (user, title, body, createdAt) => {
   const today = await q("select count(*)::int as n from purchases where user_id = $1 and created_at > $2", [user.id, new Date(Date.now() - DAY).toISOString()]);
   if (today[0] && today[0].n >= 300) fail(429, 'Too many purchases today');
-  const rows = await q('insert into purchases (user_id, title, body, created_at) values ($1, $2, $3, $4) returning id, title, body, state, created_at', [user.id, clean(title, 200), String(body).slice(0, 2000), createdAt]);
-  return rows[0];
+  const t = clean(title, 200);
+  const b = String(body).slice(0, 2000);
+  const rows = await q('insert into purchases (user_id, title, body, created_at) values ($1, $2, $3, $4) returning id, state, created_at', [user.id, vault.seal(user.id, 'title', t), vault.seal(user.id, 'body', b), createdAt]);
+  return { ...rows[0], title: t, body: b };
 };
 
 const validDate = (v) => {
@@ -478,7 +483,7 @@ const routes = {
     if (!compute.RANGES.includes(range)) fail(400, 'Choose week, month, 3m, year or all');
     const r = compute.rangeFor(range, params.get('anchor'), u.tz, Date.now());
     const fetchRows = async (from, to) => (from && to
-      ? (await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, from, to])).map(issueOf)
+      ? issuesOf(u.id, await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, from, to]))
       : []);
     const [nowRows, prevRows] = await Promise.all([fetchRows(r.start, r.end), fetchRows(r.prevStart, r.prevEnd)]);
     const wantRows = params.get('rows') === '1' && (range === 'week' || range === 'month');
@@ -488,7 +493,7 @@ const routes = {
     if (range === 'month' && r.inProgress) {
       try {
         const since = new Date(Date.now() - 120 * DAY).toISOString();
-        const hist = (await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 order by created_at desc limit 20000", [u.id, since])).map(issueOf);
+        const hist = issuesOf(u.id, await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 order by created_at desc limit 20000", [u.id, since]));
         forecast = compute.forecast(hist, u.tz, Date.now(), new Date(u.created_at).getTime());
       } catch (e) { console.error('forecast failed:', e && e.message); }
     }
@@ -504,7 +509,7 @@ const routes = {
     const days = Number(params.get('days'));
     if (!compute.TRAILING_DAYS.includes(days)) fail(400, 'Choose 7, 30 or 365 days');
     const r = compute.trailingRange(days, u.tz, Date.now());
-    const rows = (await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, r.start, r.end])).map(issueOf);
+    const rows = issuesOf(u.id, await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, r.start, r.end]));
     const withDaily = days <= 30;
     const s = compute.summary(rows, [], u.tz, Date.now(), false, withDaily);
     return {
@@ -528,7 +533,7 @@ const routes = {
     const u = await signedIn(req);
     const rows = await q('select id, title, body, state, created_at from purchases where id = $1 and user_id = $2', [id, u.id]);
     if (!rows[0]) fail(404, 'That purchase was not found');
-    return issueOf(rows[0]);
+    return issuesOf(u.id, rows)[0];
   },
 
   'PATCH purchases/:id': async (req, id) => {
@@ -536,12 +541,12 @@ const routes = {
     const b = await readBody(req);
     const rows = await q('select * from purchases where id = $1 and user_id = $2', [id, u.id]);
     if (!rows[0]) fail(404, 'That purchase was not found');
-    const cur = rows[0];
+    const cur = vault.openRow(u.id, rows[0]);
     const title = b.title !== undefined ? clean(b.title, 200) : cur.title;
     const body = b.body !== undefined ? String(b.body).slice(0, 2000) : cur.body;
     const state = b.state === 'closed' || b.state === 'open' ? b.state : cur.state;
-    const out = await q('update purchases set title = $3, body = $4, state = $5, updated_at = now() where id = $1 and user_id = $2 returning id, title, body, state, created_at', [id, u.id, title, body, state]);
-    return issueOf(out[0]);
+    const out = await q('update purchases set title = $3, body = $4, state = $5, updated_at = now() where id = $1 and user_id = $2 returning id, state, created_at', [id, u.id, vault.seal(u.id, 'title', title), vault.seal(u.id, 'body', body), state]);
+    return issueOf({ ...out[0], title, body });
   },
 
   // The Shortcut sends each purchase here, with its setup code instead of a session.
@@ -764,7 +769,7 @@ const routes = {
     let added = 0;
     for (const i of (Array.isArray(b.issues) ? b.issues : []).slice(0, 2000)) {
       if (!i.title || !i.body) continue;
-      await q('insert into purchases (user_id, title, body, state, created_at) values ($1, $2, $3, $4, $5)', [users[0].id, clean(i.title, 200), String(i.body).slice(0, 2000), i.state === 'closed' ? 'closed' : 'open', isNaN(Date.parse(i.created_at)) ? new Date().toISOString() : i.created_at]);
+      await q('insert into purchases (user_id, title, body, state, created_at) values ($1, $2, $3, $4, $5)', [users[0].id, vault.seal(users[0].id, 'title', clean(i.title, 200)), vault.seal(users[0].id, 'body', String(i.body).slice(0, 2000)), i.state === 'closed' ? 'closed' : 'open', isNaN(Date.parse(i.created_at)) ? new Date().toISOString() : i.created_at]);
       added++;
     }
     if (b.dailyLimit !== undefined) await q('update users set daily_limit = $2 where id = $1', [users[0].id, Number(b.dailyLimit) || 0]);

@@ -8,7 +8,7 @@ const path = require('path');
   const { PGlite } = await import('@electric-sql/pglite');
   const pg = new PGlite();
   require('../lib/db').setTestDb(async (t, p) => (await pg.query(t, p)).rows);
-  Object.assign(process.env, { SESSION_SECRET: 'dev-secret-'.repeat(4), CRON_SECRET: 'dev-cron', ADMIN_SECRET: 'dev-admin', OWNER_EMAIL: 'ana@example.com', SITE_URL: 'https://localhost.test' });
+  Object.assign(process.env, { SESSION_SECRET: 'dev-secret-'.repeat(4), DATA_KEY: 'dev-data-key-'.repeat(4), CRON_SECRET: 'dev-cron', ADMIN_SECRET: 'dev-admin', OWNER_EMAIL: 'ana@example.com', SITE_URL: 'https://localhost.test' });
   const w = require('web-push').generateVAPIDKeys();
   process.env.VAPID_PUBLIC_KEY = w.publicKey;
   process.env.VAPID_PRIVATE_KEY = w.privateKey;

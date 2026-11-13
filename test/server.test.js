@@ -9,6 +9,7 @@ const assert = require('assert');
   db.setTestDb(async (t, p) => (await pg.query(t, p)).rows);
 
   process.env.SESSION_SECRET = 'test-secret-'.repeat(4);
+  process.env.DATA_KEY = 'test-data-key-'.repeat(4);
   process.env.CRON_SECRET = 'cron-secret';
   process.env.ADMIN_SECRET = 'admin-secret';
   process.env.OWNER_EMAIL = 'ana@example.com';
@@ -474,6 +475,131 @@ const assert = require('assert');
   r = await hist2(fcTok, 'range=year');
   ok(r.data.forecast === null, 'only the current month has a forecast');
   await call('DELETE', 'account', { auth: fcTok });
+
+  // ---- purchase text is stored encrypted ----
+  {
+    const vault = require('../lib/vault');
+    const migrate = require('../tools/encrypt-purchases');
+    const raw = async (sql, p) => (await pg.query(sql, p || [])).rows;
+    r = await call('POST', 'auth/signup', { body: { email: 'vault@example.com', password: 'vault-password-1', invite: await invite('V', 7) } });
+    const vTok = r.data.session;
+    r = await call('POST', 'auth/signup', { body: { email: 'vault2@example.com', password: 'vault-password-2', invite: await invite('V2', 7) } });
+    const v2Tok = r.data.session;
+    const vId = (await raw("select id from users where email = 'vault@example.com'"))[0].id;
+    const v2Id = (await raw("select id from users where email = 'vault2@example.com'"))[0].id;
+    const title = 'Spending - $12.34 - ' + new Date().toISOString().slice(0, 10) + ' - Coffee';
+    const body = 'Date: ' + new Date().toISOString() + '\nMerchant: Secret Cafe\nAmount: $12.34\nCard: Visa 4242\nCategory: Coffee';
+
+    ok(vault.enabled(), 'encryption is on when DATA_KEY is set');
+    r = await call('POST', 'purchases', { auth: vTok, body: { title, body } });
+    const pid = r.data.number;
+    ok(r.status === 200 && r.data.title === title && r.data.body === body, 'adding a purchase answers with the real text');
+    let row = (await raw('select title, body from purchases where id = $1', [pid]))[0];
+    ok(row.title.startsWith('e1:') && row.body.startsWith('e1:'), 'the database stores the title and details encrypted');
+    ok(!/Secret Cafe|12\.34|4242|Coffee|Spending/.test(row.title + row.body), 'nothing readable (merchant, amount, card) is in the stored text');
+    r = await call('GET', 'purchases/' + pid, { auth: vTok });
+    ok(r.status === 200 && r.data.title === title && r.data.body === body, 'reading a purchase gives the real text back');
+    r = await call('GET', 'purchases', { auth: vTok });
+    ok(r.data.length === 1 && r.data[0].title === title && r.data[0].body === body, 'the feed gives the real text back');
+    const sum = (await hist2(vTok, 'range=month')).data;
+    ok(sum.total === 12.34 && sum.count === 1, 'totals and categories still work on encrypted purchases');
+
+    // the same text twice looks different (fresh random value each time), so patterns cannot be spotted
+    r = await call('POST', 'purchases', { auth: vTok, body: { title, body } });
+    const twin = (await raw('select title from purchases where id = $1', [r.data.number]))[0].title;
+    ok(twin !== row.title, 'the same purchase twice is stored as two different values');
+
+    // editing keeps it encrypted
+    r = await call('PATCH', 'purchases/' + pid, { auth: vTok, body: { state: 'closed' } });
+    ok(r.status === 200 && r.data.title === title && r.data.state === 'closed', 'closing a purchase keeps its text');
+    row = (await raw('select title, body, state from purchases where id = $1', [pid]))[0];
+    ok(row.title.startsWith('e1:') && row.body.startsWith('e1:') && row.state === 'closed', 'an edited purchase is still stored encrypted');
+    await call('PATCH', 'purchases/' + pid, { auth: vTok, body: { state: 'open', title: 'Spending - $20.00 - changed' } });
+    r = await call('GET', 'purchases/' + pid, { auth: vTok });
+    ok(r.data.title === 'Spending - $20.00 - changed' && r.data.body === body, 'editing the title changes only the title');
+
+    // a stored value is tied to its owner and its column
+    const other = (await call('POST', 'purchases', { auth: v2Tok, body: { title: 'Spending - $5.00 - other', body: 'Merchant: Other Shop\nAmount: $5.00' } })).data.number;
+    const mine = (await raw('select title, body from purchases where id = $1', [pid]))[0];
+    await pg.query('update purchases set title = $2, body = $3 where id = $1', [other, mine.title, mine.body]);
+    r = await call('GET', 'purchases/' + other, { auth: v2Tok });
+    ok(r.status >= 400 && !JSON.stringify(r.data).includes('Secret Cafe'), 'a value copied onto another person\'s purchase is refused, not shown');
+    await pg.query('update purchases set title = $2, body = $3 where id = $1', [other, mine.body, mine.title]);
+    r = await call('GET', 'purchases/' + other, { auth: v2Tok });
+    ok(r.status >= 400, 'a value moved to the other column is refused');
+    await pg.query("update purchases set body = $2 where id = $1", [pid, mine.body.slice(0, -4) + 'AAAA']);
+    r = await call('GET', 'purchases/' + pid, { auth: vTok });
+    ok(r.status >= 400, 'a value that was changed in the database is refused');
+    await pg.query('update purchases set title = $2, body = $3 where id = $1', [pid, mine.title, mine.body]);
+    r = await call('GET', 'purchases/' + pid, { auth: vTok });
+    ok(r.status === 200 && r.data.body === body, 'putting the real value back works again');
+    await pg.query('delete from purchases where id = $1', [other]);
+
+    // old plain text rows keep working next to encrypted ones
+    await pg.query("insert into purchases (user_id, title, body, created_at) values ($1, 'Spending - $3.00 - old', 'Merchant: Old Shop\nAmount: $3.00', now())", [vId]);
+    r = await call('GET', 'purchases', { auth: vTok });
+    ok(r.data.some((x) => x.title === 'Spending - $3.00 - old') && r.data.some((x) => x.title === 'Spending - $20.00 - changed'), 'old plain rows and encrypted rows show together');
+
+    // the shortcut route stores encrypted too
+    r = await call('POST', 'setup-code', { auth: vTok });
+    const code = r.data.code;
+    r = await call('POST', 'log', { auth: code, body: { merchant: 'Shortcut Diner', amount: '7.50', card: 'Visa', category: 'Food' } });
+    ok(r.status === 200 && r.data.ok, 'the Shortcut can still log a purchase');
+    const lastRow = (await raw('select title, body from purchases where id = $1', [r.data.id]))[0];
+    ok(lastRow.title.startsWith('e1:') && !/Shortcut Diner/.test(lastRow.body), 'a purchase from the Shortcut is stored encrypted');
+
+    // moving old rows over
+    const msgs = [];
+    let s1 = await migrate.run({ q: db.q, apply: false, log: (m) => msgs.push(m) });
+    ok(s1.plain >= 1 && s1.changed >= 1, 'the move tool, run to look only, finds the old plain rows');
+    ok((await raw("select count(*)::int as n from purchases where title not like 'e1:%'"))[0].n >= 1, 'looking only changed nothing');
+    s1 = await migrate.run({ q: db.q, apply: true, log: (m) => msgs.push(m) });
+    ok(s1.failed === 0 && s1.changed >= 1, 'the move tool encrypts the old rows');
+    ok((await raw("select count(*)::int as n from purchases where title not like 'e1:%' or body not like 'e1:%'"))[0].n === 0, 'afterwards no purchase is stored as plain text');
+    let v = await migrate.verify({ q: db.q });
+    ok(v.bad === 0 && v.plain === 0 && v.sealed === v.rows, 'every stored purchase opens with the key');
+    r = await call('GET', 'purchases', { auth: vTok });
+    ok(r.data.some((x) => x.title === 'Spending - $3.00 - old' && x.body.includes('Old Shop')), 'the old purchase reads the same after the move');
+    s1 = await migrate.run({ q: db.q, apply: true, log: (m) => msgs.push(m) });
+    ok(s1.changed === 0 && s1.failed === 0, 'running the move again changes nothing');
+    ok(!msgs.some((m) => /Old Shop|Secret Cafe|Shortcut Diner|\$12\.34/.test(m)), 'the tool never prints purchase text');
+
+    // a new key: old rows still open while the old key is kept as DATA_KEY_PREV, then they are moved to the new one
+    const oldKey = process.env.DATA_KEY;
+    process.env.DATA_KEY = 'a-brand-new-data-key-'.repeat(3);
+    r = await call('GET', 'purchases', { auth: vTok });
+    ok(r.status >= 400, 'with only a new key, rows made with the old key are refused');
+    process.env.DATA_KEY_PREV = oldKey;
+    r = await call('GET', 'purchases', { auth: vTok });
+    ok(r.status === 200 && r.data.some((x) => x.title === 'Spending - $3.00 - old'), 'with the old key kept as DATA_KEY_PREV the rows still open');
+    s1 = await migrate.run({ q: db.q, apply: true, rekey: true, log: () => {} });
+    ok(s1.failed === 0 && s1.changed >= 1, 'the move tool can re-encrypt everything with the new key');
+    delete process.env.DATA_KEY_PREV;
+    r = await call('GET', 'purchases', { auth: vTok });
+    ok(r.status === 200 && r.data.some((x) => x.title === 'Spending - $3.00 - old'), 'after that the old key is no longer needed');
+
+    // undoing it, and running with no key at all
+    s1 = await migrate.run({ q: db.q, apply: true, decrypt: true, log: () => {} });
+    ok(s1.failed === 0 && (await raw("select count(*)::int as n from purchases where title like 'e1:%' or body like 'e1:%'"))[0].n === 0, 'the move tool can undo it (write everything back as plain text)');
+    const savedKey = process.env.DATA_KEY;
+    delete process.env.DATA_KEY;
+    ok(!vault.enabled(), 'encryption is off with no DATA_KEY');
+    r = await call('POST', 'purchases', { auth: vTok, body: { title: 'Spending - $1.00 - nokey', body: 'Merchant: No Key\nAmount: $1.00' } });
+    ok(r.status === 200 && (await raw('select title from purchases where id = $1', [r.data.number]))[0].title === 'Spending - $1.00 - nokey', 'with no key the app still works and stores plain text');
+    process.env.DATA_KEY = 'too short';
+    ok(!vault.enabled(), 'a key shorter than 32 characters is not used');
+    process.env.DATA_KEY = savedKey;
+    await migrate.run({ q: db.q, apply: true, log: () => {} });
+    delete process.env.DATA_KEY;
+    r = await call('GET', 'purchases', { auth: vTok });
+    ok(r.status >= 400 && !JSON.stringify(r.data).includes('e1:'), 'encrypted rows with no key are refused, never shown as gibberish');
+    process.env.DATA_KEY = savedKey;
+    r = await call('GET', 'purchases', { auth: vTok });
+    ok(r.status === 200 && r.data.length >= 4, 'with the key back, everything opens again');
+    await call('DELETE', 'account', { auth: vTok });
+    await call('DELETE', 'account', { auth: v2Tok });
+    ok((await raw('select count(*)::int as n from purchases where user_id in ($1, $2)', [vId, v2Id]))[0].n === 0, 'deleting an account removes its purchases');
+  }
 
   // ---- the service worker file must never ship empty (it carries offline support and the alert handlers) ----
   {

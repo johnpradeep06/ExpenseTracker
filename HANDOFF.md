@@ -21,7 +21,7 @@ A private Apple Pay spending tracker that is being opened up to friends.
 - `lib/compute.js`, `lib/notes.js`  Shared spending maths and notification text. They load `public/calcs.js`,
   `runtime.js` and `loader.js` in a Node `vm`, so the alerts match the app exactly.
 - `vercel.json`  Rewrites, security headers (CSP), and 4 cron schedules that call `/api/cron`.
-- `test/server.test.js`  36 server tests on in-memory Postgres (PGlite). Run `npm install` then `npm test`.
+- `test/server.test.js`  Server tests on in-memory Postgres (PGlite). Run `npm install` then `npm test`.
 - `test/e2e.py`, `test/dev.js`  Browser test against a local dev server (needs Playwright and Chrome).
 - `jose` and `web-push` are ESM-only and are loaded with dynamic `import()`. Do not change them to `require()`.
 
@@ -30,12 +30,24 @@ A private Apple Pay spending tracker that is being opened up to friends.
 |---|---|
 | `DATABASE_URL` | Postgres connection string (Neon, or Railway Postgres) |
 | `SESSION_SECRET` | `openssl rand -hex 32` |
+| `DATA_KEY` | `openssl rand -hex 32`. Encrypts purchase text in the database (see below). **Keep a copy somewhere safe, outside Vercel: without it the encrypted purchases cannot be read.** |
 | `CRON_SECRET` | `openssl rand -hex 32` (Vercel Cron sends it automatically as a Bearer token) |
 | `ADMIN_SECRET` | `openssl rand -hex 32` (used once to import John's old purchases) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | `npx web-push generate-vapid-keys` |
 | `SITE_URL` | The final https address of the deployed app, with no trailing slash |
 
 No users exist yet, so fresh secrets are fine. Never commit them.
+
+## Encryption of purchase text
+- Every purchase's title and details are stored encrypted (AES-256-GCM, `lib/vault.js`), so a leaked database or backup
+  shows nothing readable. Only the server, holding `DATA_KEY`, can open them. Amounts, merchants and cards are inside that text.
+- Each value is tied to its owner and its column, so it cannot be copied onto someone else's purchase.
+- Old plain text rows still read fine. With no `DATA_KEY`, new rows are stored as plain text and the app keeps working; an
+  encrypted row with no key is refused, never shown as gibberish. A key shorter than 32 characters is ignored (and logged).
+- Move existing rows over once, after the key is set and this code is live: `tools/encrypt-purchases.js`
+  (looks only by default; `--apply` changes rows; `--apply --decrypt` undoes it; see the comments at the top of the file).
+- Changing the key: put the old one in `DATA_KEY_PREV`, set the new `DATA_KEY`, run the tool with `--apply --rekey`, then remove `DATA_KEY_PREV`.
+- The key is separate from `SESSION_SECRET`, so changing the sign-in secret never touches stored purchases.
 
 ## Do these in order
 1. Unzip, run `npm install` and `npm test` (expect all passing). Then `git init`, commit, and push to a
