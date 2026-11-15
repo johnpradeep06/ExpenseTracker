@@ -190,6 +190,35 @@
     showToast('Deleted ' + row.merchant, ids.map((n) => ({ n, body: { state: 'open' } })));
     if (window.dash) dash.reload();
   };
+  // "Delete this?" for a swipe to the left: resolves true only when the person says yes.
+  window.spendConfirmDelete = (row) => new Promise((resolve) => {
+    if (String(row.id).indexOf('p-') === 0) { resolve(true); return; }  // spendDelete explains that one
+    const back = document.createElement('div');
+    back.className = 'confirm-back';
+    const box = document.createElement('div');
+    box.className = 'confirm-box';
+    box.setAttribute('role', 'alertdialog');
+    box.setAttribute('aria-modal', 'true');
+    const h = document.createElement('h3');
+    h.textContent = 'Delete this payment?';
+    const p = document.createElement('p');
+    p.textContent = row.merchant + ' · ' + money(row.amount);
+    const acts = document.createElement('div');
+    acts.className = 'confirm-acts';
+    const no = document.createElement('button'); no.type = 'button'; no.className = 'confirm-no'; no.textContent = 'Keep it';
+    const yes = document.createElement('button'); yes.type = 'button'; yes.className = 'confirm-yes'; yes.textContent = 'Delete';
+    acts.append(no, yes);
+    box.append(h, p, acts);
+    back.append(box);
+    const done = (v) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(v); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } };
+    no.addEventListener('click', () => done(false));
+    yes.addEventListener('click', () => done(true));
+    back.addEventListener('click', (e) => { if (e.target === back) done(false); });
+    document.addEventListener('keydown', onKey, true);
+    document.body.append(back);
+    no.focus();
+  });
   // Used when swiping a purchase to the left. Returns true when it was deleted.
   window.spendDelete = async (row) => {
     if (String(row.id).indexOf('p-') === 0) {

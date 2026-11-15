@@ -222,6 +222,14 @@ button { font: inherit; color: inherit; }
 .tx-swipe .tx { position: relative; z-index: 1; border-radius: 0; background: var(--card); will-change: transform; }
 .tx-swipe .tx:active { background: var(--track); }
 .tx-swipe:not(.swiping) .tx-del { visibility: hidden; }
+.confirm-back { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: rgba(0,0,0,.45); }
+.confirm-box { width: 100%; max-width: 320px; background: var(--card, #fff); color: var(--ink, inherit); border-radius: 18px; padding: 20px 18px 16px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.confirm-box h3 { margin: 0 0 6px; font-size: 18px; }
+.confirm-box p { margin: 0 0 16px; opacity: .75; font-size: 15px; }
+.confirm-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.confirm-acts button { padding: 13px 10px; border: 0; border-radius: 12px; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+.confirm-no { background: rgba(128,128,128,.22); color: inherit; }
+.confirm-yes { background: var(--up, #d8453b); color: #fff; }
 .tx-del { position: absolute; z-index: 0; top: 0; right: 0; bottom: 0; width: 88px; border: 0; border-radius: 0 14px 14px 0; background: var(--up); color: #fff; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
 .person { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
 .person:last-child { border-bottom: 0; }

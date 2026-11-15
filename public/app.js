@@ -533,7 +533,7 @@
   }, { passive: true });
   const FLIP_AT = 72;   // how far a swipe to the right must go to switch necessary / unnecessary
   const FLIP_MAX = 132;
-  const makeSwipe = (wrap, row, del, onOpenRow, onDelete, onFlip) => {
+  const makeSwipe = (wrap, row, del, onOpenRow, onDelete, onFlip, onAsk) => {
     let x0 = 0;
     let y0 = 0;
     let base = 0;
@@ -560,8 +560,15 @@
     const remove = async () => {
       if (busy) return;
       busy = true;
-      if (window.spendPoof) window.spendPoof(wrap);
       row.style.transition = 'transform .18s ease-out';
+      if (onAsk) {
+        // Hold the row open on its Delete button while we ask. Anything but a yes puts it back.
+        setOffset(-REVEAL);
+        let yes = false;
+        try { yes = await onAsk(); } catch (e) { yes = false; }
+        if (!yes) { api.close(); busy = false; return; }
+      }
+      if (window.spendPoof) window.spendPoof(wrap);
       setOffset(-wrap.clientWidth);
       const done = await onDelete();
       if (!done) {
@@ -668,7 +675,7 @@
           wrap.prepend(flip);
           onFlip = () => window.spendFlip(r);
         }
-        makeSwipe(wrap, row, del, () => onPick(r), () => (window.spendDelete ? window.spendDelete(r) : Promise.resolve(false)), onFlip);
+        makeSwipe(wrap, row, del, () => onPick(r), () => (window.spendDelete ? window.spendDelete(r) : Promise.resolve(false)), onFlip, () => (window.spendConfirmDelete ? window.spendConfirmDelete(r) : Promise.resolve(true)));
         el.append(wrap);
       });
     });
