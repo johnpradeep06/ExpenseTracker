@@ -20,10 +20,10 @@ eq('DELTA AIR LINES 006', 'Delta', 'Travel');
 eq('HELLOFRESH CANADA', 'HelloFresh', 'Groceries');
 
 // the strings that started this
-eq('Saq23028faubourg Ste-Cat', 'SAQ', 'Groceries');
-eq('SAQ 23028 FAUBOURG STE-CAT', 'SAQ', 'Groceries');
-eq('SAQ EXPRESS 23099 MONTREAL QC', 'SAQ', 'Groceries');
-eq('Société des alcools du Québec', 'SAQ', 'Groceries');
+eq('Saq23028faubourg Ste-Cat', 'SAQ', 'Entertainment');
+eq('SAQ 23028 FAUBOURG STE-CAT', 'SAQ', 'Entertainment');
+eq('SAQ EXPRESS 23099 MONTREAL QC', 'SAQ', 'Entertainment');
+eq('Société des alcools du Québec', 'SAQ', 'Entertainment');
 eq('MARCHE THARSNIO 4411 MONTREAL', 'Marche Tharsnio', 'Groceries');
 eq('Marché Tharsnio', 'Marché Tharsnio', 'Groceries');
 

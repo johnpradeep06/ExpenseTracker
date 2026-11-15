@@ -15,8 +15,8 @@
   // of a word; add ! to make it match the whole word only. Name * means "keep the tidied name, only set the category".
   const BRANDS = [
     // --- liquor ---
-    'SAQ|Groceries|saq!;saq express;saq selection;saq depot;societe des alcools',
-    'LCBO|Groceries|lcbo;the beer store;beer store;wine rack;vintages',
+    'SAQ|Entertainment|saq!;saq express;saq selection;saq depot;societe des alcools',
+    'LCBO|Entertainment|lcbo;the beer store;beer store;wine rack;vintages',
     // --- groceries ---
     'Metro|Groceries|metro!;metro plus;metro etc;metro inc',
     'Super C|Groceries|super c!',
