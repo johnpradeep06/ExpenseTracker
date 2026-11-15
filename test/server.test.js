@@ -646,6 +646,59 @@ const assert = require('assert');
     await call('DELETE', 'account', { auth: saqTok });
   }
 
+  // ---- the person's own necessary / unnecessary mark on a purchase ----
+  {
+    r = await call('POST', 'auth/signup', { body: { email: 'kind@example.com', password: 'kind-password-123', invite: await invite('K', 7) } });
+    const kTok = r.data.session;
+    r = await call('POST', 'auth/signup', { body: { email: 'kind2@example.com', password: 'kind2-password-123', invite: await invite('K2', 7) } });
+    const k2Tok = r.data.session;
+    r = await call('POST', 'purchases', { auth: kTok, body: { title: 'Spending - $9.00 - kind', body: 'Merchant: Tim Hortons\nAmount: $9.00\nCard: Visa' } });
+    const kid = r.data.number;
+    ok(r.data.kind === '', 'a new purchase has no mark of its own (the app guesses by category)');
+    r = await call('PATCH', 'purchases/' + kid, { auth: kTok, body: { kind: 'fun' } });
+    ok(r.status === 200 && r.data.kind === 'fun', 'a purchase can be marked unnecessary');
+    r = await call('GET', 'purchases', { auth: kTok });
+    ok(r.data.find((x) => x.number === kid).kind === 'fun', 'the mark comes back with the purchases');
+    r = await call('GET', 'purchases/' + kid, { auth: kTok });
+    ok(r.data.kind === 'fun' && /Tim Hortons/.test(r.data.body), 'and with a single purchase, the text untouched');
+    r = await call('PATCH', 'purchases/' + kid, { auth: kTok, body: { kind: 'need' } });
+    ok(r.data.kind === 'need', 'it can be switched to necessary');
+    r = await call('PATCH', 'purchases/' + kid, { auth: kTok, body: { state: 'open', title: 'Spending - $9.00 - kind' } });
+    ok(r.data.kind === 'need', 'editing something else keeps the mark');
+    r = await call('PATCH', 'purchases/' + kid, { auth: kTok, body: { kind: 'sometimes' } });
+    ok(r.status === 400, 'a made-up mark is refused');
+    r = await call('PATCH', 'purchases/' + kid, { auth: k2Tok, body: { kind: 'fun' } });
+    ok(r.status === 404, 'nobody else can mark your purchase');
+    r = await call('PATCH', 'purchases/' + kid, { auth: kTok, body: { kind: '' } });
+    ok(r.status === 200 && r.data.kind === '', 'an empty mark goes back to the app\'s guess');
+    r = await hist2(kTok, 'range=week');
+    ok(r.status === 200, 'summaries still work with marks');
+    const stored = (await pg.query('select kind, title from purchases where id = $1', [kid])).rows[0];
+    ok(stored.kind === null && /^e1:/.test(stored.title), 'the mark is its own column, and the purchase text stays encrypted');
+    await call('DELETE', 'account', { auth: kTok });
+    await call('DELETE', 'account', { auth: k2Tok });
+  }
+
+  // ---- starting up: the database setup runs once, not on every wake-up ----
+  {
+    const have = (await pg.query("select value from app_settings where key = 'schema_version'")).rows[0];
+    ok(have && have.value === db.SCHEMA_VERSION, 'the database remembers which version of its setup it has');
+    let count = 0;
+    db.setTestDb(async (t, p) => { count++; return (await pg.query(t, p)).rows; });
+    await db.q('select 1 as one');
+    ok(count === 2, 'a new instance that finds the current version asks once and then does its work (' + count + ' statements instead of about 20)');
+    // a database from before the version marker still gets its setup, including the new column
+    await pg.query("delete from app_settings where key = 'schema_version'");
+    await pg.query('alter table purchases drop column kind');
+    count = 0;
+    db.setTestDb(async (t, p) => { count++; return (await pg.query(t, p)).rows; });
+    await db.q('select 1 as one');
+    const col = (await pg.query("select column_name from information_schema.columns where table_name = 'purchases' and column_name = 'kind'")).rows;
+    ok(count > 10 && col.length === 1, 'an older database gets the full setup, including the new column, and the marker is written');
+    db.setTestDb(async (t, p) => (await pg.query(t, p)).rows);
+    await db.q('select 1 as one');
+  }
+
   // ---- the service worker file must never ship empty (it carries offline support and the alert handlers) ----
   {
     const fs = require('fs'); const path = require('path');

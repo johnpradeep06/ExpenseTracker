@@ -462,6 +462,40 @@
     });
   });
 
+  // Where money leaks (Clean look only): necessary vs unnecessary over the last 14 days.
+  dash.draw('leaks', (el) => {
+    const sec = document.querySelector('#leaks');
+    el.replaceChildren();
+    const row = stateOf(['leaks']) === 'ok' ? rowsOf('leaks')[0] : null;
+    if (sec) sec.hidden = !cleanLook() || !row || row.total <= 0;
+    if (!row || row.total <= 0 || !cleanLook()) return;
+    const pct = Math.round((row.fun / row.total) * 100);
+    const head = h('div', 'lk-head');
+    head.append(h('h2', '', 'Where money leaks'), h('p', 'sub', 'Unnecessary spending · last 14 days'));
+    const big = h('div', 'lk-big');
+    big.append(h('span', 'lk-amt', money(row.fun)), h('span', 'lk-pct', pct + '% of spending'));
+    const bar = h('div', 'lk-bar');
+    [['need', row.need], ['fun', row.fun], ['unk', row.unk]].forEach(([k, v]) => {
+      if (v <= 0) return;
+      const seg = h('i', 'k-' + k);
+      seg.style.width = (v / row.total * 100) + '%';
+      bar.append(seg);
+    });
+    const leg = h('div', 'lk-leg');
+    const item = (k, label, v) => { const sp = h('span', ''); sp.append(h('i', 'dot k-' + k), h('b', '', money(v)), document.createTextNode(' ' + label)); return sp; };
+    leg.append(item('need', 'necessary', row.need), item('fun', 'unnecessary', row.fun));
+    if (row.unk > 0) leg.append(item('unk', 'not sure', row.unk));
+    el.append(head, big, bar, leg);
+    row.top.forEach((t, i) => {
+      const line = h('div', 'lk-row');
+      const mid = h('span', 'lk-mid');
+      mid.append(h('b', '', t.category), h('span', '', t.count + (t.count === 1 ? ' purchase' : ' purchases') + (t.shopCount > 1 ? ' · ' + t.shop + ' ×' + t.shopCount : '')));
+      line.append(h('span', 'lk-rank', String(i + 1)), mid, h('span', 'lk-a', money(t.amount)));
+      el.append(line);
+    });
+    el.append(h('p', 'lk-note', 'Green is necessary, orange is unnecessary. Swipe a purchase to the right to switch it.'));
+  });
+
   dash.draw('merch', (el) => {
     const st = stateOf(['top_merchants']);
     el.replaceChildren();
@@ -491,12 +525,15 @@
 
   // Swipe a purchase to the left: a red Delete button slides in. Tap it, or keep swiping to delete at once.
   // (Undo stays on screen afterwards.) Tapping a row that is open just closes it.
+  const cleanLook = () => !document.documentElement.classList.contains('candy') && !document.documentElement.classList.contains('retro');
   let openSwipe = null;
   const REVEAL = 88;
   document.addEventListener('touchstart', (e) => {
     if (openSwipe && !openSwipe.wrap.contains(e.target)) openSwipe.close();
   }, { passive: true });
-  const makeSwipe = (wrap, row, del, onOpenRow, onDelete) => {
+  const FLIP_AT = 72;   // how far a swipe to the right must go to switch necessary / unnecessary
+  const FLIP_MAX = 132;
+  const makeSwipe = (wrap, row, del, onOpenRow, onDelete, onFlip) => {
     let x0 = 0;
     let y0 = 0;
     let base = 0;
@@ -511,12 +548,13 @@
         row.style.transform = '';
         offset = 0;
         if (openSwipe === api) openSwipe = null;
-        setTimeout(() => { if (offset === 0) wrap.classList.remove('swiping'); }, 250);
+        setTimeout(() => { if (offset === 0) wrap.classList.remove('swiping', 'swiping-r'); }, 250);
       }
     };
     const setOffset = (v) => {
       offset = v;
       if (v < 0) wrap.classList.add('swiping');
+      if (v > 0) wrap.classList.add('swiping-r');
       row.style.transform = 'translateX(' + v + 'px)';
     };
     const remove = async () => {
@@ -548,13 +586,18 @@
       if (mode === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) mode = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
       if (mode !== 'h') return;
       moved = true;
-      setOffset(Math.max(-wrap.clientWidth, Math.min(0, base + dx)));
+      setOffset(Math.max(-wrap.clientWidth, Math.min(onFlip ? FLIP_MAX : 0, base + dx)));
     }, { passive: true });
     const finish = () => {
       if (busy) return;
       row.style.transition = 'transform .2s ease';
       if (mode !== 'h') return;
-      if (offset < -Math.min(wrap.clientWidth * 0.6, 240)) {
+      if (onFlip && offset > FLIP_AT) {
+        // Past the line: switch it, and let the row spring back.
+        busy = true;
+        api.close();
+        Promise.resolve(onFlip()).catch(() => false).then(() => { busy = false; });
+      } else if (offset < -Math.min(wrap.clientWidth * 0.6, 240)) {
         remove();
       } else if (offset < -REVEAL / 2) {
         setOffset(-REVEAL);
@@ -596,7 +639,7 @@
       el.append(head);
       g.rows.forEach((r) => {
         const [icon, color] = catMeta(r.category);
-        const row = h('button', 'tx');
+        const row = h('button', 'tx k-' + (r.leak || 'unk'));
         row.type = 'button';
         row.dataset.key = r.id;
         row.setAttribute('aria-label', 'Edit ' + r.merchant);
@@ -614,7 +657,16 @@
         del.type = 'button';
         del.setAttribute('aria-label', 'Delete ' + r.merchant);
         wrap.append(del, row);
-        makeSwipe(wrap, row, del, () => onPick(r), () => (window.spendDelete ? window.spendDelete(r) : Promise.resolve(false)));
+        // Clean look only: a swipe to the right flips necessary / unnecessary.
+        let onFlip = null;
+        if (cleanLook() && window.spendFlip) {
+          const to = r.leak === 'fun' ? 'need' : 'fun';
+          const flip = h('div', 'tx-flip to-' + to, to === 'fun' ? 'Unnecessary' : 'Necessary');
+          flip.setAttribute('aria-hidden', 'true');
+          wrap.prepend(flip);
+          onFlip = () => window.spendFlip(r);
+        }
+        makeSwipe(wrap, row, del, () => onPick(r), () => (window.spendDelete ? window.spendDelete(r) : Promise.resolve(false)), onFlip);
         el.append(wrap);
       });
     });

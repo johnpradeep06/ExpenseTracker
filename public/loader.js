@@ -30,6 +30,7 @@
       title: f.Title || '',
       subtitle: f.Subtitle || '',
       entry: (f.Entry || '').toLowerCase(),
+      kind: issue.kind || '',
       body: f.Body || ''
     };
   };

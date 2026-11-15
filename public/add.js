@@ -191,6 +191,26 @@
     }
   };
 
+  // Used when swiping a purchase to the right (Clean look): switches it between necessary and unnecessary, with Undo.
+  window.spendFlip = async (row) => {
+    if (String(row.id).indexOf('p-') === 0) {
+      showToast('Not sent yet. You can change it once it has sent.', null);
+      return false;
+    }
+    const to = row.leak === 'fun' ? 'need' : 'fun';
+    const ids = [row.id].concat(row.dupIds || []);
+    try {
+      for (const n of ids) await patch(n, { kind: to });
+      const ops = ids.map((n) => ({ n, body: { kind: n === row.id ? (row.kind || '') : '' } }));
+      showToast(row.merchant + ' is now ' + (to === 'fun' ? 'unnecessary' : 'necessary'), ops);
+      if (window.dash) dash.reload();
+      return true;
+    } catch (x) {
+      showToast(friendly(x), null);
+      return false;
+    }
+  };
+
   // Delete asks twice: the first tap arms it, the second does it.
   del.addEventListener('click', async () => {
     if (!editing) return;

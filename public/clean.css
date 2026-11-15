@@ -118,3 +118,39 @@ html:not(.candy):not(.retro) .hero-dots { display: flex; justify-content: center
 html:not(.candy):not(.retro) .hero-dots > div { display: flex; gap: 7px; padding: 5px 9px; border-radius: 99px; background: var(--track); }
 html:not(.candy):not(.retro) .hero-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg); opacity: .28; cursor: pointer; transition: opacity .12s, transform .12s; }
 @media (prefers-reduced-motion: reduce) { html:not(.candy):not(.retro) .hero-dots i { transition: none; } }
+
+/* ---- Necessary / unnecessary (Clean look only) ---------------------------------------------------------------------
+   Green is necessary, orange is unnecessary, grey is "not sure". Every purchase gets a coloured edge; a swipe to the
+   right flips it; the "Where money leaks" card adds it up. Fresh and Arcade never show any of this. */
+html:not(.candy):not(.retro) { --fun: #d9822b; --unk: #8a8a92; }
+@media (prefers-color-scheme: dark) { html:not(.candy):not(.retro) { --fun: #f0a050; --unk: #77777f; } }
+html:not(.candy):not(.retro) .tx-swipe .tx { padding-left: 12px; }
+html:not(.candy):not(.retro) .tx-swipe .tx::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--unk); }
+html:not(.candy):not(.retro) .tx-swipe .tx.k-need::before { background: var(--accent); }
+html:not(.candy):not(.retro) .tx-swipe .tx.k-fun::before { background: var(--fun); }
+html:not(.candy):not(.retro) .tx-flip { display: none; }
+html:not(.candy):not(.retro) .tx-swipe .tx-flip { display: flex; position: absolute; z-index: 0; top: 0; bottom: 0; left: 0; width: 140px; align-items: center; padding-left: 16px; border-radius: 14px 0 0 14px; color: #fff; font-weight: 800; font-size: 14px; }
+html:not(.candy):not(.retro) .tx-flip.to-fun { background: var(--fun); }
+html:not(.candy):not(.retro) .tx-flip.to-need { background: var(--accent); color: var(--on-accent); }
+html:not(.candy):not(.retro) .tx-swipe:not(.swiping-r) .tx-flip { visibility: hidden; }
+html:not(.candy):not(.retro) #leaks .lk-head h2 { margin: 0 0 2px; }
+html:not(.candy):not(.retro) #leaks .lk-head .sub { margin: 0; }
+html:not(.candy):not(.retro) .lk-big { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; }
+html:not(.candy):not(.retro) .lk-amt { font-size: 34px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; color: var(--fun); font-variant-numeric: tabular-nums; }
+html:not(.candy):not(.retro) .lk-pct { font-size: 14px; font-weight: 700; color: var(--muted); }
+html:not(.candy):not(.retro) .lk-bar { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--track); margin: 12px 0 8px; }
+html:not(.candy):not(.retro) .lk-bar i { display: block; height: 100%; }
+html:not(.candy):not(.retro) .lk-bar .k-need, html:not(.candy):not(.retro) .lk-leg .dot.k-need { background: var(--accent); }
+html:not(.candy):not(.retro) .lk-bar .k-fun, html:not(.candy):not(.retro) .lk-leg .dot.k-fun { background: var(--fun); }
+html:not(.candy):not(.retro) .lk-bar .k-unk, html:not(.candy):not(.retro) .lk-leg .dot.k-unk { background: var(--unk); }
+html:not(.candy):not(.retro) .lk-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); }
+html:not(.candy):not(.retro) .lk-leg b { color: var(--fg); }
+html:not(.candy):not(.retro) .lk-leg .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+html:not(.candy):not(.retro) .lk-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+html:not(.candy):not(.retro) .lk-row:first-of-type { margin-top: 10px; }
+html:not(.candy):not(.retro) .lk-rank { width: 24px; height: 24px; border-radius: 50%; background: color-mix(in srgb, var(--fun) 18%, transparent); color: var(--fun); font-weight: 800; font-size: 12px; display: grid; place-items: center; flex: none; }
+html:not(.candy):not(.retro) .lk-mid { flex: 1; min-width: 0; }
+html:not(.candy):not(.retro) .lk-mid b { display: block; font-size: 15px; }
+html:not(.candy):not(.retro) .lk-mid span { font-size: 12.5px; color: var(--muted); }
+html:not(.candy):not(.retro) .lk-a { font-weight: 800; font-variant-numeric: tabular-nums; }
+html:not(.candy):not(.retro) .lk-note { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }

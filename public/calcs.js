@@ -4,6 +4,11 @@ dash.calc('spend', {
   description: 'Log emails turned into purchases: amount read, duplicates removed, category assigned.',
   fn: (mail_now, mail_prev) => {
     const CATS = ['Groceries', 'Dining & Coffee', 'Food Delivery', 'Snacks', 'Transport', 'Subscriptions & Software', 'Shopping', 'Entertainment', 'Health & Personal Care', 'Bills & Utilities', 'Travel'];
+    // Necessary or unnecessary: the app's guess by category. The person's own mark on a purchase ('need' or 'fun') wins.
+    // Anything the app cannot place ('Other', Subscriptions, Travel) is 'unk' until the person decides.
+    const NEED = ['Groceries', 'Bills & Utilities', 'Health & Personal Care', 'Transport'];
+    const FUN = ['Dining & Coffee', 'Food Delivery', 'Snacks', 'Shopping', 'Entertainment'];
+    const leakOf = (cat, mark) => (mark === 'need' || mark === 'fun' ? mark : NEED.includes(cat) ? 'need' : FUN.includes(cat) ? 'fun' : 'unk');
     const RULES = [
       ['Food Delivery', ['uber eats', 'ubereats', 'doordash', 'skipthedishes', 'skip the dishes', 'foodora', 'grubhub', 'fantuan', 'hungrypanda', 'hungry panda', 'menu.ca', 'just eat']],
       ['Snacks', ['7-eleven', '7 eleven', '7eleven', 'couche-tard', 'couche tard', 'convenience', 'depanneur', 'vending', 'snack', 'candy', 'chocolate', 'ice cream', 'gelato', 'popcorn', 'cookie', 'chips', 'sweets', 'treats', 'cinnabon', 'auntie anne', 'dairy queen', 'baskin', 'cold stone', 'menchie', 'yogurt', 'pretzel']],
@@ -85,7 +90,7 @@ dash.calc('spend', {
       }
       if (!amount) continue;
       const ts = tsOf(r);
-      items.push({ id: r.id, src: wallet ? 'wallet' : 'tap', period: r.period, ts, day: dayOf(r, ts), merchant: window.spendMerchant ? window.spendMerchant.clean(merchant).name : (String(merchant || 'Unknown').trim() || 'Unknown'), card: card || '', amount: Math.round(amount * 100) / 100, phone: r.phoneCategory, manual: r.entry === 'manual' });
+      items.push({ id: r.id, src: wallet ? 'wallet' : 'tap', period: r.period, ts, day: dayOf(r, ts), merchant: window.spendMerchant ? window.spendMerchant.clean(merchant).name : (String(merchant || 'Unknown').trim() || 'Unknown'), card: card || '', amount: Math.round(amount * 100) / 100, phone: r.phoneCategory, manual: r.entry === 'manual', mark: r.kind || '' });
     }
     items.sort((a, b) => (a.src === b.src ? 0 : a.src === 'tap' ? -1 : 1) || a.ts - b.ts);
     const norm = (s) => String(s).toLowerCase().split(new RegExp('[^a-z0-9]+')).join('').slice(0, 4);
@@ -98,7 +103,7 @@ dash.calc('spend', {
     return kept
       .map((it) => {
         const c = it.manual && CATS.includes(it.phone) ? { cat: it.phone, how: 'manual' } : catOf(it.merchant, it.phone);
-        return { id: it.id, src: it.src, period: it.period, ts: it.ts, day: it.day, merchant: it.merchant, card: it.card, amount: it.amount, category: c.cat, how: c.how, dupIds: it.dupIds || [] };
+        return { id: it.id, src: it.src, period: it.period, ts: it.ts, day: it.day, merchant: it.merchant, card: it.card, amount: it.amount, category: c.cat, how: c.how, kind: it.mark, leak: leakOf(c.cat, it.mark), dupIds: it.dupIds || [] };
       })
       .sort((a, b) => b.ts - a.ts);
   }
@@ -173,6 +178,32 @@ dash.calc('by_card', {
       .filter((k) => now[k].amount > 0)
       .map((k) => ({ card: k, amount: Math.round(now[k].amount * 100) / 100, count: now[k].count, share: total > 0 ? now[k].amount / total : 0 }))
       .sort((a, b) => b.amount - a.amount);
+  }
+});
+
+dash.calc('leaks', {
+  inputs: ['spend'],
+  title: 'Where money leaks',
+  description: 'Last 14 days split into necessary and unnecessary spending, with the biggest unnecessary categories.',
+  fn: (spend) => {
+    const r2 = (n) => Math.round(n * 100) / 100;
+    const cur = spend.filter((r) => r.period === 'now' && r.amount > 0);
+    const sum = (k) => r2(cur.filter((r) => r.leak === k).reduce((s, r) => s + r.amount, 0));
+    const need = sum('need');
+    const fun = sum('fun');
+    const unk = sum('unk');
+    const by = {};
+    cur.filter((r) => r.leak === 'fun').forEach((r) => {
+      const t = by[r.category] || (by[r.category] = { category: r.category, amount: 0, count: 0, shops: {} });
+      t.amount += r.amount;
+      t.count += 1;
+      t.shops[r.merchant] = (t.shops[r.merchant] || 0) + 1;
+    });
+    const top = Object.values(by).sort((a, b) => b.amount - a.amount).slice(0, 3).map((t) => {
+      const shop = Object.keys(t.shops).sort((a, b) => t.shops[b] - t.shops[a])[0];
+      return { category: t.category, amount: r2(t.amount), count: t.count, shop, shopCount: t.shops[shop] };
+    });
+    return [{ need, fun, unk, total: r2(need + fun + unk), top }];
   }
 });
 

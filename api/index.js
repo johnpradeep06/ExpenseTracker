@@ -69,7 +69,7 @@ const bearer = (req) => {
 };
 
 const iso = (v) => new Date(v).toISOString();
-const issueOf = (r) => ({ number: Number(r.id), title: r.title, body: r.body, state: r.state, created_at: iso(r.created_at) });
+const issueOf = (r) => ({ number: Number(r.id), title: r.title, body: r.body, state: r.state, created_at: iso(r.created_at), kind: r.kind || '' });
 // Purchase text is stored scrambled (lib/vault.js), so every row read from the database is opened for its owner here.
 const issuesOf = (userId, rows) => rows.map((r) => issueOf(vault.openRow(userId, r)));
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
@@ -313,7 +313,7 @@ const pushTo = async (userId, message, only) => {
 
 // ---- numbers for one person ------------------------------------------------------------------------------------
 const recentIssues = async (userId) => {
-  const rows = await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at > $2 order by created_at desc limit 3000", [userId, new Date(Date.now() - 29 * DAY).toISOString()]);
+  const rows = await q("select id, title, body, state, kind, created_at from purchases where user_id = $1 and state = 'open' and created_at > $2 order by created_at desc limit 3000", [userId, new Date(Date.now() - 29 * DAY).toISOString()]);
   return issuesOf(userId, rows);
 };
 const numbersFor = async (user) => numbers(await recentIssues(user.id), user.tz, Date.now());
@@ -487,7 +487,7 @@ const routes = {
     if (!compute.RANGES.includes(range)) fail(400, 'Choose week, month, 3m, year or all');
     const r = compute.rangeFor(range, params.get('anchor'), u.tz, Date.now());
     const fetchRows = async (from, to) => (from && to
-      ? issuesOf(u.id, await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, from, to]))
+      ? issuesOf(u.id, await q("select id, title, body, state, kind, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, from, to]))
       : []);
     const [nowRows, prevRows] = await Promise.all([fetchRows(r.start, r.end), fetchRows(r.prevStart, r.prevEnd)]);
     const wantRows = params.get('rows') === '1' && (range === 'week' || range === 'month');
@@ -497,7 +497,7 @@ const routes = {
     if (range === 'month' && r.inProgress) {
       try {
         const since = new Date(Date.now() - 120 * DAY).toISOString();
-        const hist = issuesOf(u.id, await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 order by created_at desc limit 20000", [u.id, since]));
+        const hist = issuesOf(u.id, await q("select id, title, body, state, kind, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 order by created_at desc limit 20000", [u.id, since]));
         forecast = compute.forecast(hist, u.tz, Date.now(), new Date(u.created_at).getTime());
       } catch (e) { console.error('forecast failed:', e && e.message); }
     }
@@ -516,7 +516,7 @@ const routes = {
     const list = want === 'all' ? compute.TRAILING_DAYS : [Number(want)];
     if (list.some((d) => !compute.TRAILING_DAYS.includes(d))) fail(400, 'Choose 7, 30, 365 or all');
     const widest = compute.trailingRange(Math.max(...list), u.tz, Date.now());
-    const rows = issuesOf(u.id, await q("select id, title, body, state, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, widest.start, widest.end]));
+    const rows = issuesOf(u.id, await q("select id, title, body, state, kind, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, widest.start, widest.end]));
     const one = (days) => {
       const r = compute.trailingRange(days, u.tz, Date.now());
       const mine = days === Math.max(...list) ? rows : rows.filter((x) => x.created_at >= r.start && x.created_at < r.end);
@@ -544,7 +544,7 @@ const routes = {
 
   'GET purchases/:id': async (req, id) => {
     const u = await signedIn(req);
-    const rows = await q('select id, title, body, state, created_at from purchases where id = $1 and user_id = $2', [id, u.id]);
+    const rows = await q('select id, title, body, state, kind, created_at from purchases where id = $1 and user_id = $2', [id, u.id]);
     if (!rows[0]) fail(404, 'That purchase was not found');
     return issuesOf(u.id, rows)[0];
   },
@@ -558,7 +558,10 @@ const routes = {
     const title = b.title !== undefined ? clean(b.title, 200) : cur.title;
     const body = b.body !== undefined ? String(b.body).slice(0, 2000) : cur.body;
     const state = b.state === 'closed' || b.state === 'open' ? b.state : cur.state;
-    const out = await q('update purchases set title = $3, body = $4, state = $5, updated_at = now() where id = $1 and user_id = $2 returning id, state, created_at', [id, u.id, vault.seal(u.id, 'title', title), vault.seal(u.id, 'body', body), state]);
+    // The person's own mark: 'need' (necessary), 'fun' (unnecessary), or empty to go back to the app's guess.
+    if (b.kind !== undefined && !['need', 'fun', ''].includes(b.kind)) fail(400, 'A purchase can be marked need, fun, or cleared');
+    const kind = b.kind !== undefined ? (b.kind || null) : (cur.kind || null);
+    const out = await q('update purchases set title = $3, body = $4, state = $5, kind = $6, updated_at = now() where id = $1 and user_id = $2 returning id, state, kind, created_at', [id, u.id, vault.seal(u.id, 'title', title), vault.seal(u.id, 'body', body), state, kind]);
     return issueOf({ ...out[0], title, body });
   },
 
