@@ -58,7 +58,8 @@
     if (scanBtn) {
       scanBtn.hidden = true;
       const mine = editing;
-      if (mine && window.spendBillAvailable && String(mine.id).indexOf('p-') !== 0) window.spendBillAvailable().then((yes) => { if (yes && editing === mine) scanBtn.hidden = false; });
+      scanBtn.textContent = mine && mine.draft ? '📷 Review the scanned bill' : mine && mine.bill ? '📷 Open the scanned bill' : '📷 Scan the bill';
+      if (mine && window.spendBillAvailable && String(mine.id).indexOf('p-') !== 0) window.spendBillAvailable(mine).then((yes) => { if (yes && editing === mine) scanBtn.hidden = false; });
     }
     showError('');
     resetDelete();

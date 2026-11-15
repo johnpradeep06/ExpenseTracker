@@ -32,6 +32,7 @@
       entry: (f.Entry || '').toLowerCase(),
       kind: issue.kind || '',
       bill: issue.bill || null,
+      draft: !!issue.draft,
       body: f.Body || ''
     };
   };

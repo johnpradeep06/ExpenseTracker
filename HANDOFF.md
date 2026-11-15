@@ -50,6 +50,11 @@ No users exist yet, so fresh secrets are fine. Never commit them.
   are stored encrypted (`bill_items`); the amount paid is shared over the items so the pieces add up exactly. A scanned purchase
   counts in Where money leaks by its items instead of as a whole.
 - Limits: `BILL_DAILY_LIMIT` bills per person per day. Tests use a pretend reader (`api._test.setBillReader`), so no key is needed.
+- **Free and private option: the Apple Shortcut "Scan bill".** The iPhone reads the text off the photo itself (Scan Documents, then
+  Extract Text from Image) and posts it to `POST /api/bills/text` with the setup code. `lib/billtext.js` turns it into items with rules
+  (no AI, nothing leaves the server), `lib/itemkinds.js` guesses necessary / unnecessary in French and English, the bill is matched to
+  the purchase with the same total, and it waits as an encrypted draft (`bill_drafts`) that the person checks in the app.
+  The parser is tested on realistic French bills; tune it on real phone output if a layout is misread.
 - The prompt in `lib/vision.js` has not been tuned against real Montreal bills yet. Try a few and adjust it.
 
 ## Encryption of purchase text

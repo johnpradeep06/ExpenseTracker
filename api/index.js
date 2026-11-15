@@ -20,6 +20,8 @@ const notes = require('../lib/notes');
 const vault = require('../lib/vault');
 const vision = require('../lib/vision');
 const bills = require('../lib/bills');
+const billtext = require('../lib/billtext');
+const itemkinds = require('../lib/itemkinds');
 
 const env = (k) => process.env[k] || '';
 const SITE = () => env('SITE_URL') || 'https://my-spending-two.vercel.app';
@@ -71,7 +73,7 @@ const bearer = (req) => {
 };
 
 const iso = (v) => new Date(v).toISOString();
-const issueOf = (r) => ({ number: Number(r.id), title: r.title, body: r.body, state: r.state, created_at: iso(r.created_at), kind: r.kind || '', bill: r.b_n ? { n: Number(r.b_n), need: Number(r.b_need) || 0, fun: Number(r.b_fun) || 0, unk: Number(r.b_unk) || 0 } : undefined });
+const issueOf = (r) => ({ number: Number(r.id), title: r.title, body: r.body, state: r.state, created_at: iso(r.created_at), kind: r.kind || '', draft: r.b_draft ? true : undefined, bill: r.b_n ? { n: Number(r.b_n), need: Number(r.b_need) || 0, fun: Number(r.b_fun) || 0, unk: Number(r.b_unk) || 0 } : undefined });
 // Purchase text is stored scrambled (lib/vault.js), so every row read from the database is opened for its owner here.
 const issuesOf = (userId, rows) => rows.map((r) => issueOf(vault.openRow(userId, r)));
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
@@ -315,7 +317,7 @@ const pushTo = async (userId, message, only) => {
 
 // ---- numbers for one person ------------------------------------------------------------------------------------
 const recentIssues = async (userId) => {
-  const rows = await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at > $2 order by p.created_at desc limit 3000", [userId, new Date(Date.now() - 29 * DAY).toISOString()]);
+  const rows = await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at > $2 order by p.created_at desc limit 3000", [userId, new Date(Date.now() - 29 * DAY).toISOString()]);
   return issuesOf(userId, rows);
 };
 const numbersFor = async (user) => numbers(await recentIssues(user.id), user.tz, Date.now());
@@ -330,6 +332,18 @@ const afterPurchase = async (user, purchaseId) => {
     try { await pushTo(user.id, msg); } catch (e) { console.error('alert push failed:', e && e.message); }
   }
   return { message, alert: msg ? msg.title : null };
+};
+
+// The person a Shortcut belongs to, from the setup code it sends instead of a sign-in.
+const userFromCode = async (req, b) => {
+  const given = bearer(req) || String(req.headers['x-setup-code'] || '') || String((b && (b.code || b.setupCode)) || '');
+  if (!/^sp_[A-Za-z0-9_-]{20,}$/.test(given)) fail(401, 'This Shortcut needs your setup code from the app');
+  const rows = await q('select * from users where key_hash = $1', [sha(given)]);
+  const u = rows[0];
+  if (!u) fail(401, 'That setup code is not valid any more. Copy the new one from the app.');
+  if (u.disabled) fail(401, 'This account no longer has access.');
+  req._who = String(u.id).slice(0, 8);
+  return u;
 };
 
 // What this person decided about a product the last times they saved a bill with it, so the next scan starts there.
@@ -506,7 +520,7 @@ const routes = {
     if (!compute.RANGES.includes(range)) fail(400, 'Choose week, month, 3m, year or all');
     const r = compute.rangeFor(range, params.get('anchor'), u.tz, Date.now());
     const fetchRows = async (from, to) => (from && to
-      ? issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 and p.created_at < $3 order by p.created_at desc limit 20000", [u.id, from, to]))
+      ? issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 and p.created_at < $3 order by p.created_at desc limit 20000", [u.id, from, to]))
       : []);
     const [nowRows, prevRows] = await Promise.all([fetchRows(r.start, r.end), fetchRows(r.prevStart, r.prevEnd)]);
     const wantRows = params.get('rows') === '1' && (range === 'week' || range === 'month');
@@ -516,7 +530,7 @@ const routes = {
     if (range === 'month' && r.inProgress) {
       try {
         const since = new Date(Date.now() - 120 * DAY).toISOString();
-        const hist = issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 order by p.created_at desc limit 20000", [u.id, since]));
+        const hist = issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 order by p.created_at desc limit 20000", [u.id, since]));
         forecast = compute.forecast(hist, u.tz, Date.now(), new Date(u.created_at).getTime());
       } catch (e) { console.error('forecast failed:', e && e.message); }
     }
@@ -535,7 +549,7 @@ const routes = {
     const list = want === 'all' ? compute.TRAILING_DAYS : [Number(want)];
     if (list.some((d) => !compute.TRAILING_DAYS.includes(d))) fail(400, 'Choose 7, 30, 365 or all');
     const widest = compute.trailingRange(Math.max(...list), u.tz, Date.now());
-    const rows = issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 and p.created_at < $3 order by p.created_at desc limit 20000", [u.id, widest.start, widest.end]));
+    const rows = issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 and p.created_at < $3 order by p.created_at desc limit 20000", [u.id, widest.start, widest.end]));
     const one = (days) => {
       const r = compute.trailingRange(days, u.tz, Date.now());
       const mine = days === Math.max(...list) ? rows : rows.filter((x) => x.created_at >= r.start && x.created_at < r.end);
@@ -616,12 +630,43 @@ const routes = {
     return out;
   },
 
+  // From the Apple Shortcut: the plain text the iPhone read off a bill. Rules turn it into items (no AI, nothing leaves the
+  // server), the bill is matched to the purchase with the same total, and the result waits as a draft for the person to
+  // check in the app. The Shortcut shows the returned message.
+  'POST bills/text': async (req) => {
+    const b = await readBody(req, 64 * 1024);
+    const u = await userFromCode(req, b);
+    const text = String(b.text || b.body || '').slice(0, 30000);
+    const parsed = billtext.parse(text);
+    if (!parsed.items.length || parsed.total === null) fail(422, 'No items were found on that bill. Take the photo again with the whole bill in view.');
+    const n = await numbersFor(u);
+    const near = n.spend.filter((r) => r.amount > 0 && Math.abs(r.amount - parsed.total) <= 0.05).sort((a, c) => c.ts - a.ts);
+    if (!near.length) fail(404, 'No purchase of ' + '$' + parsed.total.toFixed(2) + ' was found yet. Scan the bill again once the payment shows up in the app.');
+    const hit = near[0];
+    const have = await q('select purchase_id from bill_items where user_id = $1 and purchase_id = any($2::bigint[]) group by purchase_id', [u.id, near.map((r) => Number(r.id))]);
+    const done = new Set(have.map((r) => String(r.purchase_id)));
+    const target = near.find((r) => !done.has(String(r.id))) || hit;
+    const out = bills.normalize({ store: parsed.store, items: parsed.items.map((i) => ({ name: i.name, price: i.price, qty: i.qty, kind: itemkinds.kindOfItem(i.name) })), tax: parsed.tax, total: parsed.total },
+      { store: target.merchant, amount: target.amount, memory: await itemMemory(u.id) });
+    if (!out.items.length) fail(422, 'No items were found on that bill. Take the photo again with the whole bill in view.');
+    const draft = { items: out.items.map((i) => ({ name: i.name, price: i.price, kind: i.kind })), tax: out.tax, total: out.total, matches: out.matches, diff: out.diff };
+    await q('insert into bill_drafts (purchase_id, user_id, data) values ($1, $2, $3) on conflict (purchase_id) do update set data = excluded.data, created_at = now()',
+      [Number(target.id), u.id, vault.seal(u.id, 'draft', JSON.stringify(draft))]);
+    const price = draft.items.reduce((s, i) => s + i.price, 0);
+    const funPart = price > 0 ? draft.items.filter((i) => i.kind === 'fun').reduce((s, i) => s + i.price, 0) / price * target.amount : 0;
+    const msg = 'Found ' + draft.items.length + ' items for ' + target.merchant + '. ' + (funPart > 0.5 ? '$' + funPart.toFixed(2) + ' looks unnecessary. ' : '') + (draft.matches === false ? 'The total does not match exactly, so check it. ' : '') + 'Open the app to review them.';
+    return { ok: true, message: msg, merchant: target.merchant, items: draft.items.length };
+  },
+
   'GET purchases/:id/items': async (req, id) => {
     const u = await signedIn(req);
     const own = await q('select id from purchases where id = $1 and user_id = $2', [id, u.id]);
     if (!own[0]) fail(404, 'That purchase was not found');
     const rows = await q('select name, price, alloc, kind from bill_items where purchase_id = $1 and user_id = $2 order by pos', [id, u.id]);
-    return { items: rows.map((r) => ({ name: vault.open(u.id, 'item', r.name), price: Number(r.price), alloc: Number(r.alloc), kind: r.kind })) };
+    const d = await q('select data from bill_drafts where purchase_id = $1 and user_id = $2', [id, u.id]);
+    let draft = null;
+    if (d[0]) { try { draft = JSON.parse(vault.open(u.id, 'draft', d[0].data)); } catch (e) { draft = null; } }
+    return { items: rows.map((r) => ({ name: vault.open(u.id, 'item', r.name), price: Number(r.price), alloc: Number(r.alloc), kind: r.kind })), draft };
   },
 
   // The items the person confirmed, replacing any earlier ones. The amount paid is shared out over them in one go.
@@ -635,12 +680,13 @@ const routes = {
     const amount = bills.num(b.amount);
     if (!items.length) {
       await q('delete from bill_items where purchase_id = $1 and user_id = $2', [id, u.id]);
+      await q('delete from bill_drafts where purchase_id = $1 and user_id = $2', [id, u.id]);
       return { ok: true, count: 0 };
     }
     if (!(amount > 0) || amount > 100000) fail(400, 'The amount paid is missing');
     const alloc = bills.allocate(items.map((i) => i.price), amount);
     // One statement: the old items go and the new ones arrive together, so a failure never leaves half a bill.
-    await q(`with gone as (delete from bill_items where purchase_id = $1 and user_id = $2)
+    await q(`with gone as (delete from bill_items where purchase_id = $1 and user_id = $2), draft as (delete from bill_drafts where purchase_id = $1 and user_id = $2)
              insert into bill_items (purchase_id, user_id, pos, name, price, alloc, kind)
              select $1, $2, t.pos, t.name, t.price, t.alloc, t.kind
              from unnest($3::int[], $4::text[], $5::numeric[], $6::numeric[], $7::text[]) as t(pos, name, price, alloc, kind)`,
@@ -651,20 +697,14 @@ const routes = {
   'DELETE purchases/:id/items': async (req, id) => {
     const u = await signedIn(req);
     await q('delete from bill_items where purchase_id = $1 and user_id = $2', [id, u.id]);
+    await q('delete from bill_drafts where purchase_id = $1 and user_id = $2', [id, u.id]);
     return { ok: true };
   },
 
   // The Shortcut sends each purchase here, with its setup code instead of a session.
   'POST log': async (req) => {
-    const code = bearer(req) || String(req.headers['x-setup-code'] || '');
     const b = await readBody(req);
-    const given = code || String(b.code || b.setupCode || '');
-    if (!/^sp_[A-Za-z0-9_-]{20,}$/.test(given)) fail(401, 'This Shortcut needs your setup code from the app');
-    const rows = await q('select * from users where key_hash = $1', [sha(given)]);
-    const u = rows[0];
-    if (!u) fail(401, 'That setup code is not valid any more. Copy the new one from the app.');
-    if (u.disabled) fail(401, 'This account no longer has access.');
-    req._who = String(u.id).slice(0, 8);
+    const u = await userFromCode(req, b);
     const p = fromShortcut(b);
     const row = await addPurchase(u, p.title, p.body, new Date().toISOString());
     const after = await afterPurchase(u, row.id).catch(() => ({ message: 'Logged.' }));
@@ -884,12 +924,14 @@ const routes = {
 routes['POST cron'] = routes['GET cron'];
 
 const handler = async (req, res) => {
+  let routeKey = '';
   try {
     const url = new URL(req.url, 'http://x');
     let route = url.searchParams.get('route');
     if (route === null) route = url.pathname.replace(/^\/api\/?/, '');
     route = route.replace(/^\/+|\/+$/g, '');
     let key = req.method + ' ' + route;
+    routeKey = key;
     let arg;
     const m = /^purchases\/(\d{1,18})$/.exec(route);
     const mb = /^purchases\/(\d{1,18})\/items$/.exec(route);
@@ -917,7 +959,8 @@ const handler = async (req, res) => {
     if (e instanceof HttpError) {
       // Shortcut requests are logged (no purchase details, no setup code) so a missing purchase can be traced.
       if (req.method === 'POST' && /\/log\/?$|route=log\b/.test(String(req.url))) console.log(JSON.stringify({ evt: 'shortcut-log', status: e.status, reason: e.message, who: req._who || '' }));
-      return send(res, e.status, { error: e.message });
+      // A Shortcut shows the field called message, so for its routes the reason goes there too.
+      return send(res, e.status, routeKey === 'POST log' || routeKey === 'POST bills/text' ? { error: e.message, message: e.message } : { error: e.message });
     }
     console.error(e);
     return send(res, 500, { error: 'Something went wrong on the server. Try again.' });

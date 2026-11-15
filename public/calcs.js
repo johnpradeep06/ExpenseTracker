@@ -90,7 +90,7 @@ dash.calc('spend', {
       }
       if (!amount) continue;
       const ts = tsOf(r);
-      items.push({ id: r.id, src: wallet ? 'wallet' : 'tap', period: r.period, ts, day: dayOf(r, ts), merchant: window.spendMerchant ? window.spendMerchant.clean(merchant).name : (String(merchant || 'Unknown').trim() || 'Unknown'), card: card || '', amount: Math.round(amount * 100) / 100, phone: r.phoneCategory, manual: r.entry === 'manual', mark: r.kind || '', bill: r.bill || null });
+      items.push({ id: r.id, src: wallet ? 'wallet' : 'tap', period: r.period, ts, day: dayOf(r, ts), merchant: window.spendMerchant ? window.spendMerchant.clean(merchant).name : (String(merchant || 'Unknown').trim() || 'Unknown'), card: card || '', amount: Math.round(amount * 100) / 100, phone: r.phoneCategory, manual: r.entry === 'manual', mark: r.kind || '', bill: r.bill || null, draft: !!r.draft });
     }
     items.sort((a, b) => (a.src === b.src ? 0 : a.src === 'tap' ? -1 : 1) || a.ts - b.ts);
     const norm = (s) => String(s).toLowerCase().split(new RegExp('[^a-z0-9]+')).join('').slice(0, 4);
@@ -103,7 +103,7 @@ dash.calc('spend', {
     return kept
       .map((it) => {
         const c = it.manual && CATS.includes(it.phone) ? { cat: it.phone, how: 'manual' } : catOf(it.merchant, it.phone);
-        return { id: it.id, src: it.src, period: it.period, ts: it.ts, day: it.day, merchant: it.merchant, card: it.card, amount: it.amount, category: c.cat, how: c.how, kind: it.mark, bill: it.bill, leak: it.mark === 'need' || it.mark === 'fun' ? it.mark : it.bill ? 'mix' : leakOf(c.cat, ''), dupIds: it.dupIds || [] };
+        return { id: it.id, src: it.src, period: it.period, ts: it.ts, day: it.day, merchant: it.merchant, card: it.card, amount: it.amount, category: c.cat, how: c.how, kind: it.mark, bill: it.bill, draft: it.draft, leak: it.mark === 'need' || it.mark === 'fun' ? it.mark : it.bill ? 'mix' : leakOf(c.cat, ''), dupIds: it.dupIds || [] };
       })
       .sort((a, b) => b.ts - a.ts);
   }

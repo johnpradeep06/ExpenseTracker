@@ -790,6 +790,95 @@ const assert = require('assert');
     delete process.env.ANTHROPIC_API_KEY;
   }
 
+  // ---- a bill from the Apple Shortcut: plain text, read by rules, matched to its purchase, waiting as a draft ----
+  {
+    const METRO_TEXT = `METRO PLUS #204
+MONTREAL QC
+2026-11-15 18:12
+LAIT 2% 2L                5,49 FC
+OEUFS GR A 12             4,29 FC
+PAIN TRANCHE              3,19 FC
+POULET ENTIER
+   2,134 kg @ 5,81/kg      12,40 FC
+CHIPS LAYS BBQ 235G       4,99 FCT
+COCA-COLA 12X355ML        7,99 FCT
+BIERE MOLSON 12X355ML    21,99 FCT
+RABAIS                    -1,00
+SOUS-TOTAL               58,34
+TPS 5% (R123456789)       1,75
+TVQ 9,975% (1234567890)   3,49
+TOTAL                    63,58
+VISA ****4242            63,58`;
+    r = await call('POST', 'auth/signup', { body: { email: 'shortcut@example.com', password: 'shortcut-password-1', invite: await invite('Sc', 7) } });
+    const sTok = r.data.session;
+    r = await call('POST', 'auth/signup', { body: { email: 'shortcut2@example.com', password: 'shortcut2-password-1', invite: await invite('Sc2', 7) } });
+    const s2Tok = r.data.session;
+    const sCode = (await call('POST', 'setup-code', { auth: sTok })).data.code;
+    const s2Code = (await call('POST', 'setup-code', { auth: s2Tok })).data.code;
+    const mk = async (tok, merchant, amount) => (await call('POST', 'purchases', { auth: tok, body: { title: 'Spending - $' + amount, body: 'Merchant: ' + merchant + '\nAmount: $' + amount + '\nCard: Visa\nCategory: Groceries' } })).data.number;
+    const pid = await mk(sTok, 'Metro', '63.58');
+    const textBill = (code, text) => call('POST', 'bills/text', { auth: code, body: { text } });
+
+    r = await call('POST', 'bills/text', { body: { text: METRO_TEXT } });
+    ok(r.status === 401, 'a bill from the Shortcut needs the setup code');
+    r = await textBill('sp_notarealcodenotarealcodenotarealcode', METRO_TEXT);
+    ok(r.status === 401, 'and a wrong setup code is refused');
+    r = await textBill(sCode, 'bonjour, ceci nest pas une facture');
+    ok(r.status === 422, 'text with no bill in it says so');
+    r = await textBill(sCode, METRO_TEXT.replace(/63,58/g, '123,45').replace('58,34', '118,21'));
+    ok(r.status === 404 && /123\.45/.test(r.data.error), 'a bill with no matching purchase says what is missing: ' + r.data.error);
+    ok(r.data.message === r.data.error, 'and the Shortcut can show that reason, because it is in the message field too');
+    const t0 = Date.now();
+    r = await call('POST', 'bills/text', { auth: sCode, body: { text: ('LAIT 5,49\n').repeat(20000) } });
+    ok(r.status === 404 && Date.now() - t0 < 3000, 'a huge block of text is cut down and handled quickly, not allowed to hang the server (' + (Date.now() - t0) + ' ms)');
+
+    r = await textBill(sCode, METRO_TEXT);
+    ok(r.status === 200 && r.data.ok && r.data.merchant === 'Metro' && r.data.items === 8, 'the bill is read and matched to the Metro purchase: ' + JSON.stringify(r.data));
+    ok(/unnecessary/.test(r.data.message) && /Open the app/.test(r.data.message) && !/does not match/.test(r.data.message), 'the Shortcut gets a plain message to show: ' + r.data.message);
+    r = await call('GET', 'purchases/' + pid + '/items', { auth: sTok });
+    ok(r.data.items.length === 0 && r.data.draft && r.data.draft.items.length === 8, 'it waits as a draft, not saved items yet');
+    const kinds = Object.fromEntries(r.data.draft.items.map((i) => [i.name.split(' ')[0], i.kind]));
+    ok(kinds.LAIT === 'need' && kinds.POULET === 'need' && kinds.CHIPS === 'fun' && kinds['COCA-COLA'] === 'fun' && kinds.BIERE === 'fun', 'items start with a guess: milk and chicken necessary, chips, soda and beer unnecessary');
+    ok(r.data.draft.matches === true && r.data.draft.total === 63.58 && r.data.draft.tax === 5.24, 'the items and tax add up to the purchase');
+    r = await call('GET', 'purchases', { auth: sTok });
+    ok(r.data.find((x) => x.number === pid).draft === true, 'the purchase says a bill is waiting');
+    const rawDraft = (await pg.query('select data from bill_drafts where purchase_id = $1', [pid])).rows[0].data;
+    ok(/^e1:/.test(rawDraft) && !/LAIT|BIERE|POULET/.test(rawDraft), 'the draft is stored encrypted');
+    r = await call('GET', 'purchases/' + pid + '/items', { auth: s2Tok });
+    ok(r.status === 404, 'nobody else can see the draft');
+    r = await textBill(s2Code, METRO_TEXT);
+    ok(r.status === 404, 'another person\'s Shortcut cannot attach a bill to your purchase');
+
+    // scanning the same bill again replaces the draft instead of piling up
+    r = await textBill(sCode, METRO_TEXT);
+    ok(r.status === 200 && (await pg.query('select count(*)::int as n from bill_drafts where purchase_id = $1', [pid])).rows[0].n === 1, 'scanning again replaces the draft');
+
+    // saving the items clears the draft, and the next bill starts from what was decided
+    r = await call('GET', 'purchases/' + pid + '/items', { auth: sTok });
+    const toSave = r.data.draft.items.map((i) => ({ name: i.name, price: i.price, kind: /CHIPS/.test(i.name) ? 'need' : i.kind }));
+    r = await call('PUT', 'purchases/' + pid + '/items', { auth: sTok, body: { items: toSave, amount: 63.58 } });
+    ok(r.status === 200, 'the person checks the items and saves them');
+    r = await call('GET', 'purchases/' + pid + '/items', { auth: sTok });
+    ok(r.data.draft === null && r.data.items.length === 8, 'the draft is gone and the items are saved');
+    r = await call('GET', 'purchases', { auth: sTok });
+    const row = r.data.find((x) => x.number === pid);
+    ok(!row.draft && row.bill && row.bill.n === 8, 'the purchase no longer says a bill is waiting, and has its items');
+    const pid2 = await mk(sTok, 'IGA', '63.58');
+    r = await textBill(sCode, METRO_TEXT);
+    ok(r.status === 200, 'a second purchase for the same amount takes the next bill');
+    r = await call('GET', 'purchases/' + pid2 + '/items', { auth: sTok });
+    ok(r.data.draft && r.data.draft.items.find((i) => /CHIPS/.test(i.name)).kind === 'need', 'it goes to the purchase that has no items yet, and remembers chips as you decided (necessary)');
+    await call('DELETE', 'purchases/' + pid2 + '/items', { auth: sTok });
+    r = await call('GET', 'purchases/' + pid2 + '/items', { auth: sTok });
+    ok(r.data.draft === null, 'a draft can be thrown away');
+    await textBill(sCode, METRO_TEXT);
+    await pg.query('delete from purchases where id = $1', [pid2]);
+    ok((await pg.query('select count(*)::int as n from bill_drafts where purchase_id = $1', [pid2])).rows[0].n === 0, 'deleting a purchase deletes its draft');
+    await call('DELETE', 'account', { auth: sTok });
+    await call('DELETE', 'account', { auth: s2Tok });
+    ok((await pg.query('select count(*)::int as n from bill_drafts')).rows[0].n === 0, 'deleting an account deletes its drafts');
+  }
+
   // ---- starting up: the database setup runs once, not on every wake-up ----
   {
     const have = (await pg.query("select value from app_settings where key = 'schema_version'")).rows[0];

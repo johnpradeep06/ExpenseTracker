@@ -8,12 +8,18 @@
   const clean = () => !document.documentElement.classList.contains('candy') && !document.documentElement.classList.contains('retro');
 
   let enabled = null;
-  window.spendBillAvailable = async () => {
-    if (!clean() || !window.spendApi) return false;
+  const aiOn = async () => {
     if (enabled === null) {
       try { enabled = !!(await window.spendApi('GET', 'config')).billScan; } catch (e) { return false; }
     }
     return enabled;
+  };
+  // Show the button when the server has an AI reader, or when this purchase already has a bill waiting or scanned
+  // (for example one sent from the Apple Shortcut), which can always be reviewed.
+  window.spendBillAvailable = async (purchase) => {
+    if (!clean() || !window.spendApi) return false;
+    if (purchase && (purchase.draft || purchase.bill)) return true;
+    return aiOn();
   };
 
   const backdrop = el('div', 'backdrop'); backdrop.hidden = true;
@@ -32,6 +38,7 @@
   let items = [];      // what is on screen
   let meta = null;     // the checks from the server
   let busy = false;
+  let canScan = false; // whether the AI reader is switched on, for the Scan again button
 
   const open = () => { backdrop.hidden = false; sheet.hidden = false; document.body.classList.add('sheet-open'); sheet.scrollTop = 0; };
   const close = () => { sheet.hidden = true; backdrop.hidden = true; document.body.classList.remove('sheet-open'); row = null; items = []; meta = null; busy = false; };
@@ -79,10 +86,11 @@
     if (existing && existing.length) {
       items = existing;
       meta = null;
-      showItems(true);
+      showItems('saved');
       return;
     }
-    body.append(message('Take a photo of the whole bill, flat and in good light. The photo is only read. It is never saved.'));
+    body.append(message(canScan ? 'Take a photo of the whole bill, flat and in good light. The photo is only read. It is never saved.' : 'Scan this bill with your Scan bill Shortcut, then come back here to check the items.'));
+    if (!canScan) return;
     const go = el('button', 'primary', '📷 Take a photo'); go.type = 'button';
     go.addEventListener('click', pick);
     body.append(go);
@@ -113,7 +121,7 @@
       items = out.items.map((i) => ({ name: i.name, price: i.price, kind: i.kind }));
       meta = out;
       busy = false;
-      showItems(false);
+      showItems('new');
     } catch (x) {
       busy = false;
       body.replaceChildren();
@@ -125,26 +133,29 @@
     }
   };
 
-  const showItems = (saved) => {
+  // mode: 'new' (just read by the AI), 'saved' (items saved earlier) or 'draft' (sent from the Apple Shortcut, waiting)
+  const showItems = (mode) => {
+    const saved = mode === 'saved';
     // Always start from a clean screen, so nothing from the photo or reading steps is left behind.
     body.replaceChildren();
     const top = el('div', 'bill-top');
     top.append(el('b', '', row.merchant), el('span', '', money(row.amount)));
     body.append(top);
-    if (saved) body.append(message('This bill was scanned before. Change any item, or scan it again.'));
+    if (mode === 'saved') body.append(message('This bill was scanned before. Change any item' + (canScan ? ', or scan it again.' : '.')));
+    else if (mode === 'draft') body.append(message('From your iPhone\'s scan. Check the items, tap any to switch it between necessary and unnecessary, then save.'));
     else body.append(message('Tap an item to switch it between necessary and unnecessary. Remove anything that is not an item.'));
     const list = el('div', 'bill-list');
     items.forEach((it, n) => {
       const line = el('div', 'bill-item k-' + it.kind);
       line.setAttribute('role', 'button');
       line.tabIndex = 0;
-      const flip = () => { it.kind = it.kind === 'fun' ? 'need' : 'fun'; showItems(saved); };
+      const flip = () => { it.kind = it.kind === 'fun' ? 'need' : 'fun'; showItems(mode); };
       line.addEventListener('click', flip);
       line.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
       const mid = el('span', 'bill-mid');
       mid.append(el('b', '', it.name), el('span', '', it.kind === 'fun' ? 'Unnecessary' : it.kind === 'need' ? 'Necessary' : 'Not sure · tap to decide'));
       const rm = el('button', 'bill-x', '✕'); rm.type = 'button'; rm.setAttribute('aria-label', 'Remove ' + it.name);
-      rm.addEventListener('click', (e) => { e.stopPropagation(); items.splice(n, 1); showItems(saved); });
+      rm.addEventListener('click', (e) => { e.stopPropagation(); items.splice(n, 1); showItems(mode); });
       line.append(mid, el('span', 'bill-p', money(it.price)), rm);
       list.append(line);
     });
@@ -167,9 +178,12 @@
     const acts = el('div', 'bill-actions');
     const save = el('button', 'primary', items.length ? 'Save ' + items.length + (items.length === 1 ? ' item' : ' items') : 'Remove the items'); save.type = 'button';
     save.addEventListener('click', () => store(save));
-    const again = el('button', 'btn-plain', saved ? 'Scan it again' : 'Scan again'); again.type = 'button';
-    again.addEventListener('click', () => showStart(null));
-    acts.append(save, again);
+    acts.append(save);
+    if (canScan) {
+      const again = el('button', 'btn-plain', saved ? 'Scan it again' : 'Scan again'); again.type = 'button';
+      again.addEventListener('click', () => showStart(null));
+      acts.append(again);
+    }
     body.append(acts);
   };
 
@@ -201,7 +215,22 @@
     open();
     body.replaceChildren(message('One moment…'));
     let existing = null;
-    try { existing = (await window.spendApi('GET', 'purchases/' + purchase.id + '/items')).items.map((i) => ({ name: i.name, price: i.price, kind: i.kind })); } catch (e) { /* no items yet is fine */ }
-    if (row === purchase) showStart(existing);
+    let draft = null;
+    try {
+      const got = await window.spendApi('GET', 'purchases/' + purchase.id + '/items');
+      existing = got.items.map((i) => ({ name: i.name, price: i.price, kind: i.kind }));
+      draft = got.draft;
+    } catch (e) { /* no items yet is fine */ }
+    canScan = await aiOn();
+    if (row !== purchase) return;
+    if (draft && draft.items && draft.items.length) {
+      // A bill sent from the Apple Shortcut is waiting: show it to check, whatever was saved before.
+      items = draft.items.map((i) => ({ name: i.name, price: i.price, kind: i.kind }));
+      meta = { matches: draft.matches, diff: draft.diff, tax: draft.tax };
+      body.replaceChildren();
+      showItems('draft');
+      return;
+    }
+    showStart(existing);
   };
 })();
