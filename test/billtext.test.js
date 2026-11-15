@@ -126,4 +126,66 @@ const WINNERS_COLS = WINNERS_ROWS.replace('094320   89,99$ TQ', '094320\n89,99$ 
   ok(r.subtotal === 89.99 && r.tax === 13.48 && r.total === 103.47, 'Winners (' + how + '): subtotal, tax and total: ' + r.subtotal + ' / ' + r.tax + ' / ' + r.total);
 });
 
+// 8. a Montreal grocery bill with Chinese characters above each name, weight lines, and a name in two languages
+const NEWON_HEAD = `Marche Newon
+1616 Rue Sainte-Catherine O.
+Montreal, QC H3H 1L7
+LI JIA
+11/15/2026 2:38:50 PM`;
+const NEWON_ROWS = `${NEWON_HEAD}
+黄小椒
+Poivron Jaune Petit $3.79
+青羊角豆/秋葵
+Gombo Vert
+0.99 lb @ $2.98/lb $2.95
+袋装菠菜叶
+HARVEST FRESH SPINACH $3.59
+中國蜜柚 白肉
+POMELO AU MIEL $7.99
+青羊角豆/秋葵
+Gombo Vert
+1.07 lb @ $2.98/lb $3.19
+RIBOLTA G. ANGELENO PLUMS
+RIBOLTA G. PRUNES ANGELENO $2.98
+TOTAL $24.49
+Visa $24.49
+Item count: 6
+Trans:230291 Terminal:050106015-001008`;
+const NEWON_COLS = `Marche Newon
+1616 Rue Sainte-Catherine O.
+Montreal, QC H3H 1L7
+11/15/2026 2:38:50 PM
+LI JIA
+黄小椒
+Poivron Jaune Petit
+青羊角豆/秋葵
+Gombo Vert
+0.99 lb @ $2.98/lb
+袋装菠菜叶
+HARVEST FRESH SPINACH
+中國蜜柚 白肉
+POMELO AU MIEL
+青羊角豆/秋葵
+Gombo Vert
+1.07 lb @ $2.98/lb
+RIBOLTA G. ANGELENO PLUMS
+RIBOLTA G. PRUNES ANGELENO
+$3.79
+$2.95
+$3.59
+$7.99
+$3.19
+$2.98
+TOTAL
+Visa
+$24.49
+$24.49
+Item count: 6`;
+[['line by line', NEWON_ROWS], ['names first, then prices', NEWON_COLS]].forEach(([how, text]) => {
+  r = parse(text);
+  const sum = Math.round(r.items.reduce((t, i) => t + i.price, 0) * 100) / 100;
+  ok(r.store === 'Marche Newon' && r.items.length === 6 && r.total === 24.49 && sum === 24.49, 'Newon (' + how + '): six items that add up to the $24.49 total: ' + r.items.length + ' items, ' + sum);
+  ok(find(r, /POMELO/).price === 7.99 && find(r, /SPINACH/).price === 3.59 && r.items.filter((i) => /Gombo/.test(i.name)).map((i) => i.price).join() === '2.95,3.19', 'Newon (' + how + '): each price is on the right item, weights included');
+});
+
 console.log('\nALL PASSED:', pass);
