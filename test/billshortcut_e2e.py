@@ -51,6 +51,7 @@ with sync_playwright() as P:
     post('/api/admin/import', {"email": em, "issues": issues, "dailyLimit": 0})
     pg.click('#tour-skip'); pg.wait_for_timeout(1200)
     code = pg.inner_text('#setup-code')
+    code2 = code
     pg.click('#onboard-done'); pg.wait_for_timeout(3500)
     row = lambda name: pg.locator('#latest .tx-swipe .tx', has_text=name).first
 
@@ -59,8 +60,20 @@ with sync_playwright() as P:
 
     # ---- no AI and no bill: nothing to scan ----
     open_row('Tim Hortons')
-    ok(vis('#add-sheet') and not vis('#add-scan'), 'with no AI reader and no bill waiting, there is no scan button')
-    pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
+    ok(vis('#add-sheet') and vis('#add-scan'), 'with no AI reader the scan button is still there, because the Shortcut can read the bill')
+    pg.click('#add-scan'); pg.wait_for_timeout(900)
+    link = pg.locator('#bill-sheet a.primary')
+    ok(vis('#bill-sheet') and link.count() == 1 and 'Scan with Shortcut' in link.inner_text(), 'it offers Scan with Shortcut, and no Take a photo button')
+    href = link.get_attribute('href')
+    import re
+    mm = re.match(r'^shortcuts://run-shortcut\?name=Capture%20bill&input=text&text=(\d+)$', href or '')
+    ok(bool(mm), 'the button opens the Capture bill Shortcut and passes the purchase number: ' + str(href))
+    tim = mm.group(1) if mm else '0'
+    pg.click('#bill-sheet .link'); pg.wait_for_timeout(300)
+    # the Shortcut sends the text back with that number: it goes to Tim Hortons even though the totals differ
+    out = post('/api/bills/text', {'text': TEXT, 'purchaseId': tim}, auth=code2)
+    ok(out['ok'] and out['merchant'] == 'Tim Hortons', 'the bill lands on the purchase the button was for: ' + out['message'])
+    ok('does not match' in out['message'], 'and the message says the total does not match, so check it')
 
     # ---- the Shortcut sends the text of the bill ----
     out = post('/api/bills/text', {'text': TEXT}, auth=code)

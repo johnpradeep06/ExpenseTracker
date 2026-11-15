@@ -640,12 +640,21 @@ const routes = {
     const parsed = billtext.parse(text);
     if (!parsed.items.length || parsed.total === null) fail(422, 'No items were found on that bill. Take the photo again with the whole bill in view.');
     const n = await numbersFor(u);
-    const near = n.spend.filter((r) => r.amount > 0 && Math.abs(r.amount - parsed.total) <= 0.05).sort((a, c) => c.ts - a.ts);
-    if (!near.length) fail(404, 'No purchase of ' + '$' + parsed.total.toFixed(2) + ' was found yet. Scan the bill again once the payment shows up in the app.');
-    const hit = near[0];
-    const have = await q('select purchase_id from bill_items where user_id = $1 and purchase_id = any($2::bigint[]) group by purchase_id', [u.id, near.map((r) => Number(r.id))]);
-    const done = new Set(have.map((r) => String(r.purchase_id)));
-    const target = near.find((r) => !done.has(String(r.id))) || hit;
+    // When the app started the Shortcut it passes the purchase number, so the bill goes to exactly that purchase and the
+    // total is not needed to find it. Only the person's own purchases count.
+    const wanted = String(b.purchaseId === undefined ? (b.purchase === undefined ? '' : b.purchase) : b.purchaseId).trim();
+    let target;
+    if (wanted) {
+      if (!/^\d{1,15}$/.test(wanted)) fail(400, 'That purchase number is not valid. Start the scan again from the purchase in the app.');
+      target = n.spend.find((r) => String(r.id) === wanted);
+      if (!target) fail(404, 'That purchase was not found. Open it in the app and scan again.');
+    } else {
+      const near = n.spend.filter((r) => r.amount > 0 && Math.abs(r.amount - parsed.total) <= 0.05).sort((a, c) => c.ts - a.ts);
+      if (!near.length) fail(404, 'No purchase of ' + '$' + parsed.total.toFixed(2) + ' was found yet. Scan the bill again once the payment shows up in the app.');
+      const have = await q('select purchase_id from bill_items where user_id = $1 and purchase_id = any($2::bigint[]) group by purchase_id', [u.id, near.map((r) => Number(r.id))]);
+      const done = new Set(have.map((r) => String(r.purchase_id)));
+      target = near.find((r) => !done.has(String(r.id))) || near[0];
+    }
     const out = bills.normalize({ store: parsed.store, items: parsed.items.map((i) => ({ name: i.name, price: i.price, qty: i.qty, kind: itemkinds.kindOfItem(i.name) })), tax: parsed.tax, total: parsed.total },
       { store: target.merchant, amount: target.amount, memory: await itemMemory(u.id) });
     if (!out.items.length) fail(422, 'No items were found on that bill. Take the photo again with the whole bill in view.');

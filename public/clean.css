@@ -158,6 +158,7 @@ html:not(.candy):not(.retro) .lk-note { margin: 10px 0 0; font-size: 12.5px; col
 /* ---- Scan the bill (Clean look only) --------------------------------------------------------------------------------- */
 html:not(.candy):not(.retro) .tx-swipe .tx.k-mix::before { background: linear-gradient(to bottom, var(--accent) calc(var(--p, 50) * 1%), var(--fun) calc(var(--p, 50) * 1%)); }
 html:not(.candy):not(.retro) #bill-sheet .bill-body { display: grid; gap: 12px; padding-bottom: 10px; }
+html:not(.candy):not(.retro) #bill-sheet a.primary { display: block; text-align: center; text-decoration: none; }
 html:not(.candy):not(.retro) .bill-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 17px; }
 html:not(.candy):not(.retro) .bill-top span { font-weight: 800; font-variant-numeric: tabular-nums; }
 html:not(.candy):not(.retro) .bill-msg { margin: 0; font-size: 14.5px; color: var(--muted); }

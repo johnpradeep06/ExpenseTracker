@@ -849,6 +849,21 @@ VISA ****4242            63,58`;
     r = await textBill(s2Code, METRO_TEXT);
     ok(r.status === 404, 'another person\'s Shortcut cannot attach a bill to your purchase');
 
+    // the app can name the purchase, so the bill lands on exactly that one even when the totals differ
+    const pidSaq = await mk(sTok, 'SAQ', '31.00');
+    r = await call('POST', 'bills/text', { auth: sCode, body: { text: METRO_TEXT, purchaseId: pidSaq } });
+    ok(r.status === 200 && r.data.merchant === 'SAQ', 'a bill sent with a purchase number goes to that purchase, not the one with the same total: ' + JSON.stringify(r.data));
+    r = await call('GET', 'purchases/' + pidSaq + '/items', { auth: sTok });
+    ok(r.data.draft && r.data.draft.items.length === 8 && r.data.draft.matches === false, 'and it is flagged as not matching so the person checks it');
+    r = await call('GET', 'purchases/' + pid + '/items', { auth: sTok });
+    ok(r.data.draft && r.data.draft.items.length === 8, 'the other purchase\'s own draft is untouched');
+    r = await call('POST', 'bills/text', { auth: s2Code, body: { text: METRO_TEXT, purchaseId: pidSaq } });
+    ok(r.status === 404, 'another person cannot attach a bill to your purchase by number');
+    r = await call('POST', 'bills/text', { auth: sCode, body: { text: METRO_TEXT, purchaseId: '12; drop table purchases' } });
+    ok(r.status === 400, 'a purchase number that is not a number is refused');
+    r = await call('POST', 'bills/text', { auth: sCode, body: { text: METRO_TEXT, purchaseId: 99999999 } });
+    ok(r.status === 404, 'and so is one that does not exist');
+
     // scanning the same bill again replaces the draft instead of piling up
     r = await textBill(sCode, METRO_TEXT);
     ok(r.status === 200 && (await pg.query('select count(*)::int as n from bill_drafts where purchase_id = $1', [pid])).rows[0].n === 1, 'scanning again replaces the draft');

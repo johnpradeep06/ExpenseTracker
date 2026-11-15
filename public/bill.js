@@ -18,8 +18,7 @@
   // (for example one sent from the Apple Shortcut), which can always be reviewed.
   window.spendBillAvailable = async (purchase) => {
     if (!clean() || !window.spendApi) return false;
-    if (purchase && (purchase.draft || purchase.bill)) return true;
-    return aiOn();
+    return true;  // with an AI reader the photo is read here; without one, the Shortcut reads it
   };
 
   const backdrop = el('div', 'backdrop'); backdrop.hidden = true;
@@ -89,8 +88,17 @@
       showItems('saved');
       return;
     }
-    body.append(message(canScan ? 'Take a photo of the whole bill, flat and in good light. The photo is only read. It is never saved.' : 'Scan this bill with your Scan bill Shortcut, then come back here to check the items.'));
-    if (!canScan) return;
+    if (!canScan) {
+      // No AI reader on the server: the "Capture bill" Shortcut on the phone takes the photo and reads it. It is told which
+      // purchase this is, so the bill lands on exactly this one. Then the person comes back here to check the items.
+      body.append(message('Your iPhone reads the bill. Tap the button, take the photo, then come back here. The items will be waiting to check. The photo stays on your phone.'));
+      const run = el('a', 'primary', '📷 Scan with Shortcut');
+      run.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Capture bill') + '&input=text&text=' + encodeURIComponent(String(row.id));
+      run.setAttribute('role', 'button');
+      body.append(run, message('Needs the "Capture bill" Shortcut. Nothing happens if you have not added it yet.'));
+      return;
+    }
+    body.append(message('Take a photo of the whole bill, flat and in good light. The photo is only read. It is never saved.'));
     const go = el('button', 'primary', '📷 Take a photo'); go.type = 'button';
     go.addEventListener('click', pick);
     body.append(go);
