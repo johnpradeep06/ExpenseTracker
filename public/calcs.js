@@ -18,6 +18,9 @@ dash.calc('spend', {
       ['Shopping', ['amazon', 'amzn', 'dollarama', 'best buy', 'canadian tire', 'winners', 'marshalls', 'h&m', 'zara', 'uniqlo', 'ikea', 'apple store', 'nike', 'shein', 'etsy', 'ebay', 'walmart', 'home depot', 'rona ', 'gap ', 'staples', 'indigo', 'lululemon', 'aliexpress', 'temu']]
     ];
     const catOf = (merchant, phone) => {
+      // Known stores and store-type words first (public/merchants.js); the older keyword rules below stay as the fallback.
+      const known = window.spendMerchant ? window.spendMerchant.clean(merchant) : null;
+      if (known && known.category) return { cat: known.category, how: 'merchant' };
       const m = ' ' + String(merchant || '').toLowerCase().replace(new RegExp('[^a-z0-9&./]+', 'g'), ' ').trim() + ' ';
       for (const [cat, words] of RULES) {
         if (words.some((w) => m.includes(' ' + w))) return { cat, how: 'merchant' };
@@ -82,7 +85,7 @@ dash.calc('spend', {
       }
       if (!amount) continue;
       const ts = tsOf(r);
-      items.push({ id: r.id, src: wallet ? 'wallet' : 'tap', period: r.period, ts, day: dayOf(r, ts), merchant: String(merchant || 'Unknown').trim() || 'Unknown', card: card || '', amount: Math.round(amount * 100) / 100, phone: r.phoneCategory, manual: r.entry === 'manual' });
+      items.push({ id: r.id, src: wallet ? 'wallet' : 'tap', period: r.period, ts, day: dayOf(r, ts), merchant: window.spendMerchant ? window.spendMerchant.clean(merchant).name : (String(merchant || 'Unknown').trim() || 'Unknown'), card: card || '', amount: Math.round(amount * 100) / 100, phone: r.phoneCategory, manual: r.entry === 'manual' });
     }
     items.sort((a, b) => (a.src === b.src ? 0 : a.src === 'tap' ? -1 : 1) || a.ts - b.ts);
     const norm = (s) => String(s).toLowerCase().split(new RegExp('[^a-z0-9]+')).join('').slice(0, 4);

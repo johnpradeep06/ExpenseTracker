@@ -635,6 +635,14 @@ const assert = require('assert');
     const oldRow = (sm.rows || []).find((x) => x.amount === 9);
     ok(saqRow && saqRow.merchant === 'SAQ' && saqRow.category === 'Groceries', 'in the app the purchase shows as SAQ in Groceries, not the raw text in Other: ' + JSON.stringify(saqRow && [saqRow.merchant, saqRow.category]));
     ok(oldRow && oldRow.category === 'Other' && /Mystery/.test(oldRow.merchant), 'an alert without the extras behaves exactly as before');
+    // the real fix: the raw text alone, with nothing cleaned by the phone, now comes out right
+    r = await call('POST', 'log', { auth: saqCode, body: { source: 'wallet', title: 'American Express', subtitle: 'Marche Tharsnio 4411 Montreal QC', body: '$41.17' } });
+    r = await call('POST', 'log', { auth: saqCode, body: { merchant: 'Saq23028faubourg Ste-Cat', amount: '33.10', card: 'Amex', category: 'Other' } });
+    const raw2 = (await hist2(saqTok, 'range=week&rows=1')).data.rows || [];
+    const mar = raw2.find((x) => x.amount === 41.17);
+    const saq2 = raw2.find((x) => x.amount === 33.1);
+    ok(mar && mar.merchant === 'Marche Tharsnio' && mar.category === 'Groceries', 'a raw Wallet alert from Marche Tharsnio shows as Marche Tharsnio in Groceries: ' + JSON.stringify(mar && [mar.merchant, mar.category]));
+    ok(saq2 && saq2.merchant === 'SAQ' && saq2.category === 'Groceries', 'a raw tap purchase from Saq23028faubourg Ste-Cat shows as SAQ in Groceries even when the Shortcut said Other: ' + JSON.stringify(saq2 && [saq2.merchant, saq2.category]));
     await call('DELETE', 'account', { auth: saqTok });
   }
 
