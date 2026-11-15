@@ -1,0 +1,96 @@
+/* Free to spend (the pay period card and its sheets), for all three looks. It only uses the app's own colours; the
+   Fresh and Arcade blocks at the bottom change the fonts, edges and the bar to match each look. */
+.pay { --pay-good: var(--accent); --pay-warn: #d9822b; --pay-bad: var(--up, #d8453b); --c: var(--pay-good); cursor: pointer; }
+@media (prefers-color-scheme: dark) { .pay { --pay-warn: #f0a050; } }
+.pay.pay-warn { --c: var(--pay-warn); }
+.pay.pay-bad { --c: var(--pay-bad); }
+.pay-lab { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.pay-big { margin: 6px 0 2px; font-size: 40px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.pay-line { color: var(--muted); font-size: 14.5px; }
+.pay-line b { color: var(--fg); }
+.pay-bar { height: 10px; border-radius: 99px; background: var(--track); margin: 14px 0 4px; position: relative; overflow: hidden; }
+.pay-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--c); border-radius: 99px; }
+.pay-note { margin-top: 10px; padding: 9px 12px; border-radius: 12px; font-size: 13.5px; background: color-mix(in srgb, var(--c) 14%, transparent); }
+.pay-rows { margin-top: 12px; border-top: 1px solid var(--line); }
+.pay-rows div { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; font-variant-numeric: tabular-nums; }
+.pay-rows div span:first-child { color: var(--muted); }
+.pay-rows .tot { border-bottom: 0; font-weight: 800; }
+.pay-rows .tot span:first-child { color: var(--fg); }
+.pay-edit, .pay-paid { display: block; width: 100%; }
+.pay-paid { margin-top: 12px; }
+.pay-chev { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
+.pay-q { margin: 6px 0 4px; font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+.pay-no { display: block; width: 100%; margin-top: 4px; padding: 10px; text-align: center; }
+.pay.pay-ask { cursor: default; }
+.pay-cta { display: flex; align-items: center; gap: 10px; cursor: default; padding-top: 14px; padding-bottom: 14px; }
+.pay-cta-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.pay-cta-text span { color: var(--muted); font-size: 13.5px; }
+.pay-go { border: 0; border-radius: 12px; padding: 10px 16px; background: var(--accent); color: var(--on-accent, #fff); font: inherit; font-weight: 800; cursor: pointer; }
+.pay-x { border: 0; background: none; color: var(--muted); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 14px; }
+
+/* the sheets */
+.pay-body { display: grid; gap: 12px; }
+.pay-body h2 { margin: 0; }
+.pay-body .sub { margin: -6px 0 2px; }
+.pay-dots { display: flex; gap: 6px; justify-content: center; }
+.pay-dots i { width: 28px; height: 5px; border-radius: 99px; background: var(--track); }
+.pay-dots i.on { background: var(--accent); }
+.pay-hint { margin: 0; font-size: 13px; color: var(--muted); }
+.pay-err { margin: 0; font-size: 14px; font-weight: 700; color: var(--up); }
+.pay-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pay-seg button { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 12px; padding: 11px 4px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.pay-seg button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); }
+.pay-bills { display: grid; gap: 8px; }
+.pay-bill { border: 1px solid var(--line); border-radius: 14px; padding: 8px 8px 6px 12px; background: var(--card); }
+.pay-r1 { display: grid; grid-template-columns: 1fr 128px 30px; gap: 8px; align-items: center; }
+.pay-nm { min-width: 0; border: 0; background: none; color: var(--fg); font: inherit; font-size: 16px; font-weight: 700; padding: 6px 0; outline: none; }
+.pay-nm::placeholder { color: var(--muted); font-weight: 400; }
+.pay-am { min-height: 0 !important; padding: 0 10px !important; }
+.sheet .pay-am input { padding: 8px 0; font-size: 16px; min-height: 0; }
+.pay-rm { width: 28px; height: 28px; border: 0; border-radius: 50%; background: var(--track); color: var(--muted); cursor: pointer; font-size: 12px; }
+.pay-r2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; font-size: 12.5px; color: var(--muted); }
+.pay-fq { border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 99px; padding: 4px 11px; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.pay-opt { display: block; padding: 6px 0 2px; font-size: 12.5px; color: var(--muted); }
+.pay-more[hidden] { display: none; }
+.pay-tg { border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; text-decoration: underline; cursor: pointer; padding: 2px 0 4px; }
+.pay-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pay-chips button { border: 1px dashed var(--line); background: none; color: var(--muted); border-radius: 99px; padding: 7px 13px; font: inherit; font-size: 13.5px; cursor: pointer; }
+.pay-chips .own { border-style: solid; color: var(--fg); font-weight: 800; }
+.pay-sum { border-radius: 18px; padding: 16px; text-align: center; color: var(--muted); font-size: 14.5px; background: color-mix(in srgb, var(--pay-good, var(--accent)) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--pay-good, var(--accent)) 35%, transparent); }
+.pay-sumbig { color: var(--fg); font-size: 36px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; margin: 4px 0; }
+.pay-sheet .primary { width: 100%; }
+.pay-sheet .link { width: 100%; text-align: center; padding: 8px; }
+
+/* ---- Fresh: rounded, chunky, thick edges ---- */
+html.candy .pay { --pay-good: #58cc02; --pay-warn: #ffc800; --pay-bad: #ff4b4b; }
+html.candy .pay-lab { font-weight: 800; }
+html.candy .pay-big { font-weight: 900; font-size: 46px; letter-spacing: -.02em; }
+html.candy .pay-q { font-weight: 900; }
+html.candy .pay-line, html.candy .pay-rows div { font-weight: 700; }
+html.candy .pay-note { border: 2px solid color-mix(in srgb, var(--c) 40%, transparent); border-radius: 16px; }
+html.candy .pay-go { background: var(--accent); color: #fff; border-radius: 16px; text-transform: uppercase; letter-spacing: .06em; font-weight: 900; box-shadow: 0 4px 0 var(--accent-dark); }
+html.candy .pay-seg button, html.candy .pay-fq, html.candy .pay-bill { border-width: 2px; border-color: var(--edge); }
+html.candy .pay-seg button { border-radius: 16px; font-weight: 800; }
+html.candy .pay-seg button.on { border-color: var(--accent); color: #fff; box-shadow: 0 3px 0 var(--accent-dark); }
+html.candy .pay-bill { border-radius: 16px; }
+html.candy .pay-sum { border-width: 2px; border-radius: 16px; }
+html.candy .pay-sumbig { font-weight: 900; }
+
+/* ---- Arcade: pixel fonts, square boxes, a segmented health bar ---- */
+html.retro .pay { --pay-good: #41ff94; --pay-warn: #ffd23f; --pay-bad: #ff5a76; }
+html.retro .pay-lab { font-family: var(--pixel); font-size: 8px; line-height: 1.6; letter-spacing: .02em; }
+html.retro .pay-big { font-family: var(--pixel); font-size: 26px; color: var(--gold); text-shadow: 3px 3px 0 #000; letter-spacing: 0; margin-top: 12px; }
+html.retro .pay-q { font-family: var(--pixel); font-size: 13px; line-height: 1.7; color: var(--gold); }
+html.retro .pay-line, html.retro .pay-rows div, html.retro .pay-cta-text span, html.retro .pay-note { font-size: 19px; }
+html.retro .pay-bar { height: 16px; border-radius: 0; border: 2px solid #000; background: repeating-linear-gradient(90deg, #2c2358 0 10px, #120d26 10px 12px); }
+html.retro .pay-bar i { border-radius: 0; background: repeating-linear-gradient(90deg, var(--c) 0 10px, transparent 10px 12px); }
+html.retro .pay-note { border-radius: 0; border: 2px solid color-mix(in srgb, var(--c) 55%, transparent); }
+html.retro .pay-rows .tot { font-family: var(--pixel); font-size: 11px; }
+html.retro .pay-go { border-radius: 0; font-family: var(--pixel); font-size: 10px; background: var(--accent); color: #0d0a1e; box-shadow: 0 0 0 2px #000, inset -3px -3px 0 rgba(0, 0, 0, .35), inset 3px 3px 0 rgba(255, 255, 255, .12); }
+html.retro .pay-dots i, html.retro .pay-seg button, html.retro .pay-fq, html.retro .pay-rm, html.retro .pay-chips button, html.retro .pay-bill, html.retro .pay-sum, html.retro .pay-x { border-radius: 0; }
+html.retro .pay-seg button { font-family: var(--pixel); font-size: 9px; line-height: 1.5; padding: 12px 2px; }
+html.retro .pay-seg button.on { color: #0d0a1e; }
+html.retro .pay-nm { font-family: var(--pixel); font-size: 11px; line-height: 1.6; }
+html.retro .pay-sumbig { font-family: var(--pixel); font-size: 24px; color: var(--gold); text-shadow: 3px 3px 0 #000; }
+html.retro .pay-body h2 { font-family: var(--pixel); font-size: 13px; line-height: 1.6; }
+html.retro .pay-sheet .primary { font-family: var(--pixel); }

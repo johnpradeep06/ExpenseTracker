@@ -301,3 +301,21 @@ html.candy .pet[data-outfit="gold"] svg { filter: drop-shadow(0 0 7px rgba(255, 
   html.candy *, html.candy *::before, html.candy *::after, .confetti, .coin-drop, .poof, .fly-coin { animation: none !important; transition: none !important; }
   .confetti, .coin-drop, .poof, .fly-coin { display: none; }
 }
+
+/* ---- Necessary / unnecessary, leaks card and scanned bills (shared rules live in clean.css) ---- */
+html.candy { --fun: #ff9600; --unk: #afafaf; --on-accent: #fff; }
+@media (prefers-color-scheme: dark) { html.candy { --unk: #6b7f89; } }
+html.candy .tx-swipe .tx::before { width: 5px; border-radius: 5px; }
+html.candy .tx-flip { font-family: var(--round); font-weight: 900; text-transform: uppercase; letter-spacing: .05em; font-size: 13px; }
+html.candy .tx-flip.to-need { color: #fff; }
+html.candy #leaks .lk-amt { font-weight: 900; font-size: 38px; }
+html.candy .lk-pct, html.candy .lk-rank, html.candy .lk-a { font-weight: 900; }
+html.candy .lk-bar, html.candy .bill-split { height: 14px; border-radius: 99px; }
+html.candy .lk-bar i:first-child, html.candy .bill-split i:first-child { border-radius: 99px 0 0 99px; }
+html.candy .lk-bar i:last-child, html.candy .bill-split i:last-child { border-radius: 0 99px 99px 0; }
+html.candy .lk-bar i:only-child, html.candy .bill-split i:only-child { border-radius: 99px; }
+html.candy .bill-list { border-radius: 16px; border: 2px solid var(--edge); background: var(--card); }
+html.candy .bill-item { border-top-width: 2px; }
+html.candy .bill-item::before { width: 5px; border-radius: 5px; }
+html.candy .bill-wait, html.candy .bill-check { border-radius: 16px; }
+html.candy .bill-top, html.candy .bill-p, html.candy .bill-mid b { font-weight: 900; }

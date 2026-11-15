@@ -105,14 +105,14 @@ with sync_playwright() as P:
     ok(pg.locator('.bill-item').count() == 8 and 'scanned before' in pg.inner_text('#bill-sheet') and 'k-need' in cls('CHIPS'), 'the saved items, with the choice you made, are there')
     pg.click('#bill-sheet .link'); pg.wait_for_timeout(300)
 
-    # ---- Fresh and Arcade ----
+    # ---- Fresh and Arcade have it too ----
     post('/api/bills/text', {'text': TEXT.replace('63,58', '63,58')}, auth=code)
     for c2 in ('candy', 'retro'):
         pg.evaluate("c => { document.documentElement.classList.add(c); window.dash.render(); }", c2)
         pg.wait_for_timeout(600)
         pg.evaluate('window.dash.reload()'); pg.wait_for_timeout(1800)
         t = pg.inner_text('#latest')
-        ok('bill to review' not in t and '8 items' not in t, '%s look: no bill labels on the purchases' % c2)
+        ok('bill to review' in t or '8 items' in t, '%s look: the bill labels show on the purchases' % c2)
         pg.evaluate("c => { document.documentElement.classList.remove(c); window.dash.render(); }", c2)
         pg.wait_for_timeout(400)
     ok(not errs, 'no page errors' + ('' if not errs else ': ' + '; '.join(errs[:3])))

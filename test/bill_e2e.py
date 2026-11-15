@@ -103,14 +103,17 @@ with sync_playwright() as P:
     pg.click('#bill-sheet .closeBtn, #bill-sheet .link'); pg.wait_for_timeout(300)
     ok(not vis('#bill-sheet'), 'Close leaves without saving')
 
-    # ---- Fresh and Arcade ----
+    # ---- Fresh and Arcade have it too ----
     for cls_ in ('candy', 'retro'):
         pg.evaluate("c => { document.documentElement.classList.add(c); window.dash.render(); }", cls_)
         pg.wait_for_timeout(600)
         pg.locator('#latest .tx-swipe .tx').first.scroll_into_view_if_needed()
         pg.locator('#latest .tx-swipe .tx').first.click(); pg.wait_for_timeout(800)
-        ok(vis('#add-sheet') and not vis('#add-scan'), '%s look: no Scan the bill button' % cls_)
-        pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
+        ok(vis('#add-sheet') and vis('#add-scan'), '%s look: the Scan the bill button is there' % cls_)
+        pg.click('#add-scan'); pg.wait_for_timeout(900)
+        ok(vis('#bill-sheet') and len(pg.inner_text('#bill-sheet')) > 20, '%s look: and it opens the scanner' % cls_)
+        ok(pg.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1"), '%s look: nothing sticks out sideways' % cls_)
+        pg.click('#bill-sheet .link'); pg.wait_for_timeout(300)
         pg.evaluate("c => { document.documentElement.classList.remove(c); window.dash.render(); }", cls_)
         pg.wait_for_timeout(400)
     ok(not errs, 'no page errors' + ('' if not errs else ': ' + '; '.join(errs[:3])))

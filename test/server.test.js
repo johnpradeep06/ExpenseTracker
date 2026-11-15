@@ -894,6 +894,76 @@ VISA ****4242            63,58`;
     ok((await pg.query('select count(*)::int as n from bill_drafts')).rows[0].n === 0, 'deleting an account deletes its drafts');
   }
 
+  // ---- pay period: how much of the paycheck is left ----
+  {
+    const dayAgo = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+    let r = await call('GET', 'pay');
+    ok(r.status === 401, 'the pay plan needs a sign-in');
+    r = await call('POST', 'auth/signup', { body: { email: 'payer@example.com', password: 'payer-password-1', invite: await invite('Pay', 7) } });
+    const pTok = r.data.session;
+    r = await call('POST', 'auth/signup', { body: { email: 'payer2@example.com', password: 'payer2-password-1', invite: await invite('Pay2', 7) } });
+    const p2Tok = r.data.session;
+    const uid = (await pg.query("select id from users where email = 'payer@example.com'")).rows[0].id;
+    r = await call('GET', 'pay', { auth: pTok });
+    ok(r.status === 200 && r.data.plan === null && r.data.state === null, 'before setup there is no plan');
+    const PLAN = { amount: '1,850.00', every: '2 weeks', start: dayAgo(10), bills: [
+      { name: 'Rent', amount: 1400, every: 'month', ap: false }, { name: 'Hydro', amount: 90, every: 'month', ap: false },
+      { name: 'Phone', amount: 55, every: 'month', ap: true }, { name: '', amount: 0, every: 'month' }] };
+    r = await call('PUT', 'pay', { auth: pTok, body: { ...PLAN, amount: 0 } });
+    ok(r.status === 400, 'a paycheck of zero is refused: ' + r.data.error);
+    r = await call('PUT', 'pay', { auth: pTok, body: { ...PLAN, every: 'daily' } });
+    ok(r.status === 400, 'an unknown frequency is refused');
+    r = await call('PUT', 'pay', { auth: pTok, body: { ...PLAN, start: dayAgo(-30) } });
+    ok(r.status === 400, 'a payday far in the future is refused');
+    r = await call('PUT', 'pay', { auth: pTok, body: PLAN });
+    ok(r.status === 200 && r.data.plan.amount === 1850 && r.data.plan.bills.length === 3, 'the plan is saved (the blank bill row is dropped)');
+    ok(r.data.state.fixed === 687.69 && r.data.state.free === 1162.31 && r.data.state.spent === 0 && r.data.state.left === 1162.31, 'rent and Hydro are taken off, the Apple Pay phone is not: ' + JSON.stringify(r.data.state));
+    ok(r.data.state.daysLeft >= 3 && r.data.state.daysLeft <= 5 && r.data.state.due === false && r.data.state.level === 'good', 'about 4 days to payday');
+
+    // purchases since payday count; the one before it does not
+    const buy = async (n, amount) => pg.query("insert into purchases (user_id, title, body, created_at) values ($1, $2, $3, $4)",
+      [uid, 'Spending - $' + amount, 'Date: ' + dayAgo(n) + 'T12:00:00Z\nMerchant: Metro\nAmount: $' + amount + '\nCard: Visa\nCategory: Groceries', dayAgo(n) + 'T12:00:00Z']);
+    await buy(12, 500); await buy(8, 40); await buy(3, 60.5);
+    r = await call('GET', 'pay', { auth: pTok });
+    ok(r.data.state.spent === 100.5 && r.data.state.left === 1061.81, 'spending since the last payday is added up (not the one before it): ' + r.data.state.spent);
+    await pg.query("update purchases set state = 'closed' where user_id = $1 and created_at::text like $2", [uid, dayAgo(3) + '%']);
+    r = await call('GET', 'pay', { auth: pTok });
+    ok(r.data.state.spent === 40, 'a deleted purchase is not counted');
+    const raw = (await pg.query('select data from pay_plans where user_id = $1', [uid])).rows[0].data;
+    ok(/^e1:/.test(raw) && !/Rent|1400|1850/.test(raw), 'the plan is stored encrypted');
+    r = await call('GET', 'pay', { auth: p2Tok });
+    ok(r.data.plan === null, 'another person does not see it');
+
+    // payday
+    r = await call('POST', 'pay/paid', { auth: p2Tok, body: {} });
+    ok(r.status === 404, 'getting paid with no plan is refused');
+    r = await call('POST', 'pay/paid', { auth: pTok, body: { date: 'tomorrow-ish' } });
+    ok(r.status === 400, 'a bad payday date is refused');
+    r = await call('POST', 'pay/paid', { auth: pTok, body: { date: dayAgo(12) } });
+    ok(r.status === 400, 'a new period cannot start before the last one');
+    r = await call('POST', 'pay/paid', { auth: pTok, body: { date: dayAgo(-20) } });
+    ok(r.status === 400, 'or in the future');
+    r = await call('POST', 'pay/paid', { auth: pTok, body: { amount: 'lots' } });
+    ok(r.status === 400, 'a bad amount is refused');
+    r = await call('POST', 'pay/paid', { auth: pTok, body: { amount: '1,900' } });
+    ok(r.status === 200 && r.data.plan.amount === 1900 && r.data.plan.history.length === 1, 'getting paid starts a new period with the new amount');
+    ok(r.data.plan.history[0].spent === 40 && r.data.plan.history[0].left === 1122.31, 'the finished period is kept: spent 40, ended with 1122.31: ' + JSON.stringify(r.data.plan.history[0]));
+    ok(r.data.state.spent === 0 && r.data.state.last && r.data.state.last.left === 1122.31, 'the new period starts at zero and remembers how the last one ended');
+    r = await call('PUT', 'pay', { auth: pTok, body: { ...PLAN, start: r.data.plan.start, amount: 1900 } });
+    ok(r.data.plan.history.length === 1, 'editing the plan keeps its history');
+    r = await call('POST', 'pay/paid', { auth: pTok, body: {} });
+    ok(r.status === 400, 'getting paid twice on the same day is refused');
+
+    // clean up
+    r = await call('DELETE', 'pay', { auth: pTok });
+    r = await call('GET', 'pay', { auth: pTok });
+    ok(r.data.plan === null, 'the plan can be removed');
+    await call('PUT', 'pay', { auth: pTok, body: PLAN });
+    await call('DELETE', 'account', { auth: pTok });
+    await call('DELETE', 'account', { auth: p2Tok });
+    ok((await pg.query('select count(*)::int as n from pay_plans')).rows[0].n === 0, 'deleting an account deletes its pay plan');
+  }
+
   // ---- starting up: the database setup runs once, not on every wake-up ----
   {
     const have = (await pg.query("select value from app_settings where key = 'schema_version'")).rows[0];

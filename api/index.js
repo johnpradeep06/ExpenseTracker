@@ -21,6 +21,7 @@ const vault = require('../lib/vault');
 const vision = require('../lib/vision');
 const bills = require('../lib/bills');
 const billtext = require('../lib/billtext');
+const payperiod = require('../public/payperiod.js');
 const itemkinds = require('../lib/itemkinds');
 
 const env = (k) => process.env[k] || '';
@@ -316,8 +317,8 @@ const pushTo = async (userId, message, only) => {
 };
 
 // ---- numbers for one person ------------------------------------------------------------------------------------
-const recentIssues = async (userId) => {
-  const rows = await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at > $2 order by p.created_at desc limit 3000", [userId, new Date(Date.now() - 29 * DAY).toISOString()]);
+const recentIssues = async (userId, days) => {
+  const rows = await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at > $2 order by p.created_at desc limit 3000", [userId, new Date(Date.now() - (days || 29) * DAY).toISOString()]);
   return issuesOf(userId, rows);
 };
 const numbersFor = async (user) => numbers(await recentIssues(user.id), user.tz, Date.now());
@@ -361,6 +362,27 @@ const itemMemory = async (userId) => {
   const out = {};
   Object.keys(tally).forEach((k) => { if (tally[k].need !== tally[k].fun) out[k] = tally[k].need > tally[k].fun ? 'need' : 'fun'; });
   return out;
+};
+
+// ---- pay plan storage and numbers ------------------------------------------------------------------------------
+const todayOf = (u) => compute.inZone(u.tz, () => {
+  const d = new Date();
+  const p = (n) => (n < 10 ? '0' : '') + n;
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+});
+const loadPlan = async (u) => {
+  const r = (await q('select data from pay_plans where user_id = $1', [u.id]))[0];
+  return r ? JSON.parse(vault.open(u.id, 'pay', r.data)) : null;    // a value that cannot be opened is an error, never "no plan"
+};
+const savePlan = (u, plan) => q(`insert into pay_plans (user_id, data) values ($1, $2)
+  on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'pay', JSON.stringify(plan))]);
+const payState = async (u, plan) => {
+  const today = todayOf(u);
+  const back = Math.min(400, Math.max(3, payperiod.daysBetween(plan.start, today) + 3));
+  const issues = await recentIssues(u.id, back);
+  const daily = compute.summary(issues, [], u.tz, Date.now(), false, true).daily || {};
+  const rows = Object.keys(daily).map((day) => ({ day, amount: daily[day] }));
+  return { state: payperiod.stateOf(plan, rows, today), rows, today };
 };
 
 const addPurchase = async (user, title, body, createdAt) => {
@@ -666,6 +688,55 @@ const routes = {
     const funPart = price > 0 ? draft.items.filter((i) => i.kind === 'fun').reduce((s, i) => s + i.price, 0) / price * target.amount : 0;
     const msg = 'Found ' + draft.items.length + ' items for ' + target.merchant + '. ' + (funPart > 0.5 ? '$' + funPart.toFixed(2) + ' looks unnecessary. ' : '') + (draft.matches === false ? 'The total does not match exactly, so check it. ' : '') + 'Open the app to review them.';
     return { ok: true, message: msg, merchant: target.merchant, items: draft.items.length };
+  },
+
+  // ---- pay period: how much of the paycheck is left -----------------------------------------------------------------
+  // The plan (paycheck, last payday, how often, fixed bills) is one small sealed value per person. The sums are done here
+  // with the same file the tests check (public/payperiod.js), from the purchases since the last payday.
+  'GET pay': async (req) => {
+    const u = await signedIn(req);
+    const plan = await loadPlan(u);
+    if (!plan) return { plan: null, state: null };
+    return { plan, state: (await payState(u, plan)).state };
+  },
+
+  'PUT pay': async (req) => {
+    const u = await signedIn(req);
+    const b = await readBody(req, 32 * 1024);
+    const c = payperiod.clean(b, todayOf(u));
+    if (c.error) fail(400, c.error);
+    const old = await loadPlan(u);
+    const plan = { ...c.plan, history: old ? old.history || [] : [] };
+    await savePlan(u, plan);
+    return { plan, state: (await payState(u, plan)).state };
+  },
+
+  // "Yes, I got paid": the finished period goes into the history and a new one starts on the day the person was paid.
+  'POST pay/paid': async (req) => {
+    const u = await signedIn(req);
+    const b = await readBody(req, 4 * 1024);
+    const plan = await loadPlan(u);
+    if (!plan) fail(404, 'Set up your paycheck first');
+    const today = todayOf(u);
+    const date = b.date ? String(b.date) : today;
+    if (!payperiod.parse(date)) fail(400, 'Choose the day you were paid');
+    if (date > payperiod.addDays(today, 1)) fail(400, 'That day has not come yet');
+    if (date <= plan.start) fail(400, 'A new period must start after ' + plan.start + ', the last payday you set');
+    let amount;
+    if (b.amount !== undefined && b.amount !== '') {
+      amount = payperiod.money(b.amount, 1000000);
+      if (amount === null || amount <= 0) fail(400, 'Enter what you got paid');
+    }
+    const { rows } = await payState(u, plan);
+    const next = payperiod.rollOver(plan, rows, date, amount);
+    await savePlan(u, next);
+    return { plan: next, state: (await payState(u, next)).state };
+  },
+
+  'DELETE pay': async (req) => {
+    const u = await signedIn(req);
+    await q('delete from pay_plans where user_id = $1', [u.id]);
+    return { ok: true };
   },
 
   'GET purchases/:id/items': async (req, id) => {

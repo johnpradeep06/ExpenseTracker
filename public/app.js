@@ -462,13 +462,13 @@
     });
   });
 
-  // Where money leaks (Clean look only): necessary vs unnecessary over the last 14 days.
+  // Where money leaks: necessary vs unnecessary over the last 14 days.
   dash.draw('leaks', (el) => {
     const sec = document.querySelector('#leaks');
     el.replaceChildren();
     const row = stateOf(['leaks']) === 'ok' ? rowsOf('leaks')[0] : null;
-    if (sec) sec.hidden = !cleanLook() || !row || row.total <= 0;
-    if (!row || row.total <= 0 || !cleanLook()) return;
+    if (sec) sec.hidden = !row || row.total <= 0;
+    if (!row || row.total <= 0) return;
     const pct = Math.round((row.fun / row.total) * 100);
     const head = h('div', 'lk-head');
     head.append(h('h2', '', 'Where money leaks'), h('p', 'sub', 'Unnecessary spending · last 14 days'));
@@ -525,7 +525,6 @@
 
   // Swipe a purchase to the left: a red Delete button slides in. Tap it, or keep swiping to delete at once.
   // (Undo stays on screen afterwards.) Tapping a row that is open just closes it.
-  const cleanLook = () => !document.documentElement.classList.contains('candy') && !document.documentElement.classList.contains('retro');
   let openSwipe = null;
   const REVEAL = 88;
   document.addEventListener('touchstart', (e) => {
@@ -656,7 +655,7 @@
         row.dataset.key = r.id;
         row.setAttribute('aria-label', 'Edit ' + r.merchant);
         const mid = h('span', 'cat-mid');
-        mid.append(h('span', 'cat-name', r.merchant), h('span', 'cat-sub', (r.ts ? clock(new Date(r.ts)) + ' · ' : '') + r.category + (r.card && manyCards() ? ' · ' + cardName(r.card) : '') + (cleanLook() && r.draft ? ' · bill to review' : cleanLook() && r.bill ? ' · ' + r.bill.n + (r.bill.n === 1 ? ' item' : ' items') : '') + (String(r.id).indexOf('p-') === 0 ? ' · not sent yet' : '')));
+        mid.append(h('span', 'cat-name', r.merchant), h('span', 'cat-sub', (r.ts ? clock(new Date(r.ts)) + ' · ' : '') + r.category + (r.card && manyCards() ? ' · ' + cardName(r.card) : '') + (r.draft ? ' · bill to review' : r.bill ? ' · ' + r.bill.n + (r.bill.n === 1 ? ' item' : ' items') : '') + (String(r.id).indexOf('p-') === 0 ? ' · not sent yet' : '')));
         const amt = h('span', 'cat-amt' + (r.amount < 0 ? ' in' : ''), r.amount < 0 ? '+' + money(-r.amount) : money(r.amount));
         row.append(chip(icon, color), mid, amt);
         if (String(r.id).indexOf('p-') === 0) {
@@ -669,9 +668,9 @@
         del.type = 'button';
         del.setAttribute('aria-label', 'Delete ' + r.merchant);
         wrap.append(del, row);
-        // Clean look only: a swipe to the right flips necessary / unnecessary.
+        // A swipe to the right flips necessary / unnecessary.
         let onFlip = null;
-        if (cleanLook() && window.spendFlip) {
+        if (window.spendFlip) {
           const to = r.leak === 'fun' ? 'need' : 'fun';
           const flip = h('div', 'tx-flip to-' + to, to === 'fun' ? 'Unnecessary' : 'Necessary');
           flip.setAttribute('aria-hidden', 'true');

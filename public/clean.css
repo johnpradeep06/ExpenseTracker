@@ -119,75 +119,75 @@ html:not(.candy):not(.retro) .hero-dots > div { display: flex; gap: 7px; padding
 html:not(.candy):not(.retro) .hero-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg); opacity: .28; cursor: pointer; transition: opacity .12s, transform .12s; }
 @media (prefers-reduced-motion: reduce) { html:not(.candy):not(.retro) .hero-dots i { transition: none; } }
 
-/* ---- Necessary / unnecessary (Clean look only) ---------------------------------------------------------------------
+/* ---- Necessary / unnecessary (all three looks) ----------------------------------------------------------------------
    Green is necessary, orange is unnecessary, grey is "not sure". Every purchase gets a coloured edge; a swipe to the
-   right flips it; the "Where money leaks" card adds it up. Fresh and Arcade never show any of this. */
-html:not(.candy):not(.retro) { --fun: #d9822b; --unk: #8a8a92; }
-@media (prefers-color-scheme: dark) { html:not(.candy):not(.retro) { --fun: #f0a050; --unk: #77777f; } }
-html:not(.candy):not(.retro) .tx-swipe .tx { padding-left: 12px; }
-html:not(.candy):not(.retro) .tx-swipe .tx::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--unk); }
-html:not(.candy):not(.retro) .tx-swipe .tx.k-need::before { background: var(--accent); }
-html:not(.candy):not(.retro) .tx-swipe .tx.k-fun::before { background: var(--fun); }
-html:not(.candy):not(.retro) .tx-flip { display: none; }
-html:not(.candy):not(.retro) .tx-swipe .tx-flip { display: flex; position: absolute; z-index: 0; top: 0; bottom: 0; left: 0; width: 140px; align-items: center; padding-left: 16px; border-radius: 14px 0 0 14px; color: #fff; font-weight: 800; font-size: 14px; }
-html:not(.candy):not(.retro) .tx-flip.to-fun { background: var(--fun); }
-html:not(.candy):not(.retro) .tx-flip.to-need { background: var(--accent); color: var(--on-accent); }
-html:not(.candy):not(.retro) .tx-swipe:not(.swiping-r) .tx-flip { visibility: hidden; }
-html:not(.candy):not(.retro) #leaks .lk-head h2 { margin: 0 0 2px; }
-html:not(.candy):not(.retro) #leaks .lk-head .sub { margin: 0; }
-html:not(.candy):not(.retro) .lk-big { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; }
-html:not(.candy):not(.retro) .lk-amt { font-size: 34px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; color: var(--fun); font-variant-numeric: tabular-nums; }
-html:not(.candy):not(.retro) .lk-pct { font-size: 14px; font-weight: 700; color: var(--muted); }
-html:not(.candy):not(.retro) .lk-bar { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--track); margin: 12px 0 8px; }
-html:not(.candy):not(.retro) .lk-bar i { display: block; height: 100%; }
-html:not(.candy):not(.retro) .lk-bar .k-need, html:not(.candy):not(.retro) .lk-leg .dot.k-need { background: var(--accent); }
-html:not(.candy):not(.retro) .lk-bar .k-fun, html:not(.candy):not(.retro) .lk-leg .dot.k-fun { background: var(--fun); }
-html:not(.candy):not(.retro) .lk-bar .k-unk, html:not(.candy):not(.retro) .lk-leg .dot.k-unk { background: var(--unk); }
-html:not(.candy):not(.retro) .lk-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); }
-html:not(.candy):not(.retro) .lk-leg b { color: var(--fg); }
-html:not(.candy):not(.retro) .lk-leg .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
-html:not(.candy):not(.retro) .lk-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
-html:not(.candy):not(.retro) .lk-row:first-of-type { margin-top: 10px; }
-html:not(.candy):not(.retro) .lk-rank { width: 24px; height: 24px; border-radius: 50%; background: color-mix(in srgb, var(--fun) 18%, transparent); color: var(--fun); font-weight: 800; font-size: 12px; display: grid; place-items: center; flex: none; }
-html:not(.candy):not(.retro) .lk-mid { flex: 1; min-width: 0; }
-html:not(.candy):not(.retro) .lk-mid b { display: block; font-size: 15px; }
-html:not(.candy):not(.retro) .lk-mid span { font-size: 12.5px; color: var(--muted); }
-html:not(.candy):not(.retro) .lk-a { font-weight: 800; font-variant-numeric: tabular-nums; }
-html:not(.candy):not(.retro) .lk-note { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }
+   right flips it; the "Where money leaks" card adds it up. Fresh and Arcade tune colours and edges in their own files. */
+html { --fun: #d9822b; --unk: #8a8a92; --on-accent: #fff; }
+@media (prefers-color-scheme: dark) { html { --fun: #f0a050; --unk: #77777f; } }
+html .tx-swipe .tx { padding-left: 12px; }
+html .tx-swipe .tx::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--unk); }
+html .tx-swipe .tx.k-need::before { background: var(--accent); }
+html .tx-swipe .tx.k-fun::before { background: var(--fun); }
+html .tx-flip { display: none; }
+html .tx-swipe .tx-flip { display: flex; position: absolute; z-index: 0; top: 0; bottom: 0; left: 0; width: 140px; align-items: center; padding-left: 16px; border-radius: 14px 0 0 14px; color: #fff; font-weight: 800; font-size: 14px; }
+html .tx-flip.to-fun { background: var(--fun); }
+html .tx-flip.to-need { background: var(--accent); color: var(--on-accent); }
+html .tx-swipe:not(.swiping-r) .tx-flip { visibility: hidden; }
+html #leaks .lk-head h2 { margin: 0 0 2px; }
+html #leaks .lk-head .sub { margin: 0; }
+html .lk-big { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; }
+html .lk-amt { font-size: 34px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; color: var(--fun); font-variant-numeric: tabular-nums; }
+html .lk-pct { font-size: 14px; font-weight: 700; color: var(--muted); }
+html .lk-bar { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--track); margin: 12px 0 8px; }
+html .lk-bar i { display: block; height: 100%; }
+html .lk-bar .k-need, html .lk-leg .dot.k-need { background: var(--accent); }
+html .lk-bar .k-fun, html .lk-leg .dot.k-fun { background: var(--fun); }
+html .lk-bar .k-unk, html .lk-leg .dot.k-unk { background: var(--unk); }
+html .lk-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); }
+html .lk-leg b { color: var(--fg); }
+html .lk-leg .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+html .lk-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+html .lk-row:first-of-type { margin-top: 10px; }
+html .lk-rank { width: 24px; height: 24px; border-radius: 50%; background: color-mix(in srgb, var(--fun) 18%, transparent); color: var(--fun); font-weight: 800; font-size: 12px; display: grid; place-items: center; flex: none; }
+html .lk-mid { flex: 1; min-width: 0; }
+html .lk-mid b { display: block; font-size: 15px; }
+html .lk-mid span { font-size: 12.5px; color: var(--muted); }
+html .lk-a { font-weight: 800; font-variant-numeric: tabular-nums; }
+html .lk-note { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }
 
-/* ---- Scan the bill (Clean look only) --------------------------------------------------------------------------------- */
-html:not(.candy):not(.retro) .tx-swipe .tx.k-mix::before { background: linear-gradient(to bottom, var(--accent) calc(var(--p, 50) * 1%), var(--fun) calc(var(--p, 50) * 1%)); }
-html:not(.candy):not(.retro) #bill-sheet .bill-body { display: grid; gap: 12px; padding-bottom: 10px; }
-html:not(.candy):not(.retro) #bill-sheet a.primary { display: block; text-align: center; text-decoration: none; }
-html:not(.candy):not(.retro) .bill-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 17px; }
-html:not(.candy):not(.retro) .bill-top span { font-weight: 800; font-variant-numeric: tabular-nums; }
-html:not(.candy):not(.retro) .bill-msg { margin: 0; font-size: 14.5px; color: var(--muted); }
-html:not(.candy):not(.retro) .bill-msg.bad { color: var(--up); }
-html:not(.candy):not(.retro) .bill-wait { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; background: var(--track); font-weight: 700; }
-html:not(.candy):not(.retro) .bill-spin { width: 18px; height: 18px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: bill-spin .9s linear infinite; }
+/* ---- Scan the bill (all three looks) --------------------------------------------------------------------------------- */
+html .tx-swipe .tx.k-mix::before { background: linear-gradient(to bottom, var(--accent) calc(var(--p, 50) * 1%), var(--fun) calc(var(--p, 50) * 1%)); }
+html #bill-sheet .bill-body { display: grid; gap: 12px; padding-bottom: 10px; }
+html #bill-sheet a.primary { display: block; text-align: center; text-decoration: none; }
+html .bill-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 17px; }
+html .bill-top span { font-weight: 800; font-variant-numeric: tabular-nums; }
+html .bill-msg { margin: 0; font-size: 14.5px; color: var(--muted); }
+html .bill-msg.bad { color: var(--up); }
+html .bill-wait { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; background: var(--track); font-weight: 700; }
+html .bill-spin { width: 18px; height: 18px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: bill-spin .9s linear infinite; }
 @keyframes bill-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { html:not(.candy):not(.retro) .bill-spin { animation: none; } }
-html:not(.candy):not(.retro) .bill-list { border-radius: 16px; background: var(--track); padding: 2px 12px; }
-html:not(.candy):not(.retro) .bill-item { position: relative; display: flex; align-items: center; gap: 10px; padding: 11px 4px 11px 12px; border-top: 1px solid var(--line); cursor: pointer; user-select: none; -webkit-user-select: none; }
-html:not(.candy):not(.retro) .bill-item:first-child { border-top: 0; }
-html:not(.candy):not(.retro) .bill-item::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--unk); }
-html:not(.candy):not(.retro) .bill-item.k-need::before { background: var(--accent); }
-html:not(.candy):not(.retro) .bill-item.k-fun::before { background: var(--fun); }
-html:not(.candy):not(.retro) .bill-mid { flex: 1; min-width: 0; }
-html:not(.candy):not(.retro) .bill-mid b { display: block; font-size: 15px; overflow-wrap: anywhere; }
-html:not(.candy):not(.retro) .bill-mid span { font-size: 12.5px; color: var(--muted); }
-html:not(.candy):not(.retro) .bill-p { font-weight: 800; font-variant-numeric: tabular-nums; }
-html:not(.candy):not(.retro) .bill-x { border: 0; background: none; color: var(--muted); font-size: 15px; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; }
-html:not(.candy):not(.retro) .bill-check { margin: 0; padding: 11px 13px; border-radius: 12px; font-size: 13.5px; font-weight: 700; }
-html:not(.candy):not(.retro) .bill-check.good { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
-html:not(.candy):not(.retro) .bill-check.warn { background: color-mix(in srgb, var(--fun) 16%, transparent); color: var(--fun); }
-html:not(.candy):not(.retro) .bill-split { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--track); }
-html:not(.candy):not(.retro) .bill-split i { display: block; height: 100%; }
-html:not(.candy):not(.retro) .bill-split .k-need, html:not(.candy):not(.retro) .bill-leg .dot.k-need { background: var(--accent); }
-html:not(.candy):not(.retro) .bill-split .k-fun, html:not(.candy):not(.retro) .bill-leg .dot.k-fun { background: var(--fun); }
-html:not(.candy):not(.retro) .bill-split .k-unk, html:not(.candy):not(.retro) .bill-leg .dot.k-unk { background: var(--unk); }
-html:not(.candy):not(.retro) .bill-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-size: 13px; color: var(--muted); }
-html:not(.candy):not(.retro) .bill-leg b { color: var(--fg); }
-html:not(.candy):not(.retro) .bill-leg .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
-html:not(.candy):not(.retro) .bill-actions { display: grid; gap: 4px; }
-html:not(.candy):not(.retro) #add-scan:not([hidden]) { display: block; width: 100%; margin: 4px 0 0; }
+@media (prefers-reduced-motion: reduce) { html .bill-spin { animation: none; } }
+html .bill-list { border-radius: 16px; background: var(--track); padding: 2px 12px; }
+html .bill-item { position: relative; display: flex; align-items: center; gap: 10px; padding: 11px 4px 11px 12px; border-top: 1px solid var(--line); cursor: pointer; user-select: none; -webkit-user-select: none; }
+html .bill-item:first-child { border-top: 0; }
+html .bill-item::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--unk); }
+html .bill-item.k-need::before { background: var(--accent); }
+html .bill-item.k-fun::before { background: var(--fun); }
+html .bill-mid { flex: 1; min-width: 0; }
+html .bill-mid b { display: block; font-size: 15px; overflow-wrap: anywhere; }
+html .bill-mid span { font-size: 12.5px; color: var(--muted); }
+html .bill-p { font-weight: 800; font-variant-numeric: tabular-nums; }
+html .bill-x { border: 0; background: none; color: var(--muted); font-size: 15px; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; }
+html .bill-check { margin: 0; padding: 11px 13px; border-radius: 12px; font-size: 13.5px; font-weight: 700; }
+html .bill-check.good { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+html .bill-check.warn { background: color-mix(in srgb, var(--fun) 16%, transparent); color: var(--fun); }
+html .bill-split { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--track); }
+html .bill-split i { display: block; height: 100%; }
+html .bill-split .k-need, html .bill-leg .dot.k-need { background: var(--accent); }
+html .bill-split .k-fun, html .bill-leg .dot.k-fun { background: var(--fun); }
+html .bill-split .k-unk, html .bill-leg .dot.k-unk { background: var(--unk); }
+html .bill-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-size: 13px; color: var(--muted); }
+html .bill-leg b { color: var(--fg); }
+html .bill-leg .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+html .bill-actions { display: grid; gap: 4px; }
+html #add-scan:not([hidden]) { display: block; width: 100%; margin: 4px 0 0; }

@@ -54,7 +54,7 @@
     const known = editing && Array.from(category.options).some((o) => o.value === editing.category);
     category.value = known ? editing.category : '';
     when.value = localInput(editing && editing.ts ? new Date(editing.ts) : new Date());
-    // Clean look only, and only when the server has an AI reader switched on: scan this purchase's bill.
+    // Scan this purchase's bill (the AI reader if the server has one, otherwise the Shortcut).
     if (scanBtn) {
       scanBtn.hidden = true;
       const mine = editing;

@@ -121,3 +121,21 @@ html.retro .toast .link { color: var(--accent); }
   html.retro *, html.retro *::before, html.retro .runner * { animation: none !important; transition: none !important; }
   .damage { display: none; }
 }
+
+/* ---- Necessary / unnecessary, leaks card and scanned bills (shared rules live in clean.css) ---- */
+html.retro { --fun: #ff9f43; --unk: #8b84c9; --on-accent: #0d0a1e; }
+html.retro .tx-swipe .tx::before { width: 4px; border-radius: 0; }
+html.retro .tx-flip { border-radius: 0 !important; font-family: var(--pixel); font-size: 9px; text-transform: uppercase; }
+html.retro .tx-flip.to-need { color: #0d0a1e; }
+html.retro #leaks .lk-head h2 { font-size: 13px; }
+html.retro .lk-amt { font-family: var(--pixel); font-size: 24px; color: var(--gold); text-shadow: 3px 3px 0 #000; letter-spacing: 0; }
+html.retro .lk-pct, html.retro .lk-leg, html.retro .lk-note, html.retro .lk-mid span, html.retro .lk-mid b, html.retro .bill-leg, html.retro .bill-mid span, html.retro .bill-mid b, html.retro .bill-msg, html.retro .bill-check { font-size: 19px; }
+html.retro .lk-rank, html.retro .lk-leg .dot, html.retro .bill-leg .dot { border-radius: 0; }
+html.retro .lk-a, html.retro .bill-p, html.retro .bill-top span { font-family: var(--pixel); font-size: 11px; }
+html.retro .lk-bar, html.retro .bill-split { height: 16px; border-radius: 0; border: 2px solid #000; }
+html.retro .lk-bar i, html.retro .bill-split i { background-image: repeating-linear-gradient(90deg, transparent 0 10px, rgba(0, 0, 0, .55) 10px 12px); }
+html.retro .bill-list, html.retro .bill-wait, html.retro .bill-check { border-radius: 0; }
+html.retro .bill-item::before { width: 4px; border-radius: 0; }
+html.retro .bill-x { border-radius: 0; }
+html.retro .bill-spin { border-radius: 0; animation-timing-function: steps(8); }
+html.retro .bill-top b { font-size: 21px; }

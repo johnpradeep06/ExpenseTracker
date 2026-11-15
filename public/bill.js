@@ -1,11 +1,10 @@
 (function () {
-  // Scan a bill (Clean look only, and only when the server has an AI reader switched on): take a photo, the server's AI
+  // Scan a bill (all looks): take a photo, the server's AI
   // reader finds the items, the person checks them and taps any item to flip necessary / unnecessary, then saves.
   // The photo is shrunk and re-saved as a plain JPEG here (which also drops any location in it), sent once, and never kept.
   const $ = (s) => document.querySelector(s);
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
   const money = (n) => (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2);
-  const clean = () => !document.documentElement.classList.contains('candy') && !document.documentElement.classList.contains('retro');
 
   let enabled = null;
   const aiOn = async () => {
@@ -17,7 +16,7 @@
   // Show the button when the server has an AI reader, or when this purchase already has a bill waiting or scanned
   // (for example one sent from the Apple Shortcut), which can always be reviewed.
   window.spendBillAvailable = async (purchase) => {
-    if (!clean() || !window.spendApi) return false;
+    if (!window.spendApi) return false;
     return true;  // with an AI reader the photo is read here; without one, the Shortcut reads it
   };
 

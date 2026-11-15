@@ -99,12 +99,23 @@ with sync_playwright() as P:
     names = pg.eval_on_selector_all('#latest .tx-swipe .tx', "els => els.map(e => [e.querySelector('.cat-name').textContent, e.className])")
     ok('k-need' in kind('SAQ') and 'k-fun' in kind('Studio Zen'), 'the marks are still there after reloading the app')
 
-    # ---- Fresh and Arcade do not change ----
+    # ---- Fresh and Arcade have all of it too ----
+    edge = lambda sel: pg.evaluate("s => getComputedStyle(document.querySelector(s), '::before').backgroundColor", sel)
     for cls in ('candy', 'retro'):
         pg.evaluate("c => { document.documentElement.classList.add(c); window.dash.render(); }", cls)
         pg.wait_for_timeout(700)
-        ok(not vis('#leaks'), '%s look: no Where money leaks card' % cls)
-        ok(pg.locator('#latest .tx-flip').count() == 0, '%s look: no swipe-to-flip action on the rows' % cls)
+        ok(vis('#leaks') and 'Where money leaks' in txt() and money(FUN) not in 'x' and '%' in txt(), '%s look: the Where money leaks card is there' % cls)
+        pg.locator('#leaks').scroll_into_view_if_needed()
+        ok(pg.locator('#leaks .lk-bar i').count() >= 2 and pg.locator('#leaks .lk-row').count() >= 1, '%s look: with its bar and biggest leaks' % cls)
+        ok(pg.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1"), '%s look: nothing sticks out sideways' % cls)
+        e_need = edge('#latest .tx.k-need'); e_fun = edge('#latest .tx.k-fun')
+        ok(e_need != e_fun and e_need not in ('rgba(0, 0, 0, 0)', 'transparent') and e_fun not in ('rgba(0, 0, 0, 0)', 'transparent'), '%s look: green and orange edges on the rows (%s / %s)' % (cls, e_need, e_fun))
+        names = pg.eval_on_selector_all('#latest .tx-swipe .tx', "els => els.map(e => [e.querySelector('.cat-name').textContent, e.className])")
+        was = 'k-fun' in kind('SAQ')
+        swipe('#latest .tx-swipe .tx', row_of('SAQ'), 100)
+        names = pg.eval_on_selector_all('#latest .tx-swipe .tx', "els => els.map(e => [e.querySelector('.cat-name').textContent, e.className])")
+        ok(('k-need' in kind('SAQ')) == was, '%s look: swiping right flips a purchase' % cls)
+        swipe('#latest .tx-swipe .tx', row_of('SAQ'), 100)   # put it back for the next look
         pg.evaluate("c => { document.documentElement.classList.remove(c); window.dash.render(); }", cls)
         pg.wait_for_timeout(500)
     ok(not errs, 'no page errors' + ('' if not errs else ': ' + '; '.join(errs[:3])))
