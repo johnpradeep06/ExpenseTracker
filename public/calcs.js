@@ -71,8 +71,8 @@ dash.calc('spend', {
         if (amount === null) amount = money(r.title, true);
         if (amount === null || new RegExp('declin', 'i').test(text)) continue;
         if (new RegExp('refund|return', 'i').test(text)) amount = -Math.abs(amount);
-        merchant = r.subtitle || r.title;
-        merchant = merchant.replace(new RegExp(',\\s*[^,]+,\\s*[A-Z]{2}$'), '');
+        // A cleaned-up name sent with the alert wins; otherwise the alert's own merchant text is tidied as before.
+        merchant = r.merchant || (r.subtitle || r.title).replace(new RegExp(',\\s*[^,]+,\\s*[A-Z]{2}$'), '');
         card = r.subtitle ? r.title : '';
       } else {
         amount = money(r.amount, false);

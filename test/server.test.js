@@ -611,6 +611,33 @@ const assert = require('assert');
     ok((await raw('select count(*)::int as n from purchases where user_id in ($1, $2)', [vId, v2Id]))[0].n === 0, 'deleting an account removes its purchases');
   }
 
+  // ---- a Wallet alert can carry a cleaned-up name and a category (made by the phone's own model) ----
+  {
+    const sf = api._test.fromShortcut;
+    let p = sf({ source: 'wallet', title: 'Visa', subtitle: 'Saq23028faubourg Ste-Cat', body: '$28.80', merchant: 'SAQ', category: 'Groceries' });
+    ok(/Merchant: SAQ/.test(p.body) && /Category: Groceries/.test(p.body) && /Subtitle: Saq23028faubourg Ste-Cat/.test(p.body), 'a Wallet alert keeps the cleaned name and category next to the raw alert text');
+    p = sf({ source: 'wallet', title: 'Visa', subtitle: 'TIM HORTONS #1234', body: '$12.40' });
+    ok(!/Merchant:|Category:/.test(p.body), 'an alert without them is stored exactly as before');
+    p = sf({ title: 'Visa', subtitle: 'Saq23028faubourg Ste-Cat', body: '$5.00', merchant: 'SAQ' });
+    ok(/Source: wallet-notification/.test(p.body) && /Merchant: SAQ/.test(p.body), 'alert text plus a merchant but no amount is still a Wallet alert');
+    p = sf({ source: 'wallet', title: 'Visa', subtitle: 'X STORE', body: '$5.00', name: 'Wallet' });
+    ok(!/Merchant:/.test(p.body), 'a field called name is not taken as the merchant of a Wallet alert');
+    p = sf({ merchant: 'Metro', amount: '12.00', card: 'Visa', category: 'Groceries' });
+    ok(/Merchant: Metro/.test(p.body) && !/Source:/.test(p.body), 'a tap purchase with a merchant and amount is unchanged');
+    r = await call('POST', 'auth/signup', { body: { email: 'saq@example.com', password: 'saq-password-123', invite: await invite('Saq', 7) } });
+    const saqTok = r.data.session;
+    const saqCode = (await call('POST', 'setup-code', { auth: saqTok })).data.code;
+    r = await call('POST', 'log', { auth: saqCode, body: { source: 'wallet', title: 'American Express', subtitle: 'Saq23028faubourg Ste-Cat', body: '$28.80', merchant: 'SAQ', category: 'Groceries' } });
+    ok(r.status === 200 && r.data.ok, 'the server accepts a Wallet alert with a cleaned name and category');
+    r = await call('POST', 'log', { auth: saqCode, body: { source: 'wallet', title: 'American Express', subtitle: 'Mystery Shop 4411', body: '$9.00' } });
+    const sm = (await hist2(saqTok, 'range=week&rows=1')).data;
+    const saqRow = (sm.rows || []).find((x) => x.amount === 28.8);
+    const oldRow = (sm.rows || []).find((x) => x.amount === 9);
+    ok(saqRow && saqRow.merchant === 'SAQ' && saqRow.category === 'Groceries', 'in the app the purchase shows as SAQ in Groceries, not the raw text in Other: ' + JSON.stringify(saqRow && [saqRow.merchant, saqRow.category]));
+    ok(oldRow && oldRow.category === 'Other' && /Mystery/.test(oldRow.merchant), 'an alert without the extras behaves exactly as before');
+    await call('DELETE', 'account', { auth: saqTok });
+  }
+
   // ---- the service worker file must never ship empty (it carries offline support and the alert handlers) ----
   {
     const fs = require('fs'); const path = require('path');

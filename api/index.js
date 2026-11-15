@@ -259,12 +259,16 @@ const fromShortcut = (input) => {
   const wTitle = pick(o, 'title', 'notificationtitle');
   const wSub = pick(o, 'subtitle', 'notificationsubtitle');
   const wBody = pick(o, 'body', 'notificationbody', 'text', 'message');
-  const isWallet = /wallet|notification/i.test(String(pick(o, 'source', 'type'))) || (!pick(o, 'merchant', 'amount') && (wTitle || wSub || wBody));
+  // A Wallet alert is one that says so, or one with alert text and no amount of its own. It may also carry a cleaned-up
+  // merchant name and a category (made by the phone's own model), which are kept next to the raw alert text.
+  const isWallet = /wallet|notification/i.test(String(pick(o, 'source', 'type'))) || (!pick(o, 'amount') && (wTitle || wSub || wBody));
   if (isWallet) {
     if (!(wTitle || wSub || wBody)) fail(400, 'The Wallet alert had no text');
+    const cleanName = clean(pick(o, 'merchant'), 80);
+    const cat = clean(pick(o, 'category'), 60);
     return {
       title: 'Spending - wallet alert',
-      body: ['Source: wallet-notification', 'Date: ' + date, 'Title: ' + clean(wTitle), 'Subtitle: ' + clean(wSub), 'Body: ' + clean(wBody, 300)].join('\n')
+      body: ['Source: wallet-notification', 'Date: ' + date].concat(cleanName ? ['Merchant: ' + cleanName] : [], cat ? ['Category: ' + cat] : [], ['Title: ' + clean(wTitle), 'Subtitle: ' + clean(wSub), 'Body: ' + clean(wBody, 300)]).join('\n')
     };
   }
   const merchant = clean(pick(o, 'merchant', 'store', 'name'));
