@@ -18,6 +18,7 @@
   const toast = $('#toast');
   const toastText = $('#toast-text');
   const toastUndo = $('#toast-undo');
+  const scanBtn = $('#add-scan');
   let toastTimer = null;
   let undoOps = null;
   let editing = null;
@@ -53,6 +54,12 @@
     const known = editing && Array.from(category.options).some((o) => o.value === editing.category);
     category.value = known ? editing.category : '';
     when.value = localInput(editing && editing.ts ? new Date(editing.ts) : new Date());
+    // Clean look only, and only when the server has an AI reader switched on: scan this purchase's bill.
+    if (scanBtn) {
+      scanBtn.hidden = true;
+      const mine = editing;
+      if (mine && window.spendBillAvailable && String(mine.id).indexOf('p-') !== 0) window.spendBillAvailable().then((yes) => { if (yes && editing === mine) scanBtn.hidden = false; });
+    }
     showError('');
     resetDelete();
     del.hidden = !editing;
@@ -104,6 +111,12 @@
     }
     openSheet(row);
   };
+  if (scanBtn) scanBtn.addEventListener('click', () => {
+    const row = editing;
+    closeSheet();
+    if (row && window.spendScanBill) window.spendScanBill(row);
+  });
+  window.spendToast = (text, ops) => showToast(text, ops);
   backdrop.addEventListener('click', closeSheet);
   $('#add-cancel').addEventListener('click', closeSheet);
   document.addEventListener('keydown', (e) => {

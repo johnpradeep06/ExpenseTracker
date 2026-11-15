@@ -18,6 +18,8 @@ const compute = require('../lib/compute');
 const { numbers, inZone } = compute;
 const notes = require('../lib/notes');
 const vault = require('../lib/vault');
+const vision = require('../lib/vision');
+const bills = require('../lib/bills');
 
 const env = (k) => process.env[k] || '';
 const SITE = () => env('SITE_URL') || 'https://my-spending-two.vercel.app';
@@ -69,7 +71,7 @@ const bearer = (req) => {
 };
 
 const iso = (v) => new Date(v).toISOString();
-const issueOf = (r) => ({ number: Number(r.id), title: r.title, body: r.body, state: r.state, created_at: iso(r.created_at), kind: r.kind || '' });
+const issueOf = (r) => ({ number: Number(r.id), title: r.title, body: r.body, state: r.state, created_at: iso(r.created_at), kind: r.kind || '', bill: r.b_n ? { n: Number(r.b_n), need: Number(r.b_need) || 0, fun: Number(r.b_fun) || 0, unk: Number(r.b_unk) || 0 } : undefined });
 // Purchase text is stored scrambled (lib/vault.js), so every row read from the database is opened for its owner here.
 const issuesOf = (userId, rows) => rows.map((r) => issueOf(vault.openRow(userId, r)));
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
@@ -313,7 +315,7 @@ const pushTo = async (userId, message, only) => {
 
 // ---- numbers for one person ------------------------------------------------------------------------------------
 const recentIssues = async (userId) => {
-  const rows = await q("select id, title, body, state, kind, created_at from purchases where user_id = $1 and state = 'open' and created_at > $2 order by created_at desc limit 3000", [userId, new Date(Date.now() - 29 * DAY).toISOString()]);
+  const rows = await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at > $2 order by p.created_at desc limit 3000", [userId, new Date(Date.now() - 29 * DAY).toISOString()]);
   return issuesOf(userId, rows);
 };
 const numbersFor = async (user) => numbers(await recentIssues(user.id), user.tz, Date.now());
@@ -328,6 +330,23 @@ const afterPurchase = async (user, purchaseId) => {
     try { await pushTo(user.id, msg); } catch (e) { console.error('alert push failed:', e && e.message); }
   }
   return { message, alert: msg ? msg.title : null };
+};
+
+// What this person decided about a product the last times they saved a bill with it, so the next scan starts there.
+const itemMemory = async (userId) => {
+  const rows = await q("select name, kind from bill_items where user_id = $1 and kind in ('need', 'fun') order by id desc limit 400", [userId]);
+  const tally = {};
+  rows.forEach((r) => {
+    try {
+      const k = bills.itemKey(vault.open(userId, 'item', r.name));
+      if (!k) return;
+      const t = tally[k] || (tally[k] = { need: 0, fun: 0 });
+      t[r.kind] += 1;
+    } catch (e) { /* an unreadable row is just skipped */ }
+  });
+  const out = {};
+  Object.keys(tally).forEach((k) => { if (tally[k].need !== tally[k].fun) out[k] = tally[k].need > tally[k].fun ? 'need' : 'fun'; });
+  return out;
 };
 
 const addPurchase = async (user, title, body, createdAt) => {
@@ -347,7 +366,7 @@ const validDate = (v) => {
 
 // ---- routes -----------------------------------------------------------------------------------------------------
 const routes = {
-  'GET config': async () => ({ vapidPublicKey: env('VAPID_PUBLIC_KEY') }),
+  'GET config': async () => ({ vapidPublicKey: env('VAPID_PUBLIC_KEY'), billScan: vision.configured() }),
 
   'POST auth/signup': async (req) => {
     const b = await readBody(req);
@@ -487,7 +506,7 @@ const routes = {
     if (!compute.RANGES.includes(range)) fail(400, 'Choose week, month, 3m, year or all');
     const r = compute.rangeFor(range, params.get('anchor'), u.tz, Date.now());
     const fetchRows = async (from, to) => (from && to
-      ? issuesOf(u.id, await q("select id, title, body, state, kind, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, from, to]))
+      ? issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 and p.created_at < $3 order by p.created_at desc limit 20000", [u.id, from, to]))
       : []);
     const [nowRows, prevRows] = await Promise.all([fetchRows(r.start, r.end), fetchRows(r.prevStart, r.prevEnd)]);
     const wantRows = params.get('rows') === '1' && (range === 'week' || range === 'month');
@@ -497,7 +516,7 @@ const routes = {
     if (range === 'month' && r.inProgress) {
       try {
         const since = new Date(Date.now() - 120 * DAY).toISOString();
-        const hist = issuesOf(u.id, await q("select id, title, body, state, kind, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 order by created_at desc limit 20000", [u.id, since]));
+        const hist = issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 order by p.created_at desc limit 20000", [u.id, since]));
         forecast = compute.forecast(hist, u.tz, Date.now(), new Date(u.created_at).getTime());
       } catch (e) { console.error('forecast failed:', e && e.message); }
     }
@@ -516,7 +535,7 @@ const routes = {
     const list = want === 'all' ? compute.TRAILING_DAYS : [Number(want)];
     if (list.some((d) => !compute.TRAILING_DAYS.includes(d))) fail(400, 'Choose 7, 30, 365 or all');
     const widest = compute.trailingRange(Math.max(...list), u.tz, Date.now());
-    const rows = issuesOf(u.id, await q("select id, title, body, state, kind, created_at from purchases where user_id = $1 and state = 'open' and created_at >= $2 and created_at < $3 order by created_at desc limit 20000", [u.id, widest.start, widest.end]));
+    const rows = issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 and p.created_at < $3 order by p.created_at desc limit 20000", [u.id, widest.start, widest.end]));
     const one = (days) => {
       const r = compute.trailingRange(days, u.tz, Date.now());
       const mine = days === Math.max(...list) ? rows : rows.filter((x) => x.created_at >= r.start && x.created_at < r.end);
@@ -563,6 +582,76 @@ const routes = {
     const kind = b.kind !== undefined ? (b.kind || null) : (cur.kind || null);
     const out = await q('update purchases set title = $3, body = $4, state = $5, kind = $6, updated_at = now() where id = $1 and user_id = $2 returning id, state, kind, created_at', [id, u.id, vault.seal(u.id, 'title', title), vault.seal(u.id, 'body', body), state, kind]);
     return issueOf({ ...out[0], title, body });
+  },
+
+  // ---- reading a bill ----------------------------------------------------------------------------------------------
+  // Sends one photo of a bill to the AI reader and returns the items it found, checked against the purchase. Nothing is
+  // saved here, and the photo is never kept: the person reviews the items first and saves them with PUT .../items.
+  'POST bills/scan': async (req) => {
+    const u = await signedIn(req);
+    if (!vision.configured()) fail(503, 'Bill scanning is not switched on yet. Ask the person who runs the app.');
+    const b = await readBody(req, 4 * 1024 * 1024);
+    const mime = String(b.mime || '');
+    const image = String(b.image || '').replace(/^data:[^,]*,/, '');
+    if (!/^image\/(jpeg|png|webp)$/.test(mime)) fail(400, 'Send the bill as a JPEG, PNG or WebP photo');
+    if (image.length < 2000 || !/^[A-Za-z0-9+/=]+$/.test(image)) fail(400, 'That does not look like a photo');
+    if (image.length > 3.2 * 1024 * 1024) fail(413, 'The photo is too large. Try again.');
+    const limit = Math.max(1, Number(env('BILL_DAILY_LIMIT')) || 10);
+    const used = await q('select count(*)::int as n from bill_scans where user_id = $1 and at > $2', [u.id, new Date(Date.now() - DAY).toISOString()]);
+    if (used[0] && used[0].n >= limit) fail(429, 'That is ' + limit + ' bills today, the most for one day. Try again tomorrow.');
+    await q('insert into bill_scans (user_id) values ($1)', [u.id]);
+    await q('delete from bill_scans where at < $1', [new Date(Date.now() - 3 * DAY).toISOString()]);
+    const store = clean(b.store, 60);
+    const amount = bills.num(b.amount);
+    let raw;
+    try {
+      raw = await vision.readBill({ image, mime, hint: { store, amount } });
+    } catch (e) {
+      console.error('bill read failed:', e && e.message);
+      fail(502, 'The bill could not be read right now. Try again in a moment.');
+    }
+    if (raw && raw.error && !(raw.items && raw.items.length)) fail(422, 'That does not look like a bill. Take the photo again with the whole bill in view.');
+    const out = bills.normalize(raw, { store, amount, memory: await itemMemory(u.id) });
+    if (!out.items.length) fail(422, 'No items were found. Try again with the whole bill in view, flat and well lit.');
+    return out;
+  },
+
+  'GET purchases/:id/items': async (req, id) => {
+    const u = await signedIn(req);
+    const own = await q('select id from purchases where id = $1 and user_id = $2', [id, u.id]);
+    if (!own[0]) fail(404, 'That purchase was not found');
+    const rows = await q('select name, price, alloc, kind from bill_items where purchase_id = $1 and user_id = $2 order by pos', [id, u.id]);
+    return { items: rows.map((r) => ({ name: vault.open(u.id, 'item', r.name), price: Number(r.price), alloc: Number(r.alloc), kind: r.kind })) };
+  },
+
+  // The items the person confirmed, replacing any earlier ones. The amount paid is shared out over them in one go.
+  'PUT purchases/:id/items': async (req, id) => {
+    const u = await signedIn(req);
+    const b = await readBody(req, 128 * 1024);
+    const own = await q('select id from purchases where id = $1 and user_id = $2', [id, u.id]);
+    if (!own[0]) fail(404, 'That purchase was not found');
+    const list = Array.isArray(b.items) ? b.items.slice(0, 120) : [];
+    const items = list.map((it) => ({ name: clean(it && it.name, 80), price: bills.num(it && it.price), kind: it && (it.kind === 'need' || it.kind === 'fun') ? it.kind : 'unk' })).filter((it) => it.name && it.price !== null && Math.abs(it.price) <= 5000);
+    const amount = bills.num(b.amount);
+    if (!items.length) {
+      await q('delete from bill_items where purchase_id = $1 and user_id = $2', [id, u.id]);
+      return { ok: true, count: 0 };
+    }
+    if (!(amount > 0) || amount > 100000) fail(400, 'The amount paid is missing');
+    const alloc = bills.allocate(items.map((i) => i.price), amount);
+    // One statement: the old items go and the new ones arrive together, so a failure never leaves half a bill.
+    await q(`with gone as (delete from bill_items where purchase_id = $1 and user_id = $2)
+             insert into bill_items (purchase_id, user_id, pos, name, price, alloc, kind)
+             select $1, $2, t.pos, t.name, t.price, t.alloc, t.kind
+             from unnest($3::int[], $4::text[], $5::numeric[], $6::numeric[], $7::text[]) as t(pos, name, price, alloc, kind)`,
+    [id, u.id, items.map((_, i) => i), items.map((i) => vault.seal(u.id, 'item', i.name)), items.map((i) => i.price), alloc, items.map((i) => i.kind)]);
+    return { ok: true, count: items.length };
+  },
+
+  'DELETE purchases/:id/items': async (req, id) => {
+    const u = await signedIn(req);
+    await q('delete from bill_items where purchase_id = $1 and user_id = $2', [id, u.id]);
+    return { ok: true };
   },
 
   // The Shortcut sends each purchase here, with its setup code instead of a session.
@@ -803,11 +892,15 @@ const handler = async (req, res) => {
     let key = req.method + ' ' + route;
     let arg;
     const m = /^purchases\/(\d{1,18})$/.exec(route);
+    const mb = /^purchases\/(\d{1,18})\/items$/.exec(route);
     const mi = /^owner\/invites\/(\d{1,18})$/.exec(route);
     const mp = /^owner\/people\/([0-9a-f-]{36})\/(remove|restore|reset)$/.exec(route);
     if (m) {
       key = req.method + ' purchases/:id';
       arg = m[1];
+    } else if (mb) {
+      key = req.method + ' purchases/:id/items';
+      arg = mb[1];
     } else if (mi) {
       key = req.method + ' owner/invites/:id';
       arg = mi[1];
@@ -834,5 +927,6 @@ const handler = async (req, res) => {
 module.exports = handler;
 module.exports._test = {
   setPushSender: (fn) => { pushSender = fn; },
+  setBillReader: (fn) => vision.setReader(fn),
   fromShortcut
 };

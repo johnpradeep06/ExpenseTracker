@@ -679,6 +679,117 @@ const assert = require('assert');
     await call('DELETE', 'account', { auth: k2Tok });
   }
 
+  // ---- reading a bill with the AI reader (a pretend reader, so no real photo or key is needed) ----
+  {
+    const vbills = require('../lib/bills');
+    r = await call('POST', 'auth/signup', { body: { email: 'bill@example.com', password: 'bill-password-123', invite: await invite('Bill', 7) } });
+    const bTok = r.data.session;
+    r = await call('POST', 'auth/signup', { body: { email: 'bill2@example.com', password: 'bill2-password-123', invite: await invite('Bill2', 7) } });
+    const b2Tok = r.data.session;
+    const photo = 'A'.repeat(4000);          // looks like base64; the pretend reader never looks at it
+    const scan = (tok, extra) => call('POST', 'bills/scan', { auth: tok, body: { image: photo, mime: 'image/jpeg', store: 'Metro', amount: '90.61', ...(extra || {}) } });
+    const FRENCH = { store: 'METRO PLUS #204', date: '2026-11-15', subtotal: '84,40', tax: 6.21, total: '90,61', items: [
+      { name: 'LAIT 2% 2L', qty: 1, price: '5,49', kind: 'need' }, { name: 'OEUFS DOUZ', qty: 1, price: 4.29, kind: 'need' },
+      { name: 'POULET ENTIER', qty: 1, price: '12,40', kind: 'need' }, { name: 'CHIPS LAYS BBQ', qty: 1, price: 4.99, kind: 'fun' },
+      { name: 'BIERE MOLSON 12X', qty: 1, price: 21.99, kind: 'need' },            // the reader got this wrong: it is alcohol
+      { name: 'COCA-COLA 12X', qty: 1, price: 7.99, kind: 'fun' }, { name: 'CREME GLACEE', qty: 1, price: 6.49, kind: 'unk' },
+      { name: 'RIZ BASMATI', qty: 1, price: 8.49, kind: 'need' }, { name: 'BROCOLI', qty: 1, price: 2.99, kind: 'need' },
+      { name: 'BANANES 1,2KG', qty: 1, price: 2.10, kind: 'need' }, { name: 'SAVON LIQUIDE', qty: 1, price: 3.99, kind: 'need' },
+      { name: 'PAIN TRANCHE', qty: 1, price: 3.19, kind: 'need' },
+      { name: 'SOUS-TOTAL', price: 84.40 }, { name: 'TPS 5%', price: 2.07 }, { name: 'TVQ 9,975%', price: 4.14 }, { name: 'VISA ****4242', price: 90.61 }, { name: 'MONNAIE', price: 0 }] };
+
+    r = await call('GET', 'config');
+    ok(r.data.billScan === false, 'with no AI key the app says bill scanning is off');
+    r = await scan(bTok);
+    ok(r.status === 503, 'and a scan is refused with a clear message: ' + (r.data.error || ''));
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+    api._test.setBillReader(async () => FRENCH);
+    r = await call('GET', 'config');
+    ok(r.data.billScan === true, 'with a key set the app says bill scanning is on');
+    r = await call('POST', 'bills/scan', { body: { image: photo, mime: 'image/jpeg' } });
+    ok(r.status === 401, 'scanning needs a sign-in');
+    r = await call('POST', 'bills/scan', { auth: bTok, body: { image: photo, mime: 'application/pdf' } });
+    ok(r.status === 400, 'only photos are accepted');
+    r = await call('POST', 'bills/scan', { auth: bTok, body: { image: 'tiny', mime: 'image/jpeg' } });
+    ok(r.status === 400, 'a tiny or empty image is refused');
+    r = await call('POST', 'bills/scan', { auth: bTok, body: { image: '!'.repeat(3000), mime: 'image/jpeg' } });
+    ok(r.status === 400, 'something that is not base64 is refused');
+
+    r = await scan(bTok);
+    ok(r.status === 200 && r.data.items.length === 12, 'a French bill gives its 12 items, without the subtotal, tax, card or change lines: ' + (r.data.items || []).length);
+    const by = (n) => r.data.items.find((x) => x.name === n);
+    ok(by('LAIT 2% 2L').price === 5.49 && by('POULET ENTIER').price === 12.4, 'prices with a French decimal comma are read right (5,49 is 5.49)');
+    ok(by('BIERE MOLSON 12X').kind === 'fun' && by('BIERE MOLSON 12X').how === 'rule', 'beer is always unnecessary, even when the reader said otherwise');
+    ok(by('CREME GLACEE').kind === 'unk', 'something the reader was unsure about stays not sure');
+    ok(r.data.matches === true && r.data.itemsTotal === 84.4 && r.data.tax === 6.21, 'items plus tax match the purchase: ' + r.data.itemsTotal + ' + ' + r.data.tax);
+    r = await scan(bTok, { amount: '120.00' });
+    ok(r.status === 200 && r.data.matches === false && r.data.diff > 20, 'a bill that does not add up to the purchase is flagged');
+    api._test.setBillReader(async () => ({ store: 'SAQ', items: [{ name: 'VIN ROUGE 750ML', price: 18.5, kind: 'need' }, { name: 'SAC', price: 0.1, kind: 'need' }], tax: 2.8, total: 21.4 }));
+    r = await scan(bTok, { store: 'Saq23028faubourg Ste-Cat', amount: '21.40' });
+    ok(r.data.items.every((x) => x.kind === 'fun' && x.how === 'store'), 'every item bought at the SAQ is unnecessary, and says why');
+    api._test.setBillReader(async () => { throw new Error('boom'); });
+    r = await scan(bTok);
+    ok(r.status === 502 && !/boom/.test(JSON.stringify(r.data)), 'if the reader fails the person gets a plain message, not the error');
+    api._test.setBillReader(async () => ({ items: [], error: 'not a receipt' }));
+    r = await scan(bTok);
+    ok(r.status === 422, 'a photo that is not a bill says so');
+    api._test.setBillReader(async () => ({ items: [{ name: 'TPS', price: 2 }, { name: 'TOTAL', price: 9 }] }));
+    r = await scan(bTok);
+    ok(r.status === 422, 'a "bill" with only tax and total lines has no items');
+
+    // the daily limit
+    process.env.BILL_DAILY_LIMIT = '3';
+    api._test.setBillReader(async () => FRENCH);
+    const used = (await pg.query("select count(*)::int as n from bill_scans")).rows[0].n;
+    r = await scan(b2Tok);
+    ok(r.status === 200, 'a second person has their own daily count');
+    await pg.query("delete from bill_scans");
+    for (let k = 0; k < 3; k++) await scan(bTok);
+    r = await scan(bTok);
+    ok(r.status === 429, 'after the daily limit a scan is refused');
+    delete process.env.BILL_DAILY_LIMIT;
+    await pg.query("delete from bill_scans");
+    ok(!(await pg.query("select column_name from information_schema.columns where table_name = 'bill_scans'")).rows.some((c) => /image|photo|data/.test(c.column_name)), 'the photo is never stored: the scan log has no place for it');
+
+    // saving, reading back, privacy
+    r = await call('POST', 'purchases', { auth: bTok, body: { title: 'Spending - $90.61 - bill', body: 'Merchant: Metro\nAmount: $90.61\nCard: Visa\nCategory: Groceries' } });
+    const pid = r.data.number;
+    const toSave = FRENCH.items.slice(0, 12).map((x) => ({ name: x.name, price: vbills.num(x.price), kind: x.name === 'BIERE MOLSON 12X' || x.name === 'CHIPS LAYS BBQ' || x.name === 'COCA-COLA 12X' || x.name === 'CREME GLACEE' ? 'fun' : 'need' }));
+    r = await call('PUT', 'purchases/' + pid + '/items', { auth: bTok, body: { items: toSave, amount: 90.61 } });
+    ok(r.status === 200 && r.data.count === 12, 'the confirmed items are saved');
+    const stored = (await pg.query('select name, price, alloc from bill_items where purchase_id = $1 order by pos', [pid])).rows;
+    ok(stored.length === 12 && stored.every((x) => /^e1:/.test(x.name)) && !stored.some((x) => /LAIT|BIERE/.test(x.name)), 'item names are stored encrypted');
+    ok(Math.abs(stored.reduce((a, x) => a + Number(x.alloc), 0) - 90.61) < 0.005, 'the amount paid is shared over the items and adds up exactly: ' + stored.reduce((a, x) => a + Number(x.alloc), 0).toFixed(2));
+    r = await call('GET', 'purchases/' + pid + '/items', { auth: bTok });
+    ok(r.data.items.length === 12 && r.data.items[0].name === 'LAIT 2% 2L' && r.data.items.find((x) => x.name === 'BIERE MOLSON 12X').kind === 'fun', 'the items read back in order with their names and marks');
+    r = await call('GET', 'purchases/' + pid + '/items', { auth: b2Tok });
+    ok(r.status === 404, 'nobody else can read your items');
+    r = await call('PUT', 'purchases/' + pid + '/items', { auth: b2Tok, body: { items: toSave, amount: 90.61 } });
+    ok(r.status === 404, 'nobody else can change them');
+    r = await call('GET', 'purchases', { auth: bTok });
+    const withBill = r.data.find((x) => x.number === pid);
+    const needA = withBill.bill.need, funA = withBill.bill.fun;
+    ok(withBill.bill.n === 12 && Math.abs(needA + funA + withBill.bill.unk - 90.61) < 0.01 && funA > 40, 'the purchase comes back with its necessary / unnecessary split: ' + JSON.stringify(withBill.bill));
+    r = await call('PUT', 'purchases/' + pid + '/items', { auth: bTok, body: { items: toSave, amount: 0 } });
+    ok(r.status === 400, 'saving needs the amount paid');
+
+    // it remembers what you decided about a product
+    api._test.setBillReader(async () => ({ store: 'Metro', tax: 0, total: 5, items: [{ name: 'CHIPS LAYS BBQ 235G', price: 5, kind: 'need' }, { name: 'LAIT 2% 2L', price: 5.5, kind: 'fun' }] }));
+    r = await scan(bTok, { amount: '10.5' });
+    const chips = r.data.items.find((x) => /CHIPS/.test(x.name));
+    const lait = r.data.items.find((x) => /LAIT/.test(x.name));
+    ok(chips.kind === 'fun' && chips.how === 'remembered' && lait.kind === 'need' && lait.how === 'remembered', 'next time it starts from what you decided (chips unnecessary, milk necessary), whatever the reader says');
+
+    r = await call('PUT', 'purchases/' + pid + '/items', { auth: bTok, body: { items: [] } });
+    ok(r.status === 200 && (await pg.query('select count(*)::int as n from bill_items where purchase_id = $1', [pid])).rows[0].n === 0, 'saving no items clears them');
+    await call('PUT', 'purchases/' + pid + '/items', { auth: bTok, body: { items: toSave, amount: 90.61 } });
+    await call('DELETE', 'account', { auth: bTok });
+    ok((await pg.query('select count(*)::int as n from bill_items')).rows[0].n === 0, 'deleting an account deletes its bill items');
+    await call('DELETE', 'account', { auth: b2Tok });
+    api._test.setBillReader(null);
+    delete process.env.ANTHROPIC_API_KEY;
+  }
+
   // ---- starting up: the database setup runs once, not on every wake-up ----
   {
     const have = (await pg.query("select value from app_settings where key = 'schema_version'")).rows[0];

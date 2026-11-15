@@ -90,7 +90,7 @@ dash.calc('spend', {
       }
       if (!amount) continue;
       const ts = tsOf(r);
-      items.push({ id: r.id, src: wallet ? 'wallet' : 'tap', period: r.period, ts, day: dayOf(r, ts), merchant: window.spendMerchant ? window.spendMerchant.clean(merchant).name : (String(merchant || 'Unknown').trim() || 'Unknown'), card: card || '', amount: Math.round(amount * 100) / 100, phone: r.phoneCategory, manual: r.entry === 'manual', mark: r.kind || '' });
+      items.push({ id: r.id, src: wallet ? 'wallet' : 'tap', period: r.period, ts, day: dayOf(r, ts), merchant: window.spendMerchant ? window.spendMerchant.clean(merchant).name : (String(merchant || 'Unknown').trim() || 'Unknown'), card: card || '', amount: Math.round(amount * 100) / 100, phone: r.phoneCategory, manual: r.entry === 'manual', mark: r.kind || '', bill: r.bill || null });
     }
     items.sort((a, b) => (a.src === b.src ? 0 : a.src === 'tap' ? -1 : 1) || a.ts - b.ts);
     const norm = (s) => String(s).toLowerCase().split(new RegExp('[^a-z0-9]+')).join('').slice(0, 4);
@@ -103,7 +103,7 @@ dash.calc('spend', {
     return kept
       .map((it) => {
         const c = it.manual && CATS.includes(it.phone) ? { cat: it.phone, how: 'manual' } : catOf(it.merchant, it.phone);
-        return { id: it.id, src: it.src, period: it.period, ts: it.ts, day: it.day, merchant: it.merchant, card: it.card, amount: it.amount, category: c.cat, how: c.how, kind: it.mark, leak: leakOf(c.cat, it.mark), dupIds: it.dupIds || [] };
+        return { id: it.id, src: it.src, period: it.period, ts: it.ts, day: it.day, merchant: it.merchant, card: it.card, amount: it.amount, category: c.cat, how: c.how, kind: it.mark, bill: it.bill, leak: it.mark === 'need' || it.mark === 'fun' ? it.mark : it.bill ? 'mix' : leakOf(c.cat, ''), dupIds: it.dupIds || [] };
       })
       .sort((a, b) => b.ts - a.ts);
   }
@@ -184,25 +184,40 @@ dash.calc('by_card', {
 dash.calc('leaks', {
   inputs: ['spend'],
   title: 'Where money leaks',
-  description: 'Last 14 days split into necessary and unnecessary spending, with the biggest unnecessary categories.',
+  description: 'Last 14 days split into necessary and unnecessary spending, with the biggest unnecessary categories. A purchase with a scanned bill counts by its items.',
   fn: (spend) => {
     const r2 = (n) => Math.round(n * 100) / 100;
     const cur = spend.filter((r) => r.period === 'now' && r.amount > 0);
-    const sum = (k) => r2(cur.filter((r) => r.leak === k).reduce((s, r) => s + r.amount, 0));
-    const need = sum('need');
-    const fun = sum('fun');
-    const unk = sum('unk');
+    // One purchase can be part necessary and part not: [necessary, unnecessary, not sure] amounts.
+    const parts = (r) => {
+      if (r.leak !== 'mix' || !r.bill) return [r.leak === 'need' ? r.amount : 0, r.leak === 'fun' ? r.amount : 0, r.leak === 'unk' ? r.amount : 0];
+      const t = r.bill.need + r.bill.fun + r.bill.unk;
+      const k = t > 0 ? r.amount / t : 0;
+      return [r.bill.need * k, r.bill.fun * k, r.bill.unk * k];
+    };
+    let need = 0;
+    let fun = 0;
+    let unk = 0;
     const by = {};
-    cur.filter((r) => r.leak === 'fun').forEach((r) => {
-      const t = by[r.category] || (by[r.category] = { category: r.category, amount: 0, count: 0, shops: {} });
-      t.amount += r.amount;
-      t.count += 1;
-      t.shops[r.merchant] = (t.shops[r.merchant] || 0) + 1;
+    cur.forEach((r) => {
+      const [n, f, u] = parts(r);
+      need += n;
+      fun += f;
+      unk += u;
+      if (f > 0) {
+        const t = by[r.category] || (by[r.category] = { category: r.category, amount: 0, count: 0, shops: {} });
+        t.amount += f;
+        t.count += 1;
+        t.shops[r.merchant] = (t.shops[r.merchant] || 0) + 1;
+      }
     });
     const top = Object.values(by).sort((a, b) => b.amount - a.amount).slice(0, 3).map((t) => {
       const shop = Object.keys(t.shops).sort((a, b) => t.shops[b] - t.shops[a])[0];
       return { category: t.category, amount: r2(t.amount), count: t.count, shop, shopCount: t.shops[shop] };
     });
+    need = r2(need);
+    fun = r2(fun);
+    unk = r2(unk);
     return [{ need, fun, unk, total: r2(need + fun + unk), top }];
   }
 });

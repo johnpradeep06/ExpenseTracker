@@ -13,6 +13,14 @@ const path = require('path');
   process.env.VAPID_PUBLIC_KEY = w.publicKey;
   process.env.VAPID_PRIVATE_KEY = w.privateKey;
   const api = require('../api/index.js');
+  // Bill scanning in the local copy uses a pretend reader, so no key or real photo is needed.
+  process.env.ANTHROPIC_API_KEY = 'dev-key';
+  api._test.setBillReader(async () => ({ store: 'METRO PLUS #204', tax: 6.21, total: 90.61, items: [
+    { name: 'LAIT 2% 2L', price: 5.49, kind: 'need' }, { name: 'OEUFS DOUZ', price: 4.29, kind: 'need' }, { name: 'POULET ENTIER', price: 12.4, kind: 'need' },
+    { name: 'RIZ BASMATI', price: 8.49, kind: 'need' }, { name: 'BROCOLI', price: 2.99, kind: 'need' }, { name: 'BANANES 1,2KG', price: 2.1, kind: 'need' },
+    { name: 'SAVON LIQUIDE', price: 3.99, kind: 'need' }, { name: 'PAIN TRANCHE', price: 3.19, kind: 'need' }, { name: 'CHIPS LAYS BBQ', price: 4.99, kind: 'fun' },
+    { name: 'COCA-COLA 12X', price: 7.99, kind: 'fun' }, { name: 'CREME GLACEE', price: 6.49, kind: 'unk' }, { name: 'BIERE MOLSON 12X', price: 21.99, kind: 'need' },
+    { name: 'SOUS-TOTAL', price: 84.4 }, { name: 'TPS 5%', price: 2.07 }, { name: 'TVQ 9,975%', price: 4.14 }, { name: 'VISA ****4242', price: 90.61 }] }));
   const pushes = [];
   api._test.setPushSender(async (sub, payload) => { pushes.push({ to: sub.endpoint, ...JSON.parse(payload) }); });
   const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.txt': 'text/plain' };

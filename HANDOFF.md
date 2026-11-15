@@ -31,12 +31,26 @@ A private Apple Pay spending tracker that is being opened up to friends.
 | `DATABASE_URL` | Postgres connection string (Neon, or Railway Postgres) |
 | `SESSION_SECRET` | `openssl rand -hex 32` |
 | `DATA_KEY` | `openssl rand -hex 32`. Encrypts purchase text in the database (see below). **Keep a copy somewhere safe, outside Vercel: without it the encrypted purchases cannot be read.** |
+| `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` | Optional. Switches on **Scan the bill**: an AI vision model reads a photo of a bill. Without either key the button never appears and nothing else changes. Anthropic wins if both are set. |
+| `BILL_MODEL`, `BILL_DAILY_LIMIT` | Optional. The vision model (default `claude-haiku-5-5` or `gemini-2.5-flash`) and the most bills one person can scan a day (default 10). |
 | `CRON_SECRET` | `openssl rand -hex 32` (Vercel Cron sends it automatically as a Bearer token) |
 | `ADMIN_SECRET` | `openssl rand -hex 32` (used once to import John's old purchases) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | `npx web-push generate-vapid-keys` |
 | `SITE_URL` | The final https address of the deployed app, with no trailing slash |
 
 No users exist yet, so fresh secrets are fine. Never commit them.
+
+## Scan the bill
+- A person taps a purchase, then **Scan the bill**, and takes a photo. The browser shrinks it and re-saves it as a plain JPEG
+  (which drops any location data), and sends it once to `POST /api/bills/scan`. The server asks the AI model (`lib/vision.js`)
+  for the items, then `lib/bills.js` re-reads every number, drops lines that are not items (tax, total, card, change), forces
+  alcohol and everything bought at the SAQ to unnecessary, applies what the person decided about the same product before, and
+  checks that the items plus tax add up to the purchase. **The photo is never stored.**
+- The person reviews the items, taps any to flip necessary / unnecessary, and saves (`PUT /api/purchases/:id/items`). Item names
+  are stored encrypted (`bill_items`); the amount paid is shared over the items so the pieces add up exactly. A scanned purchase
+  counts in Where money leaks by its items instead of as a whole.
+- Limits: `BILL_DAILY_LIMIT` bills per person per day. Tests use a pretend reader (`api._test.setBillReader`), so no key is needed.
+- The prompt in `lib/vision.js` has not been tuned against real Montreal bills yet. Try a few and adjust it.
 
 ## Encryption of purchase text
 - Every purchase's title and details are stored encrypted (AES-256-GCM, `lib/vault.js`), so a leaked database or backup

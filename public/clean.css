@@ -154,3 +154,39 @@ html:not(.candy):not(.retro) .lk-mid b { display: block; font-size: 15px; }
 html:not(.candy):not(.retro) .lk-mid span { font-size: 12.5px; color: var(--muted); }
 html:not(.candy):not(.retro) .lk-a { font-weight: 800; font-variant-numeric: tabular-nums; }
 html:not(.candy):not(.retro) .lk-note { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }
+
+/* ---- Scan the bill (Clean look only) --------------------------------------------------------------------------------- */
+html:not(.candy):not(.retro) .tx-swipe .tx.k-mix::before { background: linear-gradient(to bottom, var(--accent) calc(var(--p, 50) * 1%), var(--fun) calc(var(--p, 50) * 1%)); }
+html:not(.candy):not(.retro) #bill-sheet .bill-body { display: grid; gap: 12px; padding-bottom: 10px; }
+html:not(.candy):not(.retro) .bill-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 17px; }
+html:not(.candy):not(.retro) .bill-top span { font-weight: 800; font-variant-numeric: tabular-nums; }
+html:not(.candy):not(.retro) .bill-msg { margin: 0; font-size: 14.5px; color: var(--muted); }
+html:not(.candy):not(.retro) .bill-msg.bad { color: var(--up); }
+html:not(.candy):not(.retro) .bill-wait { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; background: var(--track); font-weight: 700; }
+html:not(.candy):not(.retro) .bill-spin { width: 18px; height: 18px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: bill-spin .9s linear infinite; }
+@keyframes bill-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { html:not(.candy):not(.retro) .bill-spin { animation: none; } }
+html:not(.candy):not(.retro) .bill-list { border-radius: 16px; background: var(--track); padding: 2px 12px; }
+html:not(.candy):not(.retro) .bill-item { position: relative; display: flex; align-items: center; gap: 10px; padding: 11px 4px 11px 12px; border-top: 1px solid var(--line); cursor: pointer; user-select: none; -webkit-user-select: none; }
+html:not(.candy):not(.retro) .bill-item:first-child { border-top: 0; }
+html:not(.candy):not(.retro) .bill-item::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--unk); }
+html:not(.candy):not(.retro) .bill-item.k-need::before { background: var(--accent); }
+html:not(.candy):not(.retro) .bill-item.k-fun::before { background: var(--fun); }
+html:not(.candy):not(.retro) .bill-mid { flex: 1; min-width: 0; }
+html:not(.candy):not(.retro) .bill-mid b { display: block; font-size: 15px; overflow-wrap: anywhere; }
+html:not(.candy):not(.retro) .bill-mid span { font-size: 12.5px; color: var(--muted); }
+html:not(.candy):not(.retro) .bill-p { font-weight: 800; font-variant-numeric: tabular-nums; }
+html:not(.candy):not(.retro) .bill-x { border: 0; background: none; color: var(--muted); font-size: 15px; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; }
+html:not(.candy):not(.retro) .bill-check { margin: 0; padding: 11px 13px; border-radius: 12px; font-size: 13.5px; font-weight: 700; }
+html:not(.candy):not(.retro) .bill-check.good { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+html:not(.candy):not(.retro) .bill-check.warn { background: color-mix(in srgb, var(--fun) 16%, transparent); color: var(--fun); }
+html:not(.candy):not(.retro) .bill-split { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--track); }
+html:not(.candy):not(.retro) .bill-split i { display: block; height: 100%; }
+html:not(.candy):not(.retro) .bill-split .k-need, html:not(.candy):not(.retro) .bill-leg .dot.k-need { background: var(--accent); }
+html:not(.candy):not(.retro) .bill-split .k-fun, html:not(.candy):not(.retro) .bill-leg .dot.k-fun { background: var(--fun); }
+html:not(.candy):not(.retro) .bill-split .k-unk, html:not(.candy):not(.retro) .bill-leg .dot.k-unk { background: var(--unk); }
+html:not(.candy):not(.retro) .bill-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-size: 13px; color: var(--muted); }
+html:not(.candy):not(.retro) .bill-leg b { color: var(--fg); }
+html:not(.candy):not(.retro) .bill-leg .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+html:not(.candy):not(.retro) .bill-actions { display: grid; gap: 4px; }
+html:not(.candy):not(.retro) #add-scan:not([hidden]) { display: block; width: 100%; margin: 4px 0 0; }
