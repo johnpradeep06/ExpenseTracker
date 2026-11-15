@@ -644,6 +644,7 @@ const routes = {
     // total is not needed to find it. Only the person's own purchases count.
     const wanted = String(b.purchaseId === undefined ? (b.purchase === undefined ? '' : b.purchase) : b.purchaseId).trim();
     let target;
+    req._billBy = wanted ? 'purchaseId' : 'total';
     if (wanted) {
       if (!/^\d{1,15}$/.test(wanted)) fail(400, 'That purchase number is not valid. Start the scan again from the purchase in the app.');
       target = n.spend.find((r) => String(r.id) === wanted);
@@ -963,10 +964,12 @@ const handler = async (req, res) => {
     if (!fn) return send(res, 404, { error: 'Not found' });
     const out = await fn(req, arg);
     if (key === 'POST log') console.log(JSON.stringify({ evt: 'shortcut-log', status: 200, who: req._who || '' }));
+    if (key === 'POST bills/text') console.log(JSON.stringify({ evt: 'shortcut-bill', status: 200, who: req._who || '', items: out && out.items, by: req._billBy || '' }));
     return send(res, 200, out);
   } catch (e) {
     if (e instanceof HttpError) {
       // Shortcut requests are logged (no purchase details, no setup code) so a missing purchase can be traced.
+      if (routeKey === 'POST bills/text') console.log(JSON.stringify({ evt: 'shortcut-bill', status: e.status, reason: e.message, who: req._who || '' }));
       if (req.method === 'POST' && /\/log\/?$|route=log\b/.test(String(req.url))) console.log(JSON.stringify({ evt: 'shortcut-log', status: e.status, reason: e.message, who: req._who || '' }));
       // A Shortcut shows the field called message, so for its routes the reason goes there too.
       return send(res, e.status, routeKey === 'POST log' || routeKey === 'POST bills/text' ? { error: e.message, message: e.message } : { error: e.message });
