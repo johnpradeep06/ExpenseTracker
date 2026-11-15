@@ -100,4 +100,30 @@ ok(r.items.length === 1 && r.items[0].name === 'LAIT', 'phone numbers, the till,
 ok(parse('').items.length === 0 && parse('bonjour tout le monde').items.length === 0 && parse(null).items.length === 0, 'text with no bill in it gives no items');
 ok(parse('x'.repeat(100000)).items.length === 0, 'a huge block of text is handled');
 
+// 7. a real Winners bill (a phone photographed it): "89,99$ TQ" has a dollar sign AND a tax flag, the GST registration line is
+// not a tax line, and the labels and amounts can come out of the phone's reader on separate lines
+const WINNERS_ROWS = `WINNERS
+DOWNTOWN MONTREAL
+1500 MCGILL COLLEGE AVE.
+H3A 3J5 MONTREAL QC
+514-788-4949
+GST NO.86032 6255 RT0001CA #07043
+VENTE RÉGULIÈRE
+9 - VÊT. EXT. HOMM 094320   89,99$ TQ
+Sous-total   89,99$
+QC TPS 5.000%   4,50$
+QC TVQ 9.975%   8,98$
+Total   103,47$
+AMEX   103,47$
+TRANSACTION RECORD
+APPROVED
+04-11-2026 20:13:50
+Monnaie   0,00$`;
+const WINNERS_COLS = WINNERS_ROWS.replace('094320   89,99$ TQ', '094320\n89,99$ TQ').replace('Sous-total   89,99$', '89,99$\nSous-total').replace('QC TPS 5.000%   4,50$\nQC TVQ 9.975%   8,98$', 'QC TPS 5.000%\nQC TVQ 9.975%\n4,50$\n8,98$').replace('Total   103,47$\nAMEX   103,47$', 'Total\n103,47$\nAMEX\n103,47$');
+[['line by line', WINNERS_ROWS], ['labels and amounts apart', WINNERS_COLS]].forEach(([how, text]) => {
+  r = parse(text);
+  ok(r.store === 'WINNERS' && r.items.length === 1 && r.items[0].name === 'VÊT. EXT. HOMM' && r.items[0].price === 89.99, 'Winners (' + how + '): the one item, with its code and "9 -" taken off: ' + JSON.stringify(r.items));
+  ok(r.subtotal === 89.99 && r.tax === 13.48 && r.total === 103.47, 'Winners (' + how + '): subtotal, tax and total: ' + r.subtotal + ' / ' + r.tax + ' / ' + r.total);
+});
+
 console.log('\nALL PASSED:', pass);
