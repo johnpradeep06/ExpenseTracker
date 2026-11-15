@@ -31,7 +31,7 @@ with sync_playwright() as P:
         loc = pg.locator('#latest .tx-swipe', has_text=name).first
         loc.scroll_into_view_if_needed(); pg.wait_for_timeout(150)
         r = loc.bounding_box()
-        x0, y = r['x'] + r['width'] / 2 - (dx / 2), r['y'] + r['height'] / 2
+        x0, y = (r['x'] + r['width'] - 6 if dx < -300 else r['x'] + r['width'] / 2 - (dx / 2)), r['y'] + r['height'] / 2
         cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': x0, 'y': y}]})
         for k in range(1, 11):
             cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [{'x': x0 + dx * k / 10, 'y': y}]})
@@ -46,8 +46,15 @@ with sync_playwright() as P:
     post('/api/admin/import', {"email": em, "issues": issues, "dailyLimit": 0})
     pg.click('#tour-skip'); pg.wait_for_timeout(900); pg.click('#onboard-done'); pg.wait_for_timeout(3500)
 
+    # a quick or medium swipe only shows the red button: deleting takes a long, slow pull
+    swipe('Studio Zen', -200)
+    ok(not vis('.confirm-box') and pg.locator('#latest .tx-swipe', has_text='Studio Zen').first.locator('.tx-del').is_visible(), 'a medium swipe only reveals the red Delete button')
+    pg.touchscreen.tap(8, 8); pg.wait_for_timeout(500)
+    swipe('Studio Zen', -280)
+    ok(not vis('.confirm-box'), 'even a fairly long swipe does not start a delete')
+    pg.touchscreen.tap(8, 8); pg.wait_for_timeout(500)
     # a long swipe to the left asks first
-    swipe('Studio Zen', -300)
+    swipe('Studio Zen', -335)
     ok(vis('.confirm-box') and 'Studio Zen' in pg.inner_text('.confirm-box') and '$65.00' in pg.inner_text('.confirm-box'), 'a long swipe left asks "Delete this payment?" and names it: ' + (pg.inner_text('.confirm-box') if vis('.confirm-box') else 'no dialog').replace('\n', ' | '))
     ok(count('Studio Zen') == 1, 'and nothing is deleted while it is asking')
     pg.click('.confirm-no'); pg.wait_for_timeout(600)
@@ -58,7 +65,7 @@ with sync_playwright() as P:
     ok(abs(box['x'] - other['x']) < 2, 'the row slides back into place (%.0f vs %.0f)' % (box['x'], other['x']))
 
     # saying yes deletes it, and Undo still works
-    swipe('Studio Zen', -300)
+    swipe('Studio Zen', -335)
     pg.click('.confirm-yes'); pg.wait_for_timeout(1500)
     ok(count('Studio Zen') == 0 and 'Deleted Studio Zen' in pg.inner_text('#toast-text'), 'Delete removes it and shows Undo: ' + pg.inner_text('#toast-text'))
     pg.click('#toast-undo'); pg.wait_for_timeout(2500)
@@ -73,7 +80,7 @@ with sync_playwright() as P:
     ok(not vis('.confirm-box') and count('SAQ') == 1, 'Escape means keep it')
     swipe('SAQ', -100)
     pg.locator('#latest .tx-swipe', has_text='SAQ').first.locator('.tx-del').click(); pg.wait_for_timeout(400)
-    pg.mouse.click(8, 8); pg.wait_for_timeout(500)
+    pg.touchscreen.tap(8, 8); pg.wait_for_timeout(500)
     ok(not vis('.confirm-box') and count('SAQ') == 1, 'tapping outside the box means keep it')
     swipe('SAQ', -100)
     pg.locator('#latest .tx-swipe', has_text='SAQ').first.locator('.tx-del').click(); pg.wait_for_timeout(400)

@@ -593,7 +593,10 @@
       if (mode === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) mode = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
       if (mode !== 'h') return;
       moved = true;
-      setOffset(Math.max(-wrap.clientWidth, Math.min(onFlip ? FLIP_MAX : 0, base + dx)));
+      // Past the red Delete button the row drags at half speed, so deleting takes a long, deliberate pull.
+      let want = base + dx;
+      if (want < -REVEAL) want = -REVEAL + (want + REVEAL) * 0.5;
+      setOffset(Math.max(-wrap.clientWidth, Math.min(onFlip ? FLIP_MAX : 0, want)));
     }, { passive: true });
     const finish = () => {
       if (busy) return;
@@ -604,7 +607,7 @@
         busy = true;
         api.close();
         Promise.resolve(onFlip()).catch(() => false).then(() => { busy = false; });
-      } else if (offset < -Math.min(wrap.clientWidth * 0.6, 240)) {
+      } else if (offset < -Math.min(wrap.clientWidth * 0.62, 220)) {
         remove();
       } else if (offset < -REVEAL / 2) {
         setOffset(-REVEAL);
