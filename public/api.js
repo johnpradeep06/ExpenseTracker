@@ -24,6 +24,7 @@
       if (res.status === 401) e.kind = 'auth';
       throw e;
     }
+    if (method === 'GET' && path === 'me') { try { window.dispatchEvent(new CustomEvent('spend:me', { detail: data })); } catch (e) { /* never block the answer */ } }
     return data;
   };
 })();

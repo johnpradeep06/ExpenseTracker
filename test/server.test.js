@@ -994,6 +994,8 @@ VISA ****4242            63,58`;
     ok(JSON.stringify(r.data.rules) === '{"rogers":"Phone"}', 'a store rule for a category that does not exist is dropped, and so is a blank one');
     const raw = (await pg.query('select data from user_cats where user_id = $1', [cid])).rows[0].data;
     ok(/^e1:/.test(raw) && !/Rent|Phone|rogers/.test(raw), 'the list is stored encrypted');
+    r = await call('GET', 'me', { auth: cTok });
+    ok(r.data.categories && r.data.categories.cats.length === 3 && r.data.categories.rules.rogers === 'Phone', 'the list also comes with "me", so the app needs no extra call to get it when it opens');
     r = await call('GET', 'categories', { auth: c2Tok });
     ok(r.data.cats.length === 0, 'another person does not see it');
 

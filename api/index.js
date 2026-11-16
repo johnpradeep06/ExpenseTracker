@@ -500,7 +500,8 @@ const routes = {
   'GET me': async (req) => {
     const u = await signedIn(req);
     const devices = await q('select count(*)::int as n from devices where user_id = $1', [u.id]);
-    return { email: u.email, name: u.name, isOwner: isOwner(u), dailyLimit: limitOf(u), tz: u.tz, hasCode: !!u.key_hash, devices: devices[0] ? devices[0].n : 0, vapidPublicKey: env('VAPID_PUBLIC_KEY') };
+    // The person's own categories ride along, so opening the app does not need a call just for them.
+    return { email: u.email, name: u.name, isOwner: isOwner(u), dailyLimit: limitOf(u), tz: u.tz, hasCode: !!u.key_hash, devices: devices[0] ? devices[0].n : 0, vapidPublicKey: env('VAPID_PUBLIC_KEY'), categories: await loadCustom(u.id) };
   },
 
   'PUT me': async (req) => {

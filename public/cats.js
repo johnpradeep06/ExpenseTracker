@@ -175,7 +175,9 @@
   if (openBtn) openBtn.addEventListener('click', () => { drawList(); list.hidden = false; backdrop.hidden = false; list.scrollTop = 0; refresh(true); });
 
   drawList();
-  if (window.dash && window.dash.onData) window.dash.onData(() => { refresh(false); });
+  // They arrive with "me" (the app asks for that anyway when it opens), so no call of their own. Asked for directly only
+  // when the list is opened in Settings or the app comes back to the front.
+  window.addEventListener('spend:me', (e) => { if (e.detail && e.detail.categories) { lastFetch = Date.now(); apply(e.detail.categories); } });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(true); });
   window.spendCatsRefresh = () => refresh(true);
 })();
