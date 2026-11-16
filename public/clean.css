@@ -191,3 +191,8 @@ html .bill-leg b { color: var(--fg); }
 html .bill-leg .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
 html .bill-actions { display: grid; gap: 4px; }
 html #add-scan:not([hidden]) { display: block; width: 100%; margin: 4px 0 0; }
+
+/* A colour the app chose by itself from your earlier marks (a habit it learned): the same colour, but dashed. Your own marks stay solid. */
+html .tx-swipe .tx.learned.k-need::before { background: repeating-linear-gradient(to bottom, var(--accent) 0 5px, transparent 5px 8px); }
+html .tx-swipe .tx.learned.k-fun::before { background: repeating-linear-gradient(to bottom, var(--fun) 0 5px, transparent 5px 8px); }
+html .tx-swipe .tx.learned.k-unk::before { background: repeating-linear-gradient(to bottom, var(--unk) 0 5px, transparent 5px 8px); }

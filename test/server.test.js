@@ -1037,6 +1037,87 @@ VISA ****4242            63,58`;
     ok((await pg.query('select count(*)::int as n from user_cats')).rows[0].n === 0, 'deleting an account deletes its categories');
   }
 
+  // ---- learning from your marks ----
+  {
+    const keyOf = require('../public/merchants.js').keyOf;
+    let r = await call('POST', 'auth/signup', { body: { email: 'learner@example.com', password: 'learner-pw-12345', invite: await invite('Learner', 7) } });
+    const lTok = r.data.session;
+    r = await call('POST', 'auth/signup', { body: { email: 'learner2@example.com', password: 'learner2-pw-12345', invite: await invite('Learner2', 7) } });
+    const l2Tok = r.data.session;
+    const lid = (await pg.query("select id from users where email = 'learner@example.com'")).rows[0].id;
+    const l2id = (await pg.query("select id from users where email = 'learner2@example.com'")).rows[0].id;
+    let nth = 0;
+    // each payment has its own amount and time (payments with the same amount within 10 minutes are merged as duplicates)
+    const add = async (uid, merchant, cat) => { nth++; const at = new Date(Date.now() - nth * 45 * 60000).toISOString(); return (await pg.query("insert into purchases (user_id, title, body, created_at) values ($1, $2, $3, $4) returning id",
+      [uid, 'Spending - $' + (10 + nth), 'Date: ' + at + '\nMerchant: ' + merchant + '\nAmount: $' + (10 + nth) + '.00\nCard: Visa\nCategory: ' + (cat || 'Other'), at])).rows[0].id; };
+    const hist = (tok) => new Promise((resolve) => {
+      const req = { method: 'GET', url: '/api/index?route=summary&range=month&rows=1', headers: { authorization: 'Bearer ' + tok } };
+      api(req, { statusCode: 200, headers: {}, setHeader() {}, end(x) { resolve(JSON.parse(x)); } });
+    });
+    const rows = async (tok, merchant) => ((await hist(tok)).rows || []).filter((x) => x.merchant === merchant);
+    const mark = (tok, id, kind) => call('PATCH', 'purchases/' + id, { auth: tok, body: { kind } });
+    const habit = async (tok) => (await call('GET', 'me', { auth: tok })).data.categories.learn;
+
+    // a store habit: marked the same way twice
+    const c1 = await add(lid, 'Cafe Nuit'); const c2 = await add(lid, 'Cafe Nuit'); const c3 = await add(lid, 'Cafe Nuit'); const c4 = await add(lid, 'Cafe Nuit');
+    r = await call('GET', 'me', { auth: lTok });
+    ok(r.data.categories.learn && r.data.categories.learn.marks === 0, 'at first nothing has been learned');
+    r = await mark(lTok, c1, 'fun');
+    ok(r.status === 200 && r.data.learn && r.data.learn.marks === 1 && Object.keys(r.data.learn.stores).length === 0, 'one mark is counted but is not a habit yet');
+    r = await mark(lTok, c2, 'fun');
+    ok(r.data.learn.stores[keyOf('Cafe Nuit')] === 'fun', 'a second mark the same way makes a store habit, handed back with the answer so the app can use it at once');
+    let x = (await rows(lTok, 'Cafe Nuit')).filter((y) => !y.kind);
+    ok(x.length === 2 && x.every((y) => y.leak === 'fun' && y.learned === 'store'), 'the next Cafe Nuit payments without a mark start as unnecessary, labelled as learned: ' + JSON.stringify(x.map((y) => [y.leak, y.learned])));
+    ok((await habit(lTok)).stores[keyOf('Cafe Nuit')] === 'fun', 'and it comes with the account call, so the app has it when it opens');
+
+    // a mark you make always wins, and it changes the habit
+    r = await mark(lTok, c3, 'need');
+    x = (await rows(lTok, 'Cafe Nuit')).find((y) => String(y.id) === String(c3));
+    ok(x.leak === 'need' && x.learned === '', 'a mark of its own wins over the habit');
+    ok(Object.keys(r.data.learn.stores).length === 0, 'two unnecessary and one necessary is no longer a clear habit, so it is let go');
+    x = (await rows(lTok, 'Cafe Nuit')).find((y) => String(y.id) === String(c4));
+    ok(x.learned === '', 'and the last unmarked payment goes back to the app\'s guess');
+    r = await mark(lTok, c3, '');
+    ok(r.data.learn.stores[keyOf('Cafe Nuit')] === 'fun', 'clearing a mark puts the habit back');
+
+    // a category habit: four marks the same way across different stores
+    const sh = [];
+    for (const m of ['Zara', 'H&M', 'Uniqlo', 'Ikea']) sh.push(await add(lid, m, 'Shopping'));
+    const nike = await add(lid, 'Nike', 'Shopping');
+    x = (await rows(lTok, 'Nike'))[0];
+    ok(x.leak === 'fun' && x.learned === '', 'before any marks, Shopping is unnecessary by the app\'s general guess');
+    for (const id of sh) r = await mark(lTok, id, 'need');
+    ok(r.data.learn.cats.Shopping === 'need', 'four marks of Shopping as necessary make a category habit');
+    x = (await rows(lTok, 'Nike'))[0];
+    ok(x.leak === 'need' && x.learned === 'cat', 'a new Shopping store now starts as necessary, labelled learned');
+
+    // it is private to the person
+    await add(l2id, 'Cafe Nuit'); await add(l2id, 'Nike', 'Shopping');
+    x = (await rows(l2Tok, 'Cafe Nuit'))[0]; const y2 = (await rows(l2Tok, 'Nike'))[0];
+    ok(x.learned === '' && y2.learned === '' && y2.leak === 'fun', 'someone else\'s same stores are not touched');
+    ok((await habit(l2Tok)).marks === 0, 'and what one person teaches is never seen by another');
+
+    // it survives saving categories, and can be forgotten
+    r = await call('PUT', 'categories', { auth: lTok, body: { cats: [{ name: 'Rent', icon: '🏠', kind: 'need' }], rules: {} } });
+    ok(r.data.learn.cats.Shopping === 'need', 'saving your own categories does not lose what was learned');
+    r = await call('DELETE', 'learn', { auth: lTok });
+    ok(r.status === 200 && r.data.learn.marks === 0 && Object.keys(r.data.learn.stores).length === 0 && Object.keys(r.data.learn.cats).length === 0, 'forget clears the habits');
+    x = (await rows(lTok, 'Nike'))[0];
+    ok(x.leak === 'fun' && x.learned === '', 'a store goes back to the app\'s general guess');
+    ok((await rows(lTok, 'Zara'))[0].leak === 'need', 'but the marks themselves stay');
+    const c5 = await add(lid, 'Cafe Nuit'); const c6 = await add(lid, 'Cafe Nuit');
+    r = await mark(lTok, c5, 'fun');
+    ok(r.data.learn.marks === 1, 'only marks made after forgetting count from then on (not the ones before)');
+    r = await mark(lTok, c6, 'fun');
+    ok(r.data.learn.stores[keyOf('Cafe Nuit')] === 'fun', 'and it learns again');
+    r = await call('PATCH', 'purchases/' + c5, { auth: lTok, body: { kind: 'maybe' } });
+    ok(r.status === 400, 'a mark that is not necessary / unnecessary is refused');
+    r = await call('PATCH', 'purchases/' + c5, { auth: lTok, body: { title: 'Spending - $10 - changed' } });
+    ok(r.status === 200 && !r.data.learn, 'editing something else does not relearn');
+    await call('DELETE', 'account', { auth: lTok });
+    await call('DELETE', 'account', { auth: l2Tok });
+  }
+
   // ---- AI categories: the owner decides who gets them ----
   {
     const storeai = require('../lib/storeai');

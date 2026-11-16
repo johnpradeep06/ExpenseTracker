@@ -89,7 +89,9 @@
     if (x && x.status) return x.message || 'The server said no (' + x.status + '). Try again in a moment.';
     return 'Could not reach the server. Check your connection and try again.';
   };
-  const patch = (number, body) => window.spendApi('PATCH', 'purchases/' + number, body);
+  // A mark you make teaches the app a habit; the server hands the updated habits back so they apply straight away.
+  const takeHabits = (res) => { if (res && res.learn && window.spendCustom) window.spendCustom = { ...window.spendCustom, learn: res.learn }; };
+  const patch = async (number, body) => { const res = await window.spendApi('PATCH', 'purchases/' + number, body); if (body && body.kind !== undefined) takeHabits(res); return res; };
 
   const hideToast = () => {
     toast.hidden = true;

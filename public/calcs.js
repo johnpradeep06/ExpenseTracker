@@ -14,7 +14,19 @@ dash.calc('spend', {
     const ai = custom.ai && typeof custom.ai === 'object' ? custom.ai : {};
     const customBy = {};
     custom.cats.forEach((c) => { customBy[c.name] = c; });
-    const leakOf = (cat, mark) => (mark === 'need' || mark === 'fun' ? mark : NEED.includes(cat) ? 'need' : FUN.includes(cat) ? 'fun' : customBy[cat] ? (customBy[cat].kind === 'need' || customBy[cat].kind === 'fun' ? customBy[cat].kind : 'unk') : 'unk');
+    // What this person has taught the app by marking purchases (a store habit, then a category habit). Set by the app or the server.
+    const learn = custom.learn && typeof custom.learn === 'object' ? custom.learn : {};
+    const learnStores = learn.stores || {};
+    const learnCats = learn.cats || {};
+    const builtIn = (cat) => (NEED.includes(cat) ? 'need' : FUN.includes(cat) ? 'fun' : customBy[cat] ? (customBy[cat].kind === 'need' || customBy[cat].kind === 'fun' ? customBy[cat].kind : 'unk') : 'unk');
+    // Where a purchase's colour comes from: the person's own mark, then their store habit, then their category habit, then the app's guess by category.
+    const leakWhy = (cat, mark, storeKey) => {
+      if (mark === 'need' || mark === 'fun') return { leak: mark, learned: '' };
+      if (storeKey && (learnStores[storeKey] === 'need' || learnStores[storeKey] === 'fun')) return { leak: learnStores[storeKey], learned: 'store' };
+      if (learnCats[cat] === 'need' || learnCats[cat] === 'fun') return { leak: learnCats[cat], learned: 'cat' };
+      return { leak: builtIn(cat), learned: '' };
+    };
+    const leakOf = (cat, mark) => leakWhy(cat, mark, '').leak;
     const RULES = [
       ['Food Delivery', ['uber eats', 'ubereats', 'doordash', 'skipthedishes', 'skip the dishes', 'foodora', 'grubhub', 'fantuan', 'hungrypanda', 'hungry panda', 'menu.ca', 'just eat']],
       ['Snacks', ['7-eleven', '7 eleven', '7eleven', 'couche-tard', 'couche tard', 'convenience', 'depanneur', 'vending', 'snack', 'candy', 'chocolate', 'ice cream', 'gelato', 'popcorn', 'cookie', 'chips', 'sweets', 'treats', 'cinnabon', 'auntie anne', 'dairy queen', 'baskin', 'cold stone', 'menchie', 'yogurt', 'pretzel']],
@@ -115,7 +127,8 @@ dash.calc('spend', {
           const guess = ai[window.spendMerchant.keyOf(it.merchant)];
           if (guess && guess !== 'Other' && CATS.includes(guess)) c = { cat: guess, how: 'ai' };
         }
-        return { id: it.id, src: it.src, period: it.period, ts: it.ts, day: it.day, merchant: it.merchant, card: it.card, amount: it.amount, category: c.cat, how: c.how, kind: it.mark, bill: it.bill, draft: it.draft, leak: it.mark === 'need' || it.mark === 'fun' ? it.mark : it.bill ? 'mix' : leakOf(c.cat, ''), dupIds: it.dupIds || [] };
+        const why = leakWhy(c.cat, it.mark, window.spendMerchant ? window.spendMerchant.keyOf(it.merchant) : '');
+        return { id: it.id, src: it.src, period: it.period, ts: it.ts, day: it.day, merchant: it.merchant, card: it.card, amount: it.amount, category: c.cat, how: c.how, kind: it.mark, bill: it.bill, draft: it.draft, leak: it.mark === 'need' || it.mark === 'fun' ? it.mark : it.bill ? 'mix' : why.leak, learned: it.mark === 'need' || it.mark === 'fun' || it.bill ? '' : why.learned, dupIds: it.dupIds || [] };
       })
       .sort((a, b) => b.ts - a.ts);
   }

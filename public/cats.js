@@ -22,11 +22,11 @@
   // ---- loading and saving ----
   const sameAs = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const apply = (r) => {
-    const next = { cats: (r && r.cats) || [], rules: (r && r.rules) || {}, ai: (r && r.ai) || {} };
+    const next = { cats: (r && r.cats) || [], rules: (r && r.rules) || {}, ai: (r && r.ai) || {}, learn: (r && r.learn) || { stores: {}, cats: {}, marks: 0 } };
     const changed = !sameAs(next, custom) || !loaded;
     custom = next; window.spendCustom = custom;
     const first = !loaded; loaded = true;
-    fillSelect(); drawList();
+    fillSelect(); drawList(); drawLearn();
     // The numbers were worked out before the list was known (or it changed): work them out again.
     if (changed && (next.cats.length || !first) && window.dash && window.dash.reload) window.dash.reload();
   };
@@ -173,6 +173,28 @@
   };
   const openBtn = $('#cats-open');
   if (openBtn) openBtn.addEventListener('click', () => { drawList(); list.hidden = false; backdrop.hidden = false; list.scrollTop = 0; refresh(true); });
+
+  // ---- what the app has learned from your marks (Settings) ----
+  const drawLearn = () => {
+    const box = $('#learn-note');
+    if (!box) return;
+    const l = custom.learn || { stores: {}, cats: {}, marks: 0 };
+    const stores = Object.keys(l.stores || {}).length;
+    const cats = Object.keys(l.cats || {}).length;
+    box.hidden = !(l.marks > 0);
+    if (box.hidden) return;
+    $('#learn-count').textContent = 'From your ' + l.marks + (l.marks === 1 ? ' mark' : ' marks') + ': ' +
+      (stores || cats ? [stores ? stores + (stores === 1 ? ' store' : ' stores') : '', cats ? cats + (cats === 1 ? ' category' : ' categories') : ''].filter(Boolean).join(' and ') + ' learned. They show a dashed edge and say "learned".' : 'nothing is clear enough to learn yet. Mark a store the same way twice and it will pick it up.');
+  };
+  const forget = $('#learn-forget');
+  if (forget) {
+    let armed = false;
+    forget.addEventListener('click', async () => {
+      if (!armed) { armed = true; forget.textContent = 'Tap again to forget'; setTimeout(() => { armed = false; forget.textContent = 'Forget what it learned'; }, 5000); return; }
+      armed = false; forget.textContent = 'Forget what it learned';
+      try { apply(await window.spendApi('DELETE', 'learn')); if (window.spendToast) window.spendToast('Forgot what it learned. Your marks are kept', null); } catch (x) { if (window.spendToast) window.spendToast('Could not do that. Try again.', null); }
+    });
+  }
 
   drawList();
   // They arrive with "me" (the app asks for that anyway when it opens), so no call of their own. Asked for directly only

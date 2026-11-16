@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "TZ=UTC node test/server.test.js && node test/merchants.test.js && node test/billtext.test.js && node test/payperiod.test.js"
+    "test": "TZ=UTC node test/server.test.js && node test/merchants.test.js && node test/billtext.test.js && node test/payperiod.test.js && node test/learn.test.js"
   },
   "dependencies": {
     "jose": "^6.2.16",

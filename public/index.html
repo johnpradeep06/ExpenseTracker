@@ -742,6 +742,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
     <h3 class="set-h" id="set-limit">Spending</h3>
     <button type="button" class="btn-plain set-row" id="settings-limit">Daily limit<span id="settings-limit-val">Not set</span></button>
     <button type="button" class="btn-plain set-row" id="cats-open">My categories<span aria-hidden="true">&rsaquo;</span></button>
+    <div class="ai-note" id="learn-note" hidden>
+      <b>🧠 It learns from your marks</b>
+      <p>When you mark a store necessary or unnecessary the same way a couple of times, the next payment there starts that way by itself. A mark you make always wins. This is plain counting on your own marks: nothing is sent anywhere.</p>
+      <p id="learn-count"></p>
+      <button type="button" class="btn-plain mini" id="learn-forget">Forget what it learned</button>
+    </div>
     <div class="ai-note" id="ai-note" hidden>
       <b>✨ AI categories are on for you</b>
       <p>For a store the app does not recognise, an AI (Google's Gemini) suggests a category. Only the store name is sent, nothing else: no amount, date or card. You can change any category yourself and your choice always wins.</p>

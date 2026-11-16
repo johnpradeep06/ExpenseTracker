@@ -650,14 +650,14 @@
       el.append(head);
       g.rows.forEach((r) => {
         const [icon, color] = catMeta(r.category);
-        const row = h('button', 'tx k-' + (r.leak || 'unk'));
+        const row = h('button', 'tx k-' + (r.leak || 'unk') + (r.learned ? ' learned' : ''));
         row.type = 'button';
         // A scanned bill: the edge shows how much of it was necessary.
         if (r.leak === 'mix' && r.bill) row.style.setProperty('--p', String(Math.round((r.bill.need / Math.max(0.01, r.bill.need + r.bill.fun + r.bill.unk)) * 100)));
         row.dataset.key = r.id;
         row.setAttribute('aria-label', 'Edit ' + r.merchant);
         const mid = h('span', 'cat-mid');
-        mid.append(h('span', 'cat-name', r.merchant), h('span', 'cat-sub', (r.ts ? clock(new Date(r.ts)) + ' · ' : '') + r.category + (r.card && manyCards() ? ' · ' + cardName(r.card) : '') + (r.how === 'ai' ? ' · AI guess' : '') + (r.draft ? ' · bill to review' : r.bill ? ' · ' + r.bill.n + (r.bill.n === 1 ? ' item' : ' items') : '') + (String(r.id).indexOf('p-') === 0 ? ' · not sent yet' : '')));
+        mid.append(h('span', 'cat-name', r.merchant), h('span', 'cat-sub', (r.ts ? clock(new Date(r.ts)) + ' · ' : '') + r.category + (r.card && manyCards() ? ' · ' + cardName(r.card) : '') + (r.how === 'ai' ? ' · AI guess' : '') + (r.learned ? ' · learned' : '') + (r.draft ? ' · bill to review' : r.bill ? ' · ' + r.bill.n + (r.bill.n === 1 ? ' item' : ' items') : '') + (String(r.id).indexOf('p-') === 0 ? ' · not sent yet' : '')));
         const amt = h('span', 'cat-amt' + (r.amount < 0 ? ' in' : ''), r.amount < 0 ? '+' + money(-r.amount) : money(r.amount));
         row.append(chip(icon, color), mid, amt);
         if (String(r.id).indexOf('p-') === 0) {

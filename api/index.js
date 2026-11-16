@@ -24,6 +24,7 @@ const billtext = require('../lib/billtext');
 const payperiod = require('../public/payperiod.js');
 const customcats = require('../lib/customcats');
 const storeai = require('../lib/storeai');
+const learn = require('../lib/learn');
 const merchants = require('../public/merchants.js');
 const itemkinds = require('../lib/itemkinds');
 
@@ -390,9 +391,37 @@ const loadGuesses = async (userId) => {
 const loadCustom = async (u) => {
   const r = (await q('select data from user_cats where user_id = $1', [u.id]))[0];
   const base = r ? JSON.parse(vault.open(u.id, 'cats', r.data)) : { cats: [], rules: {} };
+  base.learn = base.learn || { stores: {}, cats: {}, marks: 0 };       // what the person's marks have taught the app
   if (aiOn(u)) base.ai = await loadGuesses(u.id);
   return base;
 };
+// What the person's own marks (necessary / unnecessary) teach the app: counted again from all their marks each time one
+// changes (a few hundred rows at most), so there is nothing to drift. Marks made before a "forget" are ignored.
+const readCustomRow = async (u) => {
+  const r = (await q('select data from user_cats where user_id = $1', [u.id]))[0];
+  return r ? JSON.parse(vault.open(u.id, 'cats', r.data)) : { cats: [], rules: {} };
+};
+const writeCustomRow = (u, data) => q(`insert into user_cats (user_id, data) values ($1, $2)
+  on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'cats', JSON.stringify(data))]);
+const rebuildLearn = async (u, resetNow) => {
+  const data = await readCustomRow(u);
+  const resetAt = resetNow ? new Date().toISOString() : (data.learn && data.learn.resetAt) || null;
+  let model = { stores: {}, cats: {}, marks: 0 };
+  if (!resetNow) {
+    const marked = await q(`select p.id, p.title, p.body, p.state, p.kind, p.created_at from purchases p
+      where p.user_id = $1 and p.state = 'open' and p.kind in ('need', 'fun')` + (resetAt ? ' and p.kind_at > $2' : '') + ' order by p.id desc limit 2000',
+    resetAt ? [u.id, resetAt] : [u.id]);
+    if (marked.length) {
+      const issues = issuesOf(u.id, marked);
+      const rows = compute.withCustom({ cats: data.cats || [], rules: data.rules || {} }, () => compute.summary(issues, [], u.tz, Date.now(), true, false)).rows || [];
+      model = learn.build(rows.map((r) => ({ key: merchants.keyOf(r.merchant), category: r.category, mark: r.kind })));
+    }
+  }
+  data.learn = { ...model, resetAt };
+  await writeCustomRow(u, data);
+  return data.learn;
+};
+
 const payState = async (u, plan) => {
   const today = todayOf(u);
   const back = Math.min(400, Math.max(3, payperiod.daysBetween(plan.start, today) + 3));
@@ -636,8 +665,11 @@ const routes = {
     // The person's own mark: 'need' (necessary), 'fun' (unnecessary), or empty to go back to the app's guess.
     if (b.kind !== undefined && !['need', 'fun', ''].includes(b.kind)) fail(400, 'A purchase can be marked need, fun, or cleared');
     const kind = b.kind !== undefined ? (b.kind || null) : (cur.kind || null);
-    const out = await q('update purchases set title = $3, body = $4, state = $5, kind = $6, updated_at = now() where id = $1 and user_id = $2 returning id, state, kind, created_at', [id, u.id, vault.seal(u.id, 'title', title), vault.seal(u.id, 'body', body), state, kind]);
-    return issueOf({ ...out[0], title, body });
+    const changed = b.kind !== undefined && (kind || '') !== (cur.kind || '');
+    const out = await q('update purchases set title = $3, body = $4, state = $5, kind = $6, kind_at = case when $7::boolean then now() else kind_at end, updated_at = now() where id = $1 and user_id = $2 returning id, state, kind, created_at', [id, u.id, vault.seal(u.id, 'title', title), vault.seal(u.id, 'body', body), state, kind, changed]);
+    const issue = issueOf({ ...out[0], title, body });
+    if (changed) { try { issue.learn = await rebuildLearn(u); } catch (e) { console.error('learning failed:', e && e.message); } }
+    return issue;
   },
 
   // ---- reading a bill ----------------------------------------------------------------------------------------------
@@ -759,6 +791,13 @@ const routes = {
     return { ok: true };
   },
 
+  // "Forget what you learned": the habits are cleared, and marks made before now are no longer counted. The marks themselves stay.
+  'DELETE learn': async (req) => {
+    const u = await signedIn(req);
+    await rebuildLearn(u, true);
+    return loadCustom(u);
+  },
+
   // ---- AI categories: Gemini places the stores the rules cannot (only for people the owner switched it on for) -----------------
   // Only store names are sent, a few at a time. Each answer is remembered (sealed) so a store is asked about once.
   'POST ai/categorize': async (req) => {
@@ -801,8 +840,8 @@ const routes = {
     const b = await readBody(req, 32 * 1024);
     const c = customcats.clean(b);
     if (c.error) fail(400, c.error);
-    await q(`insert into user_cats (user_id, data) values ($1, $2)
-      on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'cats', JSON.stringify(c.value))]);
+    const before = await readCustomRow(u);
+    await writeCustomRow(u, { ...c.value, learn: before.learn });
     return loadCustom(u);
   },
 
