@@ -23,6 +23,8 @@ const bills = require('../lib/bills');
 const billtext = require('../lib/billtext');
 const payperiod = require('../public/payperiod.js');
 const customcats = require('../lib/customcats');
+const storeai = require('../lib/storeai');
+const merchants = require('../public/merchants.js');
 const itemkinds = require('../lib/itemkinds');
 
 const env = (k) => process.env[k] || '';
@@ -322,7 +324,7 @@ const recentIssues = async (userId, days) => {
   const rows = await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at > $2 order by p.created_at desc limit 3000", [userId, new Date(Date.now() - (days || 29) * DAY).toISOString()]);
   return issuesOf(userId, rows);
 };
-const numbersFor = async (user) => { const issues = await recentIssues(user.id); const custom = await loadCustom(user.id); return compute.withCustom(custom, () => numbers(issues, user.tz, Date.now())); };
+const numbersFor = async (user) => { const issues = await recentIssues(user.id); const custom = await loadCustom(user); return compute.withCustom(custom, () => numbers(issues, user.tz, Date.now())); };
 const limitOf = (user) => Number(user.daily_limit) || 0;
 
 // After a new purchase: push an alert if needed and return a short line for the Shortcut to show.
@@ -379,15 +381,23 @@ const loadPlan = async (u) => {
 const savePlan = (u, plan) => q(`insert into pay_plans (user_id, data) values ($1, $2)
   on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'pay', JSON.stringify(plan))]);
 // ---- a person's own categories ---------------------------------------------------------------------------------
-const loadCustom = async (userId) => {
-  const r = (await q('select data from user_cats where user_id = $1', [userId]))[0];
-  return r ? JSON.parse(vault.open(userId, 'cats', r.data)) : { cats: [], rules: {} };
+// AI categories are for the people the owner has switched them on for (the owner always has them), and only while a Gemini key is set.
+const aiOn = (u) => storeai.configured() && (isOwner(u) || u.ai_access === true);
+const loadGuesses = async (userId) => {
+  const r = (await q('select data from user_ai where user_id = $1', [userId]))[0];
+  return r ? JSON.parse(vault.open(userId, 'ai', r.data)) : {};
+};
+const loadCustom = async (u) => {
+  const r = (await q('select data from user_cats where user_id = $1', [u.id]))[0];
+  const base = r ? JSON.parse(vault.open(u.id, 'cats', r.data)) : { cats: [], rules: {} };
+  if (aiOn(u)) base.ai = await loadGuesses(u.id);
+  return base;
 };
 const payState = async (u, plan) => {
   const today = todayOf(u);
   const back = Math.min(400, Math.max(3, payperiod.daysBetween(plan.start, today) + 3));
   const issues = await recentIssues(u.id, back);
-  const custom = await loadCustom(u.id);
+  const custom = await loadCustom(u);
   const rows = (compute.withCustom(custom, () => compute.summary(issues, [], u.tz, Date.now(), true, false)).rows || []).map((r) => ({ day: r.day, amount: r.amount, category: r.category }));
   return { state: payperiod.stateOf(plan, rows, today), rows, today };
 };
@@ -501,7 +511,7 @@ const routes = {
     const u = await signedIn(req);
     const devices = await q('select count(*)::int as n from devices where user_id = $1', [u.id]);
     // The person's own categories ride along, so opening the app does not need a call just for them.
-    return { email: u.email, name: u.name, isOwner: isOwner(u), dailyLimit: limitOf(u), tz: u.tz, hasCode: !!u.key_hash, devices: devices[0] ? devices[0].n : 0, vapidPublicKey: env('VAPID_PUBLIC_KEY'), categories: await loadCustom(u.id) };
+    return { email: u.email, name: u.name, isOwner: isOwner(u), dailyLimit: limitOf(u), tz: u.tz, hasCode: !!u.key_hash, devices: devices[0] ? devices[0].n : 0, vapidPublicKey: env('VAPID_PUBLIC_KEY'), categories: await loadCustom(u), ai: { enabled: aiOn(u) } };
   },
 
   'PUT me': async (req) => {
@@ -554,7 +564,7 @@ const routes = {
       : []);
     const [nowRows, prevRows] = await Promise.all([fetchRows(r.start, r.end), fetchRows(r.prevStart, r.prevEnd)]);
     const wantRows = params.get('rows') === '1' && (range === 'week' || range === 'month');
-    const custom = await loadCustom(u.id);
+    const custom = await loadCustom(u);
     const s = compute.withCustom(custom, () => compute.summary(nowRows, prevRows, u.tz, Date.now(), wantRows, range === '3m' || range === 'year'));
     // This month's forecast, learned from the person's own history (time series once there are 3 weeks of it).
     let forecast = null;
@@ -579,7 +589,7 @@ const routes = {
     const want = String(params.get('days'));
     const list = want === 'all' ? compute.TRAILING_DAYS : [Number(want)];
     if (list.some((d) => !compute.TRAILING_DAYS.includes(d))) fail(400, 'Choose 7, 30, 365 or all');
-    const custom = await loadCustom(u.id);
+    const custom = await loadCustom(u);
     const widest = compute.trailingRange(Math.max(...list), u.tz, Date.now());
     const rows = issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 and p.created_at < $3 order by p.created_at desc limit 20000", [u.id, widest.start, widest.end]));
     const one = (days) => {
@@ -749,10 +759,40 @@ const routes = {
     return { ok: true };
   },
 
+  // ---- AI categories: Gemini places the stores the rules cannot (only for people the owner switched it on for) -----------------
+  // Only store names are sent, a few at a time. Each answer is remembered (sealed) so a store is asked about once.
+  'POST ai/categorize': async (req) => {
+    const u = await signedIn(req);
+    if (!aiOn(u)) fail(403, 'AI categories are not switched on for your account');
+    const b = await readBody(req, 8 * 1024);
+    const names = Array.from(new Set((Array.isArray(b.stores) ? b.stores : []).map((x) => clean(x, 60)).filter(Boolean)));
+    const have = await loadGuesses(u.id);
+    let fresh = names.filter((n) => !(merchants.keyOf(n) in have) && !merchants.clean(n).category).slice(0, storeai.MAX_NAMES);
+    if (!fresh.length) return { asked: 0 };
+    // A daily allowance for each person and for the whole app, so a free key is never used up by one phone.
+    const day = new Date().toISOString().slice(0, 10);
+    const mine = Number(((await q('select n from ai_usage where user_id = $1 and day = $2', [u.id, day]))[0] || {}).n) || 0;
+    const limit = Math.max(1, Number(env('AI_DAILY_LIMIT')) || 40);
+    fresh = fresh.slice(0, Math.max(0, limit - mine));
+    if (!fresh.length) fail(429, 'That is the most AI lookups for one day. Try again tomorrow.');
+    const all = Number(((await q('select coalesce(sum(n), 0)::int as n from ai_usage where day = $1', [day]))[0] || {}).n) || 0;
+    if (all + fresh.length > Math.max(1, Number(env('AI_GLOBAL_DAILY')) || 300)) fail(429, 'The AI helper is resting for today. Try again tomorrow.');
+    await q('insert into ai_usage (user_id, day, n) values ($1, $2, $3) on conflict (user_id, day) do update set n = ai_usage.n + excluded.n', [u.id, day, fresh.length]);
+    await q('delete from ai_usage where day < $1', [new Date(Date.now() - 4 * DAY).toISOString().slice(0, 10)]);
+    let answer;
+    try { answer = await storeai.categorize(fresh); } catch (e) { console.error('ai categorize failed:', e && e.message); fail(502, 'The AI helper could not answer right now. Try again later.'); }
+    fresh.forEach((n) => { have[merchants.keyOf(n)] = answer[n] || 'Other'; });
+    const keys = Object.keys(have);
+    if (keys.length > 2000) keys.slice(0, keys.length - 2000).forEach((k) => { delete have[k]; });
+    await q(`insert into user_ai (user_id, data) values ($1, $2)
+      on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'ai', JSON.stringify(have))]);
+    return { asked: fresh.length, guesses: have };
+  },
+
   // ---- your own categories (Rent, Phone...) ------------------------------------------------------------------------
   'GET categories': async (req) => {
     const u = await signedIn(req);
-    return loadCustom(u.id);
+    return loadCustom(u);
   },
 
   // The whole list is sent each time (it is small): add, change and delete are all one save.
@@ -763,7 +803,7 @@ const routes = {
     if (c.error) fail(400, c.error);
     await q(`insert into user_cats (user_id, data) values ($1, $2)
       on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'cats', JSON.stringify(c.value))]);
-    return c.value;
+    return loadCustom(u);
   },
 
   'GET purchases/:id/items': async (req, id) => {
@@ -941,7 +981,7 @@ const routes = {
   'GET owner/people': async (req) => {
     await ownerOnly(req);
     // Usage only, never what was bought: is the Shortcut connected, how many purchases, when the last one came, when the app was last opened.
-    const people = await q(`select u.id, u.email, u.created_at, u.disabled, u.last_seen, (u.key_hash is not null) as connected,
+    const people = await q(`select u.id, u.email, u.created_at, u.disabled, u.last_seen, u.ai_access, (u.key_hash is not null) as connected,
       (select count(*)::int from purchases p where p.user_id = u.id) as purchases,
       (select max(p.created_at) from purchases p where p.user_id = u.id) as last_purchase,
       (select count(*)::int from devices d where d.user_id = u.id) as devices
@@ -949,10 +989,11 @@ const routes = {
     const invites = await q("select id, note, created_at, expires_at from invites where used_at is null and revoked_at is null and expires_at > now() order by created_at desc limit 50");
     return {
       signupsOpen: await signupsOpen(),
+      aiConfigured: storeai.configured(),
       people: people.map((p) => {
         const lastP = p.last_purchase ? new Date(p.last_purchase).getTime() : 0;
         const status = !p.connected ? 'not-connected' : !p.purchases ? 'waiting' : lastP > Date.now() - 7 * DAY ? 'active' : 'quiet';
-        return { id: p.id, email: p.email, joined: iso(p.created_at), disabled: !!p.disabled, owner: String(p.email).toLowerCase() === ownerEmail(),
+        return { id: p.id, email: p.email, joined: iso(p.created_at), disabled: !!p.disabled, owner: String(p.email).toLowerCase() === ownerEmail(), ai: String(p.email).toLowerCase() === ownerEmail() || !!p.ai_access,
           usage: { status, connected: !!p.connected, purchases: p.purchases, lastPurchase: p.last_purchase ? iso(p.last_purchase) : null, lastSeen: p.last_seen ? iso(p.last_seen) : null, alerts: p.devices > 0 } };
       }),
       invites: invites.map((i) => ({ id: Number(i.id), note: i.note, created_at: iso(i.created_at), expires_at: iso(i.expires_at) }))
@@ -984,6 +1025,12 @@ const routes = {
     const me = await ownerOnly(req);
     const rows = await q('select id, email from users where id = $1', [arg.id]);
     if (!rows[0]) fail(404, 'That person was not found');
+    // The owner decides who gets AI categories. The owner always has them.
+    if (arg.action === 'ai-on' || arg.action === 'ai-off') {
+      if (String(rows[0].email).toLowerCase() === ownerEmail()) fail(400, 'You always have AI categories');
+      await q('update users set ai_access = $2 where id = $1', [arg.id, arg.action === 'ai-on']);
+      return { ok: true, ai: arg.action === 'ai-on' };
+    }
     if (arg.action !== 'reset') {
       if (arg.id === me.id) fail(400, 'You cannot remove your own access');
       if (String(rows[0].email).toLowerCase() === ownerEmail()) fail(400, 'The owner cannot be removed');
@@ -1044,7 +1091,7 @@ const handler = async (req, res) => {
     const m = /^purchases\/(\d{1,18})$/.exec(route);
     const mb = /^purchases\/(\d{1,18})\/items$/.exec(route);
     const mi = /^owner\/invites\/(\d{1,18})$/.exec(route);
-    const mp = /^owner\/people\/([0-9a-f-]{36})\/(remove|restore|reset)$/.exec(route);
+    const mp = /^owner\/people\/([0-9a-f-]{36})\/(remove|restore|reset|ai-on|ai-off)$/.exec(route);
     if (m) {
       key = req.method + ' purchases/:id';
       arg = m[1];
@@ -1081,5 +1128,6 @@ module.exports = handler;
 module.exports._test = {
   setPushSender: (fn) => { pushSender = fn; },
   setBillReader: (fn) => vision.setReader(fn),
+  setCategorizer: (fn) => storeai.setCategorizer(fn),
   fromShortcut
 };

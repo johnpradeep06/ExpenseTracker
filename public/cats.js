@@ -22,7 +22,7 @@
   // ---- loading and saving ----
   const sameAs = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const apply = (r) => {
-    const next = { cats: (r && r.cats) || [], rules: (r && r.rules) || {} };
+    const next = { cats: (r && r.cats) || [], rules: (r && r.rules) || {}, ai: (r && r.ai) || {} };
     const changed = !sameAs(next, custom) || !loaded;
     custom = next; window.spendCustom = custom;
     const first = !loaded; loaded = true;

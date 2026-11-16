@@ -21,6 +21,9 @@ const path = require('path');
     { name: 'SAVON LIQUIDE', price: 3.99, kind: 'need' }, { name: 'PAIN TRANCHE', price: 3.19, kind: 'need' }, { name: 'CHIPS LAYS BBQ', price: 4.99, kind: 'fun' },
     { name: 'COCA-COLA 12X', price: 7.99, kind: 'fun' }, { name: 'CREME GLACEE', price: 6.49, kind: 'unk' }, { name: 'BIERE MOLSON 12X', price: 21.99, kind: 'need' },
     { name: 'SOUS-TOTAL', price: 84.4 }, { name: 'TPS 5%', price: 2.07 }, { name: 'TVQ 9,975%', price: 4.14 }, { name: 'VISA ****4242', price: 90.61 }] }));
+  // AI categories in the local copy: a pretend Gemini that knows a few made-up stores, so no key or network is needed.
+  process.env.GEMINI_API_KEY = 'dev-gemini';
+  api._test.setCategorizer(async (names) => Object.fromEntries(names.map((n) => [n, { 'Beau Soir': 'Groceries', 'Chez Pierre': 'Dining & Coffee', 'Lumiere Studio': 'Entertainment' }[n] || 'Other'])));
   const pushes = [];
   api._test.setPushSender(async (sub, payload) => { pushes.push({ to: sub.endpoint, ...JSON.parse(payload) }); });
   const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.txt': 'text/plain' };

@@ -168,11 +168,25 @@
           }
         });
       }
+      // AI categories: the owner chooses who gets them. The owner always has them.
+      if (!p.owner && !p.disabled && data.aiConfigured) {
+        const ab = el('button', 'btn-plain mini' + (p.ai ? ' ai-on' : ''), p.ai ? '✨ AI: on' : 'AI: off');
+        ab.type = 'button';
+        ab.setAttribute('aria-pressed', String(!!p.ai));
+        ab.addEventListener('click', async () => {
+          ab.disabled = true;
+          showError('');
+          try { await window.spendApi('POST', 'owner/people/' + p.id + '/' + (p.ai ? 'ai-off' : 'ai-on')); load(); }
+          catch (x) { showError(friendly(x)); ab.disabled = false; }
+        });
+        rb = rb ? (() => { const w = el('span', 'person-mini'); w.append(ab, rb); return w; })() : ab;
+      }
       const sub = p.owner ? 'You (owner)' : p.disabled ? 'Access removed' : 'Joined ' + day.format(new Date(p.joined));
       const r = row(p.email, sub, b, p.disabled ? 'off' : '', rb);
       if (!p.disabled && p.usage) r.querySelector('.person-main').append(el('span', 'usage ' + p.usage.status, (DOT[p.usage.status] || '') + usageLine(p.usage)));
       list.append(r);
     });
+    if (!data.aiConfigured) { const n = $('#ai-people-note'); if (n) n.hidden = false; } else { const n = $('#ai-people-note'); if (n) n.hidden = true; }
   };
 
   const load = async () => {

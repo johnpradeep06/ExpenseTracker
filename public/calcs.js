@@ -11,6 +11,7 @@ dash.calc('spend', {
     // The person's own categories (Rent, Phone...): a name, an icon and whether it is necessary. And the stores they asked
     // to always go to one of them. Set by the app (cats.js) or by the server for that person's numbers.
     const custom = window.spendCustom && Array.isArray(window.spendCustom.cats) ? window.spendCustom : { cats: [], rules: {} };
+    const ai = custom.ai && typeof custom.ai === 'object' ? custom.ai : {};
     const customBy = {};
     custom.cats.forEach((c) => { customBy[c.name] = c; });
     const leakOf = (cat, mark) => (mark === 'need' || mark === 'fun' ? mark : NEED.includes(cat) ? 'need' : FUN.includes(cat) ? 'fun' : customBy[cat] ? (customBy[cat].kind === 'need' || customBy[cat].kind === 'fun' ? customBy[cat].kind : 'unk') : 'unk');
@@ -108,7 +109,12 @@ dash.calc('spend', {
     return kept
       .map((it) => {
         const ruled = !it.manual && window.spendMerchant && custom.rules[window.spendMerchant.keyOf(it.merchant)];
-        const c = it.manual && (CATS.includes(it.phone) || customBy[it.phone]) ? { cat: it.phone, how: 'manual' } : ruled && customBy[ruled] ? { cat: ruled, how: 'rule' } : catOf(it.merchant, it.phone);
+        let c = it.manual && (CATS.includes(it.phone) || customBy[it.phone]) ? { cat: it.phone, how: 'manual' } : ruled && customBy[ruled] ? { cat: ruled, how: 'rule' } : catOf(it.merchant, it.phone);
+        // A store nothing else could place: use the AI's answer for it, if this person has AI categories and it gave one.
+        if (c.how === 'none' && !it.manual && window.spendMerchant) {
+          const guess = ai[window.spendMerchant.keyOf(it.merchant)];
+          if (guess && guess !== 'Other' && CATS.includes(guess)) c = { cat: guess, how: 'ai' };
+        }
         return { id: it.id, src: it.src, period: it.period, ts: it.ts, day: it.day, merchant: it.merchant, card: it.card, amount: it.amount, category: c.cat, how: c.how, kind: it.mark, bill: it.bill, draft: it.draft, leak: it.mark === 'need' || it.mark === 'fun' ? it.mark : it.bill ? 'mix' : leakOf(c.cat, ''), dupIds: it.dupIds || [] };
       })
       .sort((a, b) => b.ts - a.ts);

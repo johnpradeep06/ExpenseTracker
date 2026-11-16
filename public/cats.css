@@ -43,3 +43,12 @@ html.retro .cat-mid b { font-family: var(--pixel); font-size: 11px; line-height:
 html.retro .cat-mid span, html.retro .cat-hint, html.retro .cat-always { font-size: 19px; }
 html.retro .cat-body h2 { font-family: var(--pixel); font-size: 13px; line-height: 1.6; }
 html.retro .cat-dot { border-radius: 0; }
+
+/* AI categories: the note in Settings (only for people who have it) and the switch in People */
+.ai-note { margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 10%, var(--card)); font-size: 14px; }
+.ai-note b { display: block; margin-bottom: 4px; }
+.ai-note p { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; }
+.person-mini { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.btn-plain.mini.ai-on { background: color-mix(in srgb, var(--accent) 16%, var(--track)); color: var(--accent); }
+html.retro .ai-note, html.retro .ai-note p { font-size: 19px; }
+html.retro .ai-note { border-radius: 0; }

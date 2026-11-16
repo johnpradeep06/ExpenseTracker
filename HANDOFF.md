@@ -87,6 +87,24 @@ or unnecessary. They can also say "use it for this store every time" (a store ru
 - Not built: renaming (delete and make again), a monthly limit per category.
 - Tests: server tests ("your own categories"), `python3 test/cats_e2e.py`.
 
+## AI categories (Gemini) - owner-controlled
+Stores the app's own rules cannot place (`how === 'none'`) are sent to Google's Gemini, and the answer is remembered. It
+is a feature the **owner switches on per person** (People & invites > "AI: on/off"); the owner always has it. Nothing is
+sent for anyone who does not have it.
+- Switched on by `GEMINI_API_KEY` on the server (the same key can read bills). Optional: `CATEGORY_MODEL` (default
+  `gemini-2.5-flash-lite`), `AI_DAILY_LIMIT` (stores per person per day, default 40), `AI_GLOBAL_DAILY` (whole app, default 300).
+  Set them in Vercel's environment settings; never in chat or code.
+- What is sent: ONLY store names (a few at a time) and the category list. No amount, date, card or person. Names are sent as a
+  JSON list (data, not instructions). Each answer must be one of the app's own categories or it becomes "Other"
+  (`lib/storeai.js`). Tests fake the network and check exactly what leaves the server.
+- Answers are per person (`user_ai`, one sealed value, field `ai`), never shared between people, so one person's stores are
+  never visible to another. A store is asked about once. The person's own choices (a category picked by hand, a store rule,
+  their own categories) always win over the AI.
+- Server: `POST ai/categorize` (403 unless switched on, 429 past the allowances), `POST owner/people/:id/ai-on|ai-off`,
+  `GET me` carries `ai: { enabled }` and the person's answers come inside `categories.ai`. Calculations read them via
+  `window.spendCustom.ai` (`public/calcs.js`); `public/ai.js` asks for the unplaced stores once the app has data.
+- A purchase categorized by the AI says "AI guess" in its line. Tests: server tests ("AI categories"), `python3 test/ai_e2e.py`.
+
 ## Encryption of purchase text
 - Every purchase's title and details are stored encrypted (AES-256-GCM, `lib/vault.js`), so a leaked database or backup
   shows nothing readable. Only the server, holding `DATA_KEY`, can open them. Amounts, merchants and cards are inside that text.

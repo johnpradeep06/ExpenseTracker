@@ -709,6 +709,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 
   <section class="set-group" aria-labelledby="ppl-h">
     <h3 class="set-h" id="ppl-h">People with access</h3>
+    <p class="fine" id="ai-people-note" hidden>To give people AI categories, the server needs a Gemini key (GEMINI_API_KEY). Until then the switch is hidden.</p>
     <div class="inv-result" id="reset-result" hidden>
       <p class="fine" id="reset-for">Send this to them. It works once and lasts 24 hours.</p>
       <div class="code-box"><code id="reset-code"></code></div>
@@ -741,6 +742,11 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
     <h3 class="set-h" id="set-limit">Spending</h3>
     <button type="button" class="btn-plain set-row" id="settings-limit">Daily limit<span id="settings-limit-val">Not set</span></button>
     <button type="button" class="btn-plain set-row" id="cats-open">My categories<span aria-hidden="true">&rsaquo;</span></button>
+    <div class="ai-note" id="ai-note" hidden>
+      <b>✨ AI categories are on for you</b>
+      <p>For a store the app does not recognise, an AI (Google's Gemini) suggests a category. Only the store name is sent, nothing else: no amount, date or card. You can change any category yourself and your choice always wins.</p>
+      <p id="ai-count"></p>
+    </div>
     <button type="button" class="btn-plain set-row" id="people-open" hidden>People &amp; invites<span aria-hidden="true">&rsaquo;</span></button>
     <button type="button" class="btn-plain set-row" id="tour-open">App tour<span aria-hidden="true">&rsaquo;</span></button>
     <button type="button" class="btn-plain set-row" id="show-code">Set up the Shortcut again<span aria-hidden="true">&rsaquo;</span></button>
@@ -815,5 +821,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 <script src="payperiod.js"></script>
 <script src="payui.js"></script>
 <script src="cats.js"></script>
+<script src="ai.js"></script>
 </body>
 </html>
