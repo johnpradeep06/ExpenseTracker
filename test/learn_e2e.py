@@ -9,7 +9,7 @@ issues = []
 # four payments at a store the app does not know, each with its own amount and time
 for n, (days, mins, a) in enumerate([(1, 0, 12.0), (1, 130, 13.5), (2, 0, 14.25), (2, 200, 15.75)]):
     t = (now - datetime.timedelta(days=days, minutes=mins)).replace(second=0).strftime('%Y-%m-%dT%H:%M:%SZ')
-    issues.append({"title": f"Spending - ${a}", "body": f"Date: {t}\nMerchant: Cafe Nuit\nAmount: ${a}\nCard: Visa\nCategory: Other", "state": "open", "created_at": t})
+    issues.append({"title": f"Spending - ${a}", "body": f"Date: {t}\nMerchant: Zzyzx Unknown\nAmount: ${a}\nCard: Visa\nCategory: Other", "state": "open", "created_at": t})
 res, errs = [], []
 
 
@@ -31,7 +31,7 @@ with sync_playwright() as P:
     pg.fill('#auth-email', em); pg.fill('#auth-password', 'learn-e2e-password-1'); pg.click('#auth-submit'); pg.wait_for_timeout(1000)
     post('/api/admin/import', {"email": em, "issues": issues, "dailyLimit": 0})
     pg.click('#tour-skip'); pg.wait_for_timeout(900); pg.click('#onboard-done'); pg.wait_for_timeout(3500)
-    rows = lambda: pg.locator('#latest .tx-swipe .tx', has_text='Cafe Nuit')
+    rows = lambda: pg.locator('#latest .tx-swipe .tx', has_text='Zzyzx Unknown')
     cls = lambda i: rows().nth(i).get_attribute('class')
 
     def flip(i):
