@@ -45,7 +45,7 @@
       t.append(el('b', '', 'See what is left until payday'), el('span', '', 'Add your paycheck and bills once.'));
       const go = el('button', 'pay-go', 'Set up'); go.type = 'button'; go.addEventListener('click', () => openSetup());
       const x = el('button', 'pay-x', '✕'); x.type = 'button'; x.setAttribute('aria-label', 'Not now');
-      x.addEventListener('click', () => { store.set('spend.payHide', '1'); draw(); });
+      x.addEventListener('click', () => { if (card.closest('#hero-pager') && window.spendHero) { window.spendHero.hide('pay'); return; } store.set('spend.payHide', '1'); draw(); });
       card.append(t, go, x);
       return;
     }

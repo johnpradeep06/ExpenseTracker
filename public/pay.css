@@ -99,3 +99,16 @@ html.retro .pay-nm { font-family: var(--pixel); font-size: 11px; line-height: 1.
 html.retro .pay-sumbig { font-family: var(--pixel); font-size: 24px; color: var(--gold); text-shadow: 3px 3px 0 #000; }
 html.retro .pay-body h2 { font-family: var(--pixel); font-size: 13px; line-height: 1.6; }
 html.retro .pay-sheet .primary { font-family: var(--pixel); }
+
+/* ---- Free to spend as the third hero page (Clean look), and the page chooser in Settings ---- */
+.hero-pg-pay { display: flex; flex-direction: column; justify-content: center; }
+.hero-pg-pay .pay, .hero-pg-pay .pay.pay-cta { border: 0; background: none; box-shadow: none; border-radius: 0; padding: 0; margin: 0; }
+.hero-pg-pay .pay.pay-cta { padding: 10px 0; }
+.hero-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.hero-pick button { padding: 12px 4px; border: 0; border-radius: 14px; background: var(--track); color: var(--fg); font: inherit; font-weight: 700; font-size: 13.5px; cursor: pointer; }
+.hero-pick button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent, #fff); }
+.hero-pick button:disabled { opacity: .4; cursor: default; }
+html.candy .hero-pick button { border: 2px solid var(--edge); box-shadow: 0 3px 0 var(--edge); background: var(--card); font-weight: 900; }
+html.candy .hero-pick button[aria-pressed="true"] { background: color-mix(in srgb, var(--blue) 12%, var(--card)); border-color: var(--blue); color: var(--blue); box-shadow: 0 3px 0 var(--blue-dark); }
+html.retro .hero-pick button { border-radius: 0; font-family: var(--pixel); font-size: 8px; line-height: 1.5; color: var(--fg); }
+html.retro .hero-pick button[aria-pressed="true"] { color: #0d0a1e; }

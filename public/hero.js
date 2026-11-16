@@ -1,4 +1,8 @@
-/* The home screen's hero, Clean look only: a swipeable pair of widgets, like two home-screen widgets side by side.
+/* The home screen's hero, Clean look only: swipeable widgets, like home-screen widgets side by side. There are three:
+   the range chart, the month calendar and Free to spend (the pay period card, moved in here). Each person picks which
+   ones to show and which opens first, in Settings (only on that phone).
+
+   (Original description, for the first two:)
    Widget 1 is the "Last 14 days" card you already know, with a 7D / 14D / 30D / 1Y switch added under it — the three
    new ranges reuse its own "over today / Change limit" line (copied live from the original, never recomputed here,
    so the capture math can never drift) and draw their own chart from GET /api/trend. Widget 2 is a small month
@@ -40,6 +44,25 @@
   const writeRange = (v) => { try { localStorage.setItem(RANGE_KEY, String(v)); } catch (e) { /* storage unavailable */ } };
 
   let built = false;
+
+  // ---- which pages are shown, and which one opens first (a choice per phone) -------------------------------------
+  const PAGE_KEYS = ['trend', 'cal', 'pay'];
+  const PAGES_KEY = 'spend.heroPages';
+  const FIRST_KEY = 'spend.heroFirst';
+  const payCard = document.querySelector('#pay');
+  let payPage = null;
+  let payHome = null;
+  const readPages = () => { let v = null; try { v = JSON.parse(localStorage.getItem(PAGES_KEY)); } catch (e) { /* storage unavailable */ } v = Array.isArray(v) ? PAGE_KEYS.filter((k) => v.includes(k)) : PAGE_KEYS.slice(); return v.length ? v : PAGE_KEYS.slice(); };
+  const writePages = (v) => { try { localStorage.setItem(PAGES_KEY, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } };
+  const readFirst = () => { let v = ''; try { v = localStorage.getItem(FIRST_KEY) || ''; } catch (e) { /* storage unavailable */ } return PAGE_KEYS.includes(v) ? v : 'cal'; };
+  const writeFirst = (v) => { try { localStorage.setItem(FIRST_KEY, v); } catch (e) { /* storage unavailable */ } };
+  const pageEl = (k) => (k === 'trend' ? pgMain : k === 'cal' ? calEl : payPage);
+  // The pages on screen, in order. Free to spend has nothing to show until its card does.
+  const visibleKeys = () => readPages().filter((k) => pageEl(k) && !(k === 'pay' && payCard && payCard.hidden));
+  const firstKey = () => { const v = visibleKeys(); const f = readFirst(); return v.includes(f) ? f : v.includes('cal') ? 'cal' : v[0]; };
+  const activeKey = () => { const v = visibleKeys(); return v[Math.min(v.length - 1, Math.max(0, Math.round(pager.scrollLeft / (pager.clientWidth || 1))))]; };
+  const goTo = (k, smooth) => { const i = Math.max(0, visibleKeys().indexOf(k)); pager.scrollTo({ left: i * pager.clientWidth, behavior: smooth ? 'smooth' : 'instant' }); };
+
   let range = readRange();
   let trendToken = 0;
   let calToken = 0;
@@ -381,13 +404,30 @@
     pop.append(head, grid, foot);
   };
 
+  // ---- widget 3: Free to spend. The card itself (drawn by payui.js) is moved in here, and back out for Fresh and Arcade ----
+  const buildPayPage = () => {
+    if (!payCard) return;
+    payPage = el('div', 'hero-pg hero-pg-pay');
+    payHome = { parent: payCard.parentNode, next: payCard.nextSibling };
+    payPage.append(payCard);
+    pager.append(payPage);
+    new MutationObserver(() => { if (built) applyPages(true); }).observe(payCard, { attributes: true, attributeFilter: ['hidden'] });
+  };
+  const returnPayCard = () => {
+    if (!payCard || !payPage) return;
+    if (payHome && payHome.parent) payHome.parent.insertBefore(payCard, payHome.next && payHome.next.parentNode === payHome.parent ? payHome.next : null);
+    payPage.remove(); payPage = null;
+  };
+
   // ---- the pager: dots track which widget is showing; swipe (or a tap on a dot) moves between them -----------------
   let dotsEl = null;
   const buildDots = () => {
+    if (dotsEl) dotsEl.remove();
     dotsEl = el('div', 'hero-dots');
     const row = el('div');
-    [0, 1].forEach((i) => { const d = el('i'); d.addEventListener('click', () => pager.scrollTo({ left: i * pager.clientWidth, behavior: 'smooth' })); row.append(d); });
+    visibleKeys().forEach((k, i) => { const d = el('i'); d.addEventListener('click', () => pager.scrollTo({ left: i * pager.clientWidth, behavior: 'smooth' })); row.append(d); });
     dotsEl.append(row);
+    dotsEl.hidden = row.children.length < 2;   // one page: nothing to swipe to
     headline.append(dotsEl);
   };
   const onPagerScroll = () => {
@@ -396,6 +436,36 @@
     if (stale && trendOnScreen()) { stale = false; lastRefresh = Date.now(); prefetchAll(true); }
     [...dotsEl.querySelectorAll('i')].forEach((d, i) => { const o = Math.max(0, 1 - Math.abs(p - i)); d.style.opacity = (0.28 + 0.72 * o).toFixed(2); d.style.transform = 'scale(' + (1 + 0.2 * o).toFixed(2) + ')'; });
   };
+
+
+  // Show only the chosen pages, rebuild the dots, and keep the settings buttons in step.
+  let userMoved = false;       // once the person swipes, pages changing underneath never move them
+  ['touchstart', 'pointerdown', 'wheel', 'keydown'].forEach((ev) => pager.addEventListener(ev, () => { userMoved = true; }, { passive: true }));
+  const applyPages = (keepPlace) => {
+    const keep = keepPlace && userMoved ? activeKey() : null;
+    const vis = visibleKeys();
+    PAGE_KEYS.forEach((k) => { const e = pageEl(k); if (e) e.style.display = vis.includes(k) ? '' : 'none'; });
+    buildDots();
+    pager.scrollTo({ left: Math.max(0, vis.indexOf(keep || firstKey())) * pager.clientWidth, behavior: 'instant' });
+    onPagerScroll();
+    syncPick();
+  };
+  const syncPick = () => {
+    const on = readPages(); const first = firstKey();
+    document.querySelectorAll('#hero-pages button').forEach((b) => b.setAttribute('aria-pressed', String(on.includes(b.dataset.page))));
+    document.querySelectorAll('#hero-first button').forEach((b) => { b.setAttribute('aria-pressed', String(b.dataset.first === first)); b.disabled = !visibleKeys().includes(b.dataset.first); });
+  };
+  document.querySelectorAll('#hero-pages button').forEach((b) => b.addEventListener('click', () => {
+    const on = readPages(); const k = b.dataset.page;
+    const next = on.includes(k) ? on.filter((x) => x !== k) : PAGE_KEYS.filter((x) => on.includes(x) || x === k);
+    if (!next.length) return;                  // at least one page always stays
+    writePages(next);
+    userMoved = true;
+    if (built) applyPages(true); else syncPick();
+  }));
+  document.querySelectorAll('#hero-first button').forEach((b) => b.addEventListener('click', () => { writeFirst(b.dataset.first); if (built) goTo(b.dataset.first, true); syncPick(); }));
+  // Free to spend can ask to be taken off the home screen (the cross on its sign-up card).
+  window.spendHero = { hide: (k) => { const on = readPages().filter((x) => x !== k); if (on.length) { writePages(on); if (built) applyPages(true); else syncPick(); } } };
 
   // ---- build, teardown (theme can change without a reload) --------------------------------------------------------
   // The switch, dots and empty skeleton are harmless to build right away. The actual numbers are not fetched until
@@ -408,7 +478,8 @@
     buildSwitch();
     buildTrend();
     buildCalSkeleton();
-    buildDots();
+    buildPayPage();
+    applyPages(false);
     pager.addEventListener('scroll', onPagerScroll, { passive: true });
     onPagerScroll();
     syncTodayStrip();
@@ -418,8 +489,11 @@
     if (!built) return;
     built = false;
     loaded = false;
+    returnPayCard();
+    userMoved = false;
     [rngEl, trendEl, calEl, dotsEl, pop, scrim].forEach((n) => n && n.remove());
     rngEl = trendEl = calEl = dotsEl = pop = scrim = todayHost = null;
+    pgMain.style.display = '';
     pager.removeEventListener('scroll', onPagerScroll);
     pager.scrollLeft = 0;
     hero14.hidden = false;
@@ -432,8 +506,8 @@
     const kpi = window.dash && window.dash.data('kpi');
     if (!kpi || kpi.status !== 'ok') return;
     loaded = true;
-    // The calendar widget is the one that opens first; the range widget is a swipe to the right.
-    pager.scrollTo({ left: pager.clientWidth, behavior: 'instant' });
+    // The page the person chose opens first (the calendar, unless they picked another).
+    goTo(firstKey(), false);
     onPagerScroll();
     showRange(range);
     // The calendar (the widget that is showing) goes first; the other ranges follow in one quiet request a moment later.
@@ -447,7 +521,7 @@
   // so a burst of refreshes does not turn into a burst of requests.
   let lastRefresh = 0;
   let stale = false;
-  const trendOnScreen = () => built && !trendEl.hidden && pager.scrollLeft < pager.clientWidth / 2;
+  const trendOnScreen = () => built && !trendEl.hidden && activeKey() === 'trend';
   const refreshTrendCache = () => {
     if (!loaded || Date.now() - lastRefresh < 30000) return;
     // Numbers nobody is looking at are not refreshed; they are marked old and refreshed when you get to them.
