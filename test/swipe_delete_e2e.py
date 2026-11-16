@@ -86,6 +86,12 @@ with sync_playwright() as P:
     pg.locator('#latest .tx-swipe', has_text='SAQ').first.locator('.tx-del').click(); pg.wait_for_timeout(400)
     pg.click('.confirm-yes'); pg.wait_for_timeout(1500)
     ok(count('SAQ') == 0, 'yes from the red button deletes it')
+    # the Edit payment sheet must never slide sideways, even when the phone gives the When field a wide width
+    pg.locator('#latest .tx-swipe .tx').first.scroll_into_view_if_needed(); pg.locator('#latest .tx-swipe .tx').first.click(); pg.wait_for_timeout(700)
+    pg.add_style_tag(content="input[type=datetime-local]{min-width:560px}")
+    r = pg.evaluate("() => { const i = document.querySelector('#add-when').getBoundingClientRect(); const s = document.querySelector('#add-sheet'); return [i.right, s.getBoundingClientRect().right, s.scrollWidth, s.clientWidth]; }")
+    ok(r[0] <= r[1] + 1 and r[2] <= r[3], 'the When box stays inside the Edit payment sheet, which cannot slide sideways (%d vs %d)' % (r[0], r[1]))
+    pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
     ok(not errs, 'no page errors' + ('' if not errs else ': ' + '; '.join(errs[:3])))
     b.close()
 print('\nALL PASSED: %d' % len(res) if all(res) else '\nFAILED: %d of %d' % (len(res) - sum(res), len(res)))

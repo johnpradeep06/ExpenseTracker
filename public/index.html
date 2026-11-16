@@ -182,14 +182,17 @@ button { font: inherit; color: inherit; }
 @media (max-width: 380px) { .top h1 { font-size: 24px; } .top-actions { gap: 5px; } .top .icon-btn { width: 36px; height: 36px; } .limit-pill { height: 36px; padding: 0 10px 0 9px; font-size: 13px; } .limit-pill.empty { width: 36px; padding: 0; } }
 .limit-pill.empty #limit-pill-text { display: none; }
 .backdrop { position: fixed; inset: 0; z-index: 20; background: rgba(0, 0, 0, .42); }
-.sheet { position: fixed; z-index: 21; left: 0; right: 0; bottom: 0; max-width: 34rem; margin-inline: auto; max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: grid; gap: 12px; padding: 10px 20px max(22px, env(safe-area-inset-bottom)); background: var(--card); border-radius: 26px 26px 0 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, .25); animation: rise .22s ease-out; }
+.sheet { position: fixed; z-index: 21; left: 0; right: 0; bottom: 0; max-width: 34rem; margin-inline: auto; max-height: 92vh; max-height: 92dvh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: grid; gap: 12px; padding: 10px 20px max(22px, env(safe-area-inset-bottom)); background: var(--card); border-radius: 26px 26px 0 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, .25); animation: rise .22s ease-out; }
 @keyframes rise { from { transform: translateY(24px); opacity: 0; } }
 .sheet h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
 .sheet .sub { margin: -6px 0 2px; font-size: 14px; color: var(--muted); }
 .grab { width: 38px; height: 5px; border-radius: 99px; background: var(--track); margin: 0 auto 6px; }
 .field select { font: inherit; font-size: 16px; font-weight: 400; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; width: 100%; appearance: none; -webkit-appearance: none; }
 .sheet .field input { background: var(--bg); min-height: 50px; }
-.sheet .field input[type=datetime-local] { min-width: 0; }
+.sheet .field input[type=datetime-local], .sheet .field input[type=date] { display: block; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; min-height: 50px; text-align: left; -webkit-appearance: none; appearance: none; }
+.sheet .field input[type=datetime-local]::-webkit-date-and-time-value, .sheet .field input[type=date]::-webkit-date-and-time-value { text-align: left; margin: 0; min-height: 1.2em; }
+.sheet .field { min-width: 0; }
+.sheet > * { min-width: 0; }
 .sheet-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 4px; }
 .sheet-actions .btn-plain { margin: 0; }
 .sheet .msg { margin: 0; background: var(--up-bg); color: var(--up); box-shadow: none; }
