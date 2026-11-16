@@ -40,6 +40,10 @@ with sync_playwright() as P:
     # ---- setup, three steps ----
     pg.click('#pay .pay-go'); pg.wait_for_timeout(500)
     ok(vis('#pay-setup') and 'Your paycheck' in txt('#pay-setup'), 'Set up opens the paycheck step')
+    # iPhone's date field has a wide width of its own: it must still stay inside the sheet
+    pg.add_style_tag(content="input[type=date]{min-width:560px}")
+    r = pg.evaluate("() => { const i = document.querySelector('#pay-setup input[type=date]').getBoundingClientRect(); const s = document.querySelector('#pay-setup').getBoundingClientRect(); return [i.right, s.right, i.left]; }")
+    ok(r[0] <= r[1] + 1 and r[2] >= 0, 'the Last payday box stays inside the sheet even when the phone gives it a wide width (%d vs %d)' % (r[0], r[1]))
     pg.click('#pay-setup .primary'); pg.wait_for_timeout(300)
     ok('Enter what you get paid' in txt('#pay-setup') and vis('#pay-setup .pay-err'), 'an empty paycheck is refused with a plain message')
     pg.fill('#pay-setup .money-input input', '1850')
