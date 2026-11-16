@@ -133,7 +133,7 @@
     if (!raw || !isFinite(value) || value === 0 || Math.abs(value) > 100000) return showError('Type the amount as a number, like 12.50. Use a minus sign for a refund.');
     const date = when.value ? new Date(when.value) : new Date();
     if (isNaN(date.getTime())) return showError('Pick a valid date and time.');
-    const picked = category.value;
+    const picked = category.value === '__new__' ? '' : category.value;
     const cents = Math.round(value * 100) / 100;
     const iso = isoWithOffset(date);
     const title = 'Spending - ' + money(cents) + ' - ' + iso.slice(0, 10) + ' - ' + (picked || 'Other');

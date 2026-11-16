@@ -1,0 +1,45 @@
+/* Your own categories: the new / change sheet and the Settings list. Works in all three looks (Fresh and Arcade below). */
+.cat-back { z-index: 33; }
+.cat-sheet { z-index: 34; grid-template-columns: minmax(0, 1fr); }
+#cat-sheet { z-index: 35; }
+.cat-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
+.cat-body > * { min-width: 0; }
+.cat-body h2 { margin: 0; }
+.cat-body .set-head { width: 100%; }
+.cat-body .sub { margin: -6px 0 2px; }
+.cat-icons { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
+.cat-icons button { padding: 8px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 20px; line-height: 1.1; cursor: pointer; }
+.cat-icons button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.cat-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.cat-seg button { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 12px; padding: 11px 2px; font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.cat-seg button[aria-pressed="true"].k-need { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); }
+.cat-seg button[aria-pressed="true"].k-fun { background: var(--fun, #d9822b); border-color: var(--fun, #d9822b); color: #fff; }
+.cat-seg button[aria-pressed="true"].k-unk { background: var(--unk, #8a8a92); border-color: var(--unk, #8a8a92); color: #fff; }
+.cat-always { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; }
+.cat-always input { width: 22px; height: 22px; accent-color: var(--accent); }
+.cat-hint { margin: 0; font-size: 13px; color: var(--muted); }
+.cat-err { margin: 0; font-size: 14px; font-weight: 700; color: var(--up); }
+.cat-sheet .primary { width: 100%; }
+.cat-body > .link { width: 100%; text-align: center; padding: 8px; }
+.cat-rows { display: grid; }
+.cat-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border: 0; border-top: 1px solid var(--line); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cat-row:first-child { border-top: 0; }
+.cat-ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 19px; background: var(--track); flex: none; }
+.cat-mid { flex: 1; min-width: 0; }
+.cat-mid b { display: block; font-size: 16px; }
+.cat-mid span { font-size: 13px; color: var(--muted); }
+.cat-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.cat-go { color: var(--muted); font-size: 20px; }
+
+/* Fresh */
+html.candy .cat-icons button, html.candy .cat-seg button { border: 2px solid var(--edge); box-shadow: 0 3px 0 var(--edge); background: var(--card); }
+html.candy .cat-seg button { font-weight: 900; border-radius: 16px; }
+html.candy .cat-icons button[aria-pressed="true"] { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, var(--card)); box-shadow: 0 3px 0 var(--blue-dark); }
+html.candy .cat-ic { border-radius: 14px; }
+/* Arcade */
+html.retro .cat-icons button, html.retro .cat-seg button, html.retro .cat-ic { border-radius: 0; }
+html.retro .cat-seg button { font-family: var(--pixel); font-size: 8px; line-height: 1.5; padding: 12px 2px; }
+html.retro .cat-mid b { font-family: var(--pixel); font-size: 11px; line-height: 1.6; }
+html.retro .cat-mid span, html.retro .cat-hint, html.retro .cat-always { font-size: 19px; }
+html.retro .cat-body h2 { font-family: var(--pixel); font-size: 13px; line-height: 1.6; }
+html.retro .cat-dot { border-radius: 0; }

@@ -41,6 +41,8 @@
   const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let firstLists = true;
   const catMeta = (c) => {
+    const mine = window.spendCustomMeta && window.spendCustomMeta(c);
+    if (mine) return mine;
     const m = CAT[c] || CAT.Other;
     return document.documentElement.classList.contains('candy') ? [m[0], CANDY[c] || CANDY.Other] : m;
   };

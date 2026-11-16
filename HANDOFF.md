@@ -74,6 +74,19 @@ The person enters their paycheck, last payday and how often they are paid (one s
   day the person says, not automatically.
 - Browser tests: `python3 test/pay_e2e.py`, `python3 test/hero_pages_e2e.py` (against `node test/dev.js`).
 
+## Your own categories (Rent, Phone, Daycare...)
+A person can make up to 20 categories of their own: a name (24 characters), an icon and whether it is necessary, not sure
+or unnecessary. They can also say "use it for this store every time" (a store rule: store key -> category).
+- Storage: `user_cats.data`, one sealed value per person (field name `cats`): `{ cats: [{name, icon, kind}], rules: {storeKey: name} }`.
+  Routes `GET/PUT categories` in `api/index.js` (the whole list is sent each time; checks in `lib/customcats.js`).
+- The sums: `public/calcs.js` reads `window.spendCustom` (a manual category that is one of theirs is kept; a store rule
+  puts a store's payments there; the kind decides green/orange/grey). In the app `public/cats.js` sets it; on the server
+  `compute.withCustom(custom, fn)` sets it around each calculation, so alerts, history and Free to spend agree.
+- UI: `public/cats.js` + `public/cats.css` (picker entries on the Edit payment sheet, "+ New category", the sheet,
+  Settings > My categories). Deleting a category never deletes a payment: they go back to the app's usual guess.
+- Not built: renaming (delete and make again), a monthly limit per category.
+- Tests: server tests ("your own categories"), `python3 test/cats_e2e.py`.
+
 ## Encryption of purchase text
 - Every purchase's title and details are stored encrypted (AES-256-GCM, `lib/vault.js`), so a leaked database or backup
   shows nothing readable. Only the server, holding `DATA_KEY`, can open them. Amounts, merchants and cards are inside that text.

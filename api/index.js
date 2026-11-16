@@ -22,6 +22,7 @@ const vision = require('../lib/vision');
 const bills = require('../lib/bills');
 const billtext = require('../lib/billtext');
 const payperiod = require('../public/payperiod.js');
+const customcats = require('../lib/customcats');
 const itemkinds = require('../lib/itemkinds');
 
 const env = (k) => process.env[k] || '';
@@ -321,7 +322,7 @@ const recentIssues = async (userId, days) => {
   const rows = await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at > $2 order by p.created_at desc limit 3000", [userId, new Date(Date.now() - (days || 29) * DAY).toISOString()]);
   return issuesOf(userId, rows);
 };
-const numbersFor = async (user) => numbers(await recentIssues(user.id), user.tz, Date.now());
+const numbersFor = async (user) => { const issues = await recentIssues(user.id); const custom = await loadCustom(user.id); return compute.withCustom(custom, () => numbers(issues, user.tz, Date.now())); };
 const limitOf = (user) => Number(user.daily_limit) || 0;
 
 // After a new purchase: push an alert if needed and return a short line for the Shortcut to show.
@@ -377,11 +378,17 @@ const loadPlan = async (u) => {
 };
 const savePlan = (u, plan) => q(`insert into pay_plans (user_id, data) values ($1, $2)
   on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'pay', JSON.stringify(plan))]);
+// ---- a person's own categories ---------------------------------------------------------------------------------
+const loadCustom = async (userId) => {
+  const r = (await q('select data from user_cats where user_id = $1', [userId]))[0];
+  return r ? JSON.parse(vault.open(userId, 'cats', r.data)) : { cats: [], rules: {} };
+};
 const payState = async (u, plan) => {
   const today = todayOf(u);
   const back = Math.min(400, Math.max(3, payperiod.daysBetween(plan.start, today) + 3));
   const issues = await recentIssues(u.id, back);
-  const rows = (compute.summary(issues, [], u.tz, Date.now(), true, false).rows || []).map((r) => ({ day: r.day, amount: r.amount, category: r.category }));
+  const custom = await loadCustom(u.id);
+  const rows = (compute.withCustom(custom, () => compute.summary(issues, [], u.tz, Date.now(), true, false)).rows || []).map((r) => ({ day: r.day, amount: r.amount, category: r.category }));
   return { state: payperiod.stateOf(plan, rows, today), rows, today };
 };
 
@@ -546,14 +553,15 @@ const routes = {
       : []);
     const [nowRows, prevRows] = await Promise.all([fetchRows(r.start, r.end), fetchRows(r.prevStart, r.prevEnd)]);
     const wantRows = params.get('rows') === '1' && (range === 'week' || range === 'month');
-    const s = compute.summary(nowRows, prevRows, u.tz, Date.now(), wantRows, range === '3m' || range === 'year');
+    const custom = await loadCustom(u.id);
+    const s = compute.withCustom(custom, () => compute.summary(nowRows, prevRows, u.tz, Date.now(), wantRows, range === '3m' || range === 'year'));
     // This month's forecast, learned from the person's own history (time series once there are 3 weeks of it).
     let forecast = null;
     if (range === 'month' && r.inProgress) {
       try {
         const since = new Date(Date.now() - 120 * DAY).toISOString();
         const hist = issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 order by p.created_at desc limit 20000", [u.id, since]));
-        forecast = compute.forecast(hist, u.tz, Date.now(), new Date(u.created_at).getTime());
+        forecast = compute.withCustom(custom, () => compute.forecast(hist, u.tz, Date.now(), new Date(u.created_at).getTime()));
       } catch (e) { console.error('forecast failed:', e && e.message); }
     }
     return { range, forecast, startDay: r.startDay, endDay: r.endDay, today: r.today, limit: limitOf(u), title: r.title, prevLabel: r.prevLabel, inProgress: r.inProgress, days: r.days, prevAnchor: r.prevAnchor, nextAnchor: r.nextAnchor, ...s, perDay: Math.round((s.total / r.days) * 100) / 100 };
@@ -570,13 +578,14 @@ const routes = {
     const want = String(params.get('days'));
     const list = want === 'all' ? compute.TRAILING_DAYS : [Number(want)];
     if (list.some((d) => !compute.TRAILING_DAYS.includes(d))) fail(400, 'Choose 7, 30, 365 or all');
+    const custom = await loadCustom(u.id);
     const widest = compute.trailingRange(Math.max(...list), u.tz, Date.now());
     const rows = issuesOf(u.id, await q("select p.id, p.title, p.body, p.state, p.kind, p.created_at, b.n as b_n, b.need as b_need, b.fun as b_fun, b.unk as b_unk, exists(select 1 from bill_drafts d where d.purchase_id = p.id) as b_draft from purchases p left join (select purchase_id, count(*)::int as n, sum(alloc) filter (where kind = 'need') as need, sum(alloc) filter (where kind = 'fun') as fun, sum(alloc) filter (where kind = 'unk') as unk from bill_items where user_id = $1 group by purchase_id) b on b.purchase_id = p.id where p.user_id = $1 and p.state = 'open' and p.created_at >= $2 and p.created_at < $3 order by p.created_at desc limit 20000", [u.id, widest.start, widest.end]));
     const one = (days) => {
       const r = compute.trailingRange(days, u.tz, Date.now());
       const mine = days === Math.max(...list) ? rows : rows.filter((x) => x.created_at >= r.start && x.created_at < r.end);
       const withDaily = days <= 30;
-      const sm = compute.summary(mine, [], u.tz, Date.now(), false, withDaily);
+      const sm = compute.withCustom(custom, () => compute.summary(mine, [], u.tz, Date.now(), false, withDaily));
       return {
         days, total: sm.total, count: sm.count, perDay: Math.round((sm.total / days) * 100) / 100,
         daily: withDaily ? sm.daily : undefined,
@@ -737,6 +746,23 @@ const routes = {
     const u = await signedIn(req);
     await q('delete from pay_plans where user_id = $1', [u.id]);
     return { ok: true };
+  },
+
+  // ---- your own categories (Rent, Phone...) ------------------------------------------------------------------------
+  'GET categories': async (req) => {
+    const u = await signedIn(req);
+    return loadCustom(u.id);
+  },
+
+  // The whole list is sent each time (it is small): add, change and delete are all one save.
+  'PUT categories': async (req) => {
+    const u = await signedIn(req);
+    const b = await readBody(req, 32 * 1024);
+    const c = customcats.clean(b);
+    if (c.error) fail(400, c.error);
+    await q(`insert into user_cats (user_id, data) values ($1, $2)
+      on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'cats', JSON.stringify(c.value))]);
+    return c.value;
   },
 
   'GET purchases/:id/items': async (req, id) => {

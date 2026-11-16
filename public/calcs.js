@@ -8,7 +8,12 @@ dash.calc('spend', {
     // Anything the app cannot place ('Other', Subscriptions, Travel) is 'unk' until the person decides.
     const NEED = ['Groceries', 'Bills & Utilities', 'Health & Personal Care', 'Transport'];
     const FUN = ['Dining & Coffee', 'Food Delivery', 'Snacks', 'Shopping', 'Entertainment'];
-    const leakOf = (cat, mark) => (mark === 'need' || mark === 'fun' ? mark : NEED.includes(cat) ? 'need' : FUN.includes(cat) ? 'fun' : 'unk');
+    // The person's own categories (Rent, Phone...): a name, an icon and whether it is necessary. And the stores they asked
+    // to always go to one of them. Set by the app (cats.js) or by the server for that person's numbers.
+    const custom = window.spendCustom && Array.isArray(window.spendCustom.cats) ? window.spendCustom : { cats: [], rules: {} };
+    const customBy = {};
+    custom.cats.forEach((c) => { customBy[c.name] = c; });
+    const leakOf = (cat, mark) => (mark === 'need' || mark === 'fun' ? mark : NEED.includes(cat) ? 'need' : FUN.includes(cat) ? 'fun' : customBy[cat] ? (customBy[cat].kind === 'need' || customBy[cat].kind === 'fun' ? customBy[cat].kind : 'unk') : 'unk');
     const RULES = [
       ['Food Delivery', ['uber eats', 'ubereats', 'doordash', 'skipthedishes', 'skip the dishes', 'foodora', 'grubhub', 'fantuan', 'hungrypanda', 'hungry panda', 'menu.ca', 'just eat']],
       ['Snacks', ['7-eleven', '7 eleven', '7eleven', 'couche-tard', 'couche tard', 'convenience', 'depanneur', 'vending', 'snack', 'candy', 'chocolate', 'ice cream', 'gelato', 'popcorn', 'cookie', 'chips', 'sweets', 'treats', 'cinnabon', 'auntie anne', 'dairy queen', 'baskin', 'cold stone', 'menchie', 'yogurt', 'pretzel']],
@@ -102,7 +107,8 @@ dash.calc('spend', {
     }
     return kept
       .map((it) => {
-        const c = it.manual && CATS.includes(it.phone) ? { cat: it.phone, how: 'manual' } : catOf(it.merchant, it.phone);
+        const ruled = !it.manual && window.spendMerchant && custom.rules[window.spendMerchant.keyOf(it.merchant)];
+        const c = it.manual && (CATS.includes(it.phone) || customBy[it.phone]) ? { cat: it.phone, how: 'manual' } : ruled && customBy[ruled] ? { cat: ruled, how: 'rule' } : catOf(it.merchant, it.phone);
         return { id: it.id, src: it.src, period: it.period, ts: it.ts, day: it.day, merchant: it.merchant, card: it.card, amount: it.amount, category: c.cat, how: c.how, kind: it.mark, bill: it.bill, draft: it.draft, leak: it.mark === 'need' || it.mark === 'fun' ? it.mark : it.bill ? 'mix' : leakOf(c.cat, ''), dupIds: it.dupIds || [] };
       })
       .sort((a, b) => b.ts - a.ts);

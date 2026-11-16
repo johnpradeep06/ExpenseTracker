@@ -968,6 +968,73 @@ VISA ****4242            63,58`;
     ok((await pg.query('select count(*)::int as n from pay_plans')).rows[0].n === 0, 'deleting an account deletes its pay plan');
   }
 
+  // ---- your own categories ----
+  {
+    let r = await call('GET', 'categories');
+    ok(r.status === 401, 'your categories need a sign-in');
+    r = await call('POST', 'auth/signup', { body: { email: 'cats@example.com', password: 'cats-password-1', invite: await invite('Cats', 7) } });
+    const cTok = r.data.session;
+    r = await call('POST', 'auth/signup', { body: { email: 'cats2@example.com', password: 'cats2-password-1', invite: await invite('Cats2', 7) } });
+    const c2Tok = r.data.session;
+    const cid = (await pg.query("select id from users where email = 'cats@example.com'")).rows[0].id;
+    r = await call('GET', 'categories', { auth: cTok });
+    ok(r.status === 200 && r.data.cats.length === 0, 'at first there are none');
+    r = await call('PUT', 'categories', { auth: cTok, body: { cats: [{ name: 'Groceries', icon: '🛒', kind: 'need' }] } });
+    ok(r.status === 400, 'a name that is already a built-in category is refused: ' + r.data.error);
+    r = await call('PUT', 'categories', { auth: cTok, body: { cats: [{ name: 'Rent', icon: '🏠', kind: 'need' }, { name: 'rent', icon: '🏠', kind: 'need' }] } });
+    ok(r.status === 400, 'so is the same name twice (any capitals)');
+    r = await call('PUT', 'categories', { auth: cTok, body: { cats: [{ name: '', icon: '🏠' }] } });
+    ok(r.status === 400, 'and a blank name');
+    r = await call('PUT', 'categories', { auth: cTok, body: { cats: Array.from({ length: 21 }, (_, i) => ({ name: 'C' + i, icon: '🏠', kind: 'need' })) } });
+    ok(r.status === 400, 'more than 20 is refused');
+    r = await call('PUT', 'categories', { auth: cTok, body: { cats: [
+      { name: 'Rent', icon: '🏠', kind: 'need' }, { name: 'Phone', icon: '📱', kind: 'need' }, { name: '  Fun   money ', icon: 'not an emoji', kind: 'sometimes' }],
+      rules: { rogers: 'Phone', beausoir: 'Nope', '': 'Rent' } } });
+    ok(r.status === 200 && r.data.cats.length === 3 && r.data.cats[2].name === 'Fun money' && r.data.cats[2].icon === '🏷️' && r.data.cats[2].kind === 'unk', 'a good list is saved, with names tidied, a bad icon replaced and an unknown kind made "not sure": ' + JSON.stringify(r.data.cats[2]));
+    ok(JSON.stringify(r.data.rules) === '{"rogers":"Phone"}', 'a store rule for a category that does not exist is dropped, and so is a blank one');
+    const raw = (await pg.query('select data from user_cats where user_id = $1', [cid])).rows[0].data;
+    ok(/^e1:/.test(raw) && !/Rent|Phone|rogers/.test(raw), 'the list is stored encrypted');
+    r = await call('GET', 'categories', { auth: c2Tok });
+    ok(r.data.cats.length === 0, 'another person does not see it');
+
+    // they work in the numbers
+    const at = new Date().toISOString();
+    const add = (merchant, amount, cat, manual) => pg.query("insert into purchases (user_id, title, body, created_at) values ($1, $2, $3, $4)",
+      [cid, 'Spending - $' + amount, 'Date: ' + at + '\nMerchant: ' + merchant + '\nAmount: $' + amount + '\nCard: Visa\nCategory: ' + cat + (manual ? '\nEntry: manual' : ''), at]);
+    await add('Landlord', 750, 'Rent', true);
+    await add('Rogers', 55, 'Bills & Utilities', false);
+    await add('Tim Hortons', 4.5, 'Dining & Coffee', false);
+    await add('Somewhere', 20, 'Fun money', true);
+    const rows = async () => (await hist(cTok, 'range=month&rows=1')).data.rows || [];
+    const by = async (m) => (await rows()).find((x) => x.merchant === m);
+    let x = await by('Landlord');
+    ok(x && x.category === 'Rent' && x.leak === 'need', 'a payment you put in Rent shows as Rent, and as necessary because you said so: ' + JSON.stringify(x && [x.category, x.leak]));
+    x = await by('Rogers');
+    ok(x && x.category === 'Phone' && x.leak === 'need', 'a store you asked to always go to Phone goes there by itself');
+    x = await by('Tim Hortons');
+    ok(x && x.category === 'Dining & Coffee', 'other stores are not touched');
+    x = await by('Somewhere');
+    ok(x && x.category === 'Fun money' && x.leak === 'unk', 'a "not sure" category stays not sure');
+    r = await hist(cTok, 'range=month');
+    ok(r.data.categories.some((c) => c.category === 'Rent' && c.amount === 750), 'and Rent is in the categories total');
+    // payments typed with a category the person does not have stay with the app's own guess
+    await add('Mystery', 9, 'Ghost', true);
+    x = await by('Mystery');
+    ok(x && x.category !== 'Ghost', 'a manual category that does not exist is not invented');
+    // delete a category: its payments go back to the app's own guess, nothing is lost
+    r = await call('PUT', 'categories', { auth: cTok, body: { cats: [{ name: 'Rent', icon: '🏠', kind: 'need' }], rules: { rogers: 'Phone' } } });
+    ok(r.status === 200 && r.data.cats.length === 1 && Object.keys(r.data.rules).length === 0, 'deleting a category also drops its store rules');
+    x = await by('Rogers');
+    ok(x && x.category === 'Bills & Utilities', 'its payments go back to the app\'s usual guess (Rogers is Bills & Utilities again)');
+    ok((await rows()).length >= 5, 'no payment was lost');
+    // another person with the same store is unaffected
+    r = await call('PUT', 'categories', { auth: c2Tok, body: { cats: [] } });
+    ok(r.status === 200, 'someone else can save their own (empty) list');
+    await call('DELETE', 'account', { auth: cTok });
+    await call('DELETE', 'account', { auth: c2Tok });
+    ok((await pg.query('select count(*)::int as n from user_cats')).rows[0].n === 0, 'deleting an account deletes its categories');
+  }
+
   // ---- starting up: the database setup runs once, not on every wake-up ----
   {
     const have = (await pg.query("select value from app_settings where key = 'schema_version'")).rows[0];
