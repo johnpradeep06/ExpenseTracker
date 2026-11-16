@@ -372,7 +372,8 @@ const todayOf = (u) => compute.inZone(u.tz, () => {
 });
 const loadPlan = async (u) => {
   const r = (await q('select data from pay_plans where user_id = $1', [u.id]))[0];
-  return r ? JSON.parse(vault.open(u.id, 'pay', r.data)) : null;    // a value that cannot be opened is an error, never "no plan"
+  // Fixed bills are not part of Free to spend any more (it was confusing): whatever an older plan stored is ignored.
+  return r ? { ...JSON.parse(vault.open(u.id, 'pay', r.data)), bills: [] } : null;    // a value that cannot be opened is an error, never "no plan"
 };
 const savePlan = (u, plan) => q(`insert into pay_plans (user_id, data) values ($1, $2)
   on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'pay', JSON.stringify(plan))]);
@@ -702,7 +703,7 @@ const routes = {
   'PUT pay': async (req) => {
     const u = await signedIn(req);
     const b = await readBody(req, 32 * 1024);
-    const c = payperiod.clean(b, todayOf(u));
+    const c = payperiod.clean({ ...b, bills: [] }, todayOf(u));
     if (c.error) fail(400, c.error);
     const old = await loadPlan(u);
     const plan = { ...c.plan, history: old ? old.history || [] : [] };

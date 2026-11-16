@@ -58,17 +58,21 @@ No users exist yet, so fresh secrets are fine. Never commit them.
 - The prompt in `lib/vision.js` has not been tuned against real Montreal bills yet. Try a few and adjust it.
 
 ## Free to spend (pay period)
-The person enters their paycheck, last payday, how often they are paid, and their fixed bills (rent, utilities...). The
-card on the home screen shows **paycheck - fixed bills - spent since payday**, the days to payday, and an amount per day.
-- Maths: `public/payperiod.js` (pure; the server and the tests load the same file). Bills are spread over the paychecks of
-  a year (a monthly bill on a 2-weekly paycheck is x12 / 26). A bill marked "paid with Apple Pay" is not taken off up
-  front; it counts as spending when it is paid. Tests: `node test/payperiod.test.js`.
+The person enters their paycheck, last payday and how often they are paid (one short screen). The card shows
+**paycheck - spent since payday**, the days to payday and an amount per day. It is the third page of the Clean hero
+(each person chooses which hero pages show, in Settings); Fresh and Arcade show it as a card.
+- Fixed bills (rent, utilities) were built and then removed because they confused people: a bill paid with Apple Pay was
+  counted twice. The server ignores any bills list (an older plan's stored bills are dropped when read). Purchases in the
+  Bills & Utilities category are shown as their own line ("Bills & utilities you paid") inside spending.
+  `public/payperiod.js` still has the bill maths (spread over the paychecks of a year); it is simply unused by the app.
+- Maths: `public/payperiod.js` (pure; the server and tests load the same file). Tests: `node test/payperiod.test.js`.
 - Server: `GET/PUT/DELETE pay`, `POST pay/paid` in `api/index.js`. The plan is one small sealed value per person
   (`pay_plans.data`, field name `pay`), so it is encrypted once DATA_KEY is set. Spending since payday comes from the
-  same purchase rules as everything else (`compute.summary(...).daily`); deleted purchases do not count.
-- App: `public/payui.js` (card, 3-step setup sheet, "Got paid" sheet) and `public/pay.css` (all three looks).
-  On payday the card asks "Did you get paid?" (the new period starts on the day the person says, not automatically).
-- Browser test: `python3 test/pay_e2e.py` (against `node test/dev.js`).
+  same purchase rules as everything else (`compute.summary(...).rows`); deleted purchases do not count.
+- App: `public/payui.js` (card, setup sheet, "Got paid" sheet), `public/pay.css` (all three looks), `public/hero.js`
+  (the third hero page and the page chooser). On payday the card asks "Did you get paid?"; the new period starts on the
+  day the person says, not automatically.
+- Browser tests: `python3 test/pay_e2e.py`, `python3 test/hero_pages_e2e.py` (against `node test/dev.js`).
 
 ## Encryption of purchase text
 - Every purchase's title and details are stored encrypted (AES-256-GCM, `lib/vault.js`), so a leaked database or backup

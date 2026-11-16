@@ -49,31 +49,10 @@ with sync_playwright() as P:
     pg.fill('#pay-setup .money-input input', '1850')
     pg.fill('#pay-setup input[type=date]', day(10)); pg.dispatch_event('#pay-setup input[type=date]', 'change'); pg.wait_for_timeout(200)
     ok('Next payday:' in txt('#pay-setup'), 'it shows the next payday straight away')
-    pg.click('#pay-setup .primary'); pg.wait_for_timeout(400)
-    ok('Bills you cannot skip' in txt('#pay-setup') and pg.locator('#pay-setup .pay-bill').count() == 2, 'step 2 lists Rent and Utilities to fill in')
-    pg.locator('#pay-setup .pay-bill').nth(0).locator('.pay-am input').fill('1400')
-    ok('646.15 per paycheck' in txt('#pay-setup'), 'a monthly rent shows what it takes from each paycheck')
-    pg.locator('#pay-setup .pay-bill').nth(1).locator('.pay-nm').fill('Hydro-Québec')
-    pg.locator('#pay-setup .pay-bill').nth(1).locator('.pay-am input').fill('90')
-    pg.locator('#pay-setup .pay-bill').nth(1).locator('.pay-fq').click(); pg.wait_for_timeout(100)
-    ok('Every year' in pg.locator('#pay-setup .pay-bill').nth(1).inner_text(), 'tapping the frequency changes it')
-    for _ in range(3):
-        pg.locator('#pay-setup .pay-bill').nth(1).locator('.pay-fq').click(); pg.wait_for_timeout(100)   # week, 2 weeks, back to month
-    ok('Every month' in pg.locator('#pay-setup .pay-bill').nth(1).inner_text(), 'and it comes back round to every month')
-    pg.click('#pay-setup .pay-chips .own'); pg.wait_for_timeout(200)
-    ok(pg.locator('#pay-setup .pay-bill').count() == 3, 'Add your own adds a blank bill')
-    pg.locator('#pay-setup .pay-bill').nth(2).locator('.pay-nm').fill('Daycare')
-    pg.locator('#pay-setup .pay-bill').nth(2).locator('.pay-am input').fill('abc')
-    pg.click('#pay-setup .primary'); pg.wait_for_timeout(300)
-    ok('Check the amount of Daycare' in txt('#pay-setup'), 'a bill with a bad amount is flagged by name')
-    pg.locator('#pay-setup .pay-bill').nth(2).locator('.pay-am input').fill('200')
-    pg.locator('#pay-setup .pay-bill').nth(2).locator('.pay-rm').click(); pg.wait_for_timeout(200)
-    ok(pg.locator('#pay-setup .pay-bill').count() == 2, 'the x removes a bill')
-    pg.click('#pay-setup .primary'); pg.wait_for_timeout(300)
-    free = 1850 - round(1400 * 12 / 26, 2) - round(90 * 12 / 26, 2)
-    ok('That is it' in txt('#pay-setup') and ('$%s' % format(free, ',.2f')) in txt('#pay-setup'), 'step 3 shows what is free each pay period ($%.2f)' % free)
+    ok(pg.locator('#pay-setup .pay-bill').count() == 0 and 'Bills you cannot skip' not in txt('#pay-setup'), 'there is no bills list: setup is one short screen')
     pg.click('#pay-setup .primary'); pg.wait_for_timeout(1500)
-    ok(not vis('#pay-setup') and vis('#pay') and 'free to spend' in low('#pay'), 'Done closes the sheet and shows the card')
+    ok(not vis('#pay-setup') and vis('#pay') and 'free to spend' in low('#pay'), 'Save closes the sheet and shows the card')
+    free = 1850
 
     # ---- the card ----
     spent = 80 + 12.5  # SAQ was 7 days ago, before the payday 10 days ago? no: 7 days ago is after it, so it counts
@@ -83,10 +62,10 @@ with sync_playwright() as P:
     ok('a day' in low('#pay') and 'to payday' in low('#pay'), 'with the days to payday and an amount per day')
     ok(not vis('#pay .pay-rows'), 'the sums are hidden until you tap')
     pg.click('#pay .pay-big'); pg.wait_for_timeout(300)
-    ok(vis('#pay .pay-rows') and 'paycheck' in low('#pay') and 'bills still to pay' in low('#pay') and 'spending since' in low('#pay'), 'tapping the card opens the four lines of sums')
+    ok(vis('#pay .pay-rows') and 'paycheck' in low('#pay') and 'spending since' in low('#pay') and 'bills still to pay' not in low('#pay'), 'tapping the card opens the four lines of sums')
     ok('bills & utilities you paid' in low('#pay') and 'other spending since' in low('#pay'), 'a Hydro payment shows as a bill you paid, apart from other spending')
     pg.click('#pay .pay-edit'); pg.wait_for_timeout(500)
-    ok(vis('#pay-setup') and pg.locator('#pay-setup .money-input input').first.input_value() == '1850', 'Edit opens the setup with your numbers in it')
+    ok(vis('#pay-setup') and pg.locator('#pay-setup .money-input input').first.input_value() == '1850', 'Edit opens the setup with your paycheck in it')
     pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
     ok(not vis('#pay-setup'), 'Escape closes it without changing anything')
 

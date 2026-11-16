@@ -1,6 +1,6 @@
 (function () {
-  // Free to spend: the paycheck, minus fixed bills, minus what was spent since payday. One calm card on the home screen
-  // (tap it for the sums), a setup sheet in three short steps, and a "Got paid" sheet that starts the next period.
+  // Free to spend: the paycheck minus what was spent since payday. One calm card on the home screen
+  // (tap it for the sums), a one-screen setup sheet, and a "Got paid" sheet that starts the next period.
   // The sums are done by the server (GET pay); this file only draws them and sends what the person types.
   // Works in all three looks: it only uses the app's own colours, and pay.css adds a little per look.
   const $ = (s) => document.querySelector(s);
@@ -67,7 +67,6 @@
       const rows = el('div', 'pay-rows');
       const row = (a, b, cls) => { const d = el('div', cls || ''); d.append(el('span', '', a), el('span', '', b)); rows.append(d); };
       row('Paycheck', money(state.amount));
-      row('Bills still to pay', '−' + money(state.fixed));
       if (state.billsPaid > 0) {
         row('Bills & utilities you paid', '−' + money(state.billsPaid));
         row('Other spending since ' + dayName(state.start), '−' + money(state.otherSpent));
@@ -132,125 +131,53 @@
   const moneyInput = (value) => { const w = el('div', 'money-input'); w.append(el('span', '', '$')); const i = el('input'); i.inputMode = 'decimal'; i.autocomplete = 'off'; i.value = value; w.append(i); return { w, i }; };
   const num = (v) => P.money(v, 1000000);
 
-  // ---- setup, in three short steps ----
+  // ---- setup: one short screen (paycheck, last payday, how often) ----
   let draft = null;
-  let step = 1;
   const openSetup = () => {
-    const src = plan || { amount: '', every: '2 weeks', start: todayKey(), bills: [] };
-    draft = { amount: plan ? String(plan.amount) : '', every: src.every, start: src.start, bills: src.bills.map((b) => ({ ...b })) };
-    if (!plan && !draft.bills.length) draft.bills = [{ name: 'Rent', amount: '', every: 'month', ap: false }, { name: 'Utilities', amount: '', every: 'month', ap: false }];
-    step = 1; drawSetup(); show(setup);
+    draft = { amount: plan ? String(plan.amount) : '', every: plan ? plan.every : '2 weeks', start: plan ? plan.start : todayKey() };
+    drawSetup(); show(setup);
   };
-  const dots = () => { const d = el('div', 'pay-dots'); [1, 2, 3].forEach((n) => d.append(el('i', n <= step ? 'on' : ''))); return d; };
   const drawSetup = () => {
-    const b = setup.body; b.replaceChildren(); b.append(dots());
+    const b = setup.body; b.replaceChildren();
+    b.append(el('h2', '', 'Your paycheck'), el('p', 'sub', 'Only you can see this. It is stored encrypted.'));
     const err = el('p', 'pay-err'); err.hidden = true;
     const fail = (t) => { err.textContent = t; err.hidden = false; };
-    if (step === 1) {
-      b.append(el('h2', '', 'Your paycheck'), el('p', 'sub', 'Only you can see this. It is stored encrypted.'));
-      const amt = moneyInput(draft.amount); amt.i.addEventListener('input', () => { draft.amount = amt.i.value; });
-      b.append(field('How much each time?', amt.w));
-      const date = el('input'); date.type = 'date'; date.value = draft.start; date.max = P.addDays(todayKey(), 1);
-      const nextEl = el('p', 'pay-hint');
-      const showNext = () => { nextEl.textContent = P.parse(draft.start) ? 'Next payday: ' + dayName(P.nextPayday(draft.start, draft.every)) + '. After that the app moves on by itself.' : ''; };
-      date.addEventListener('change', () => { draft.start = date.value; showNext(); });
-      b.append(field('Last payday', date));
-      const seg = el('div', 'pay-seg');
-      P.PAY_EVERY.forEach((k) => { const s = el('button', draft.every === k ? 'on' : '', PAY_LABEL[k]); s.type = 'button'; s.addEventListener('click', () => { draft.every = k; seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === s)); showNext(); }); seg.append(s); });
-      const fq = el('div', 'field'); fq.append(el('span', '', 'How often?'), seg);
-      b.append(fq, nextEl, err);
-      showNext();
-      const next = el('button', 'primary', 'Next'); next.type = 'button';
-      next.addEventListener('click', () => {
-        const a = num(draft.amount);
-        if (a === null || a <= 0) return fail('Enter what you get paid each time');
-        if (!P.parse(draft.start)) return fail('Choose the day you were last paid');
-        if (draft.start > P.addDays(todayKey(), 1)) return fail('The last payday cannot be in the future');
-        step = 2; drawSetup(); setup.sheet.scrollTop = 0;
+    const amt = moneyInput(draft.amount); amt.i.addEventListener('input', () => { draft.amount = amt.i.value; });
+    b.append(field('How much each time?', amt.w));
+    const date = el('input'); date.type = 'date'; date.value = draft.start; date.max = P.addDays(todayKey(), 1);
+    const nextEl = el('p', 'pay-hint');
+    const showNext = () => { nextEl.textContent = P.parse(draft.start) ? 'Next payday: ' + dayName(P.nextPayday(draft.start, draft.every)) + '. After that the app moves on by itself.' : ''; };
+    date.addEventListener('change', () => { draft.start = date.value; showNext(); });
+    b.append(field('Last payday', date));
+    const seg = el('div', 'pay-seg');
+    P.PAY_EVERY.forEach((k) => { const s = el('button', draft.every === k ? 'on' : '', PAY_LABEL[k]); s.type = 'button'; s.addEventListener('click', () => { draft.every = k; seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === s)); showNext(); }); seg.append(s); });
+    const fq = el('div', 'field'); fq.append(el('span', '', 'How often?'), seg);
+    b.append(fq, nextEl);
+    b.append(el('p', 'pay-hint', 'Free to spend is your paycheck minus what you spend after payday. Bills you pay with Apple Pay (hydro, phone, internet) are already in your spending.'), err);
+    showNext();
+    const save = el('button', 'primary', 'Save'); save.type = 'button';
+    save.addEventListener('click', async () => {
+      const a = num(draft.amount);
+      if (a === null || a <= 0) return fail('Enter what you get paid each time');
+      if (!P.parse(draft.start)) return fail('Choose the day you were last paid');
+      if (draft.start > P.addDays(todayKey(), 1)) return fail('The last payday cannot be in the future');
+      save.disabled = true; save.textContent = 'Saving…';
+      try {
+        const r = await window.spendApi('PUT', 'pay', { amount: draft.amount, every: draft.every, start: draft.start, bills: [] });
+        store.set('spend.payHide', '0'); apply(r); close();
+        if (window.spendToast) window.spendToast('Saved. ' + money(r.state.left) + ' free to spend until payday', null);
+      } catch (x) { save.disabled = false; save.textContent = 'Save'; fail(x && x.message ? x.message : 'Could not save. Check your connection.'); }
+    });
+    const cancel = el('button', 'link', 'Cancel'); cancel.type = 'button'; cancel.addEventListener('click', close);
+    b.append(save, cancel);
+    if (plan) {
+      const rm = el('button', 'danger-plain', 'Remove my paycheck plan'); rm.type = 'button'; let armed = false;
+      rm.addEventListener('click', async () => {
+        if (!armed) { armed = true; rm.textContent = 'Tap again to remove it'; return; }
+        try { await window.spendApi('DELETE', 'pay'); apply({ plan: null, state: null }); store.set('spend.payHide', '0'); close(); } catch (x) { fail('Could not remove it. Try again.'); }
       });
-      b.append(next);
-    } else if (step === 2) {
-      b.append(el('h2', '', 'Bills you cannot skip'), el('p', 'sub', 'Rename, change or remove any. Add your own. They come off first, so the number you see is really yours to spend.'));
-      const list = el('div', 'pay-bills');
-      const per = (bill) => (bill.ap ? 'counted when you pay it' : '= ' + money(P.billShare({ amount: num(bill.amount) || 0, every: bill.every }, draft.every)) + ' per paycheck');
-      draft.bills.forEach((bill, i) => {
-        const r = el('div', 'pay-bill');
-        const r1 = el('div', 'pay-r1');
-        const nm = el('input', 'pay-nm'); nm.value = bill.name; nm.placeholder = 'Name, e.g. Daycare'; nm.maxLength = 40; nm.setAttribute('aria-label', 'Bill name');
-        nm.addEventListener('input', () => { bill.name = nm.value; });
-        const am = moneyInput(bill.amount === '' ? '' : String(bill.amount)); am.w.classList.add('pay-am');
-        const perEl = el('span', 'pay-per', per(bill));
-        am.i.addEventListener('input', () => { bill.amount = am.i.value; perEl.textContent = per(bill); });
-        const rm = el('button', 'pay-rm', '✕'); rm.type = 'button'; rm.setAttribute('aria-label', 'Remove ' + (bill.name || 'bill'));
-        rm.addEventListener('click', () => { draft.bills.splice(i, 1); drawSetup(); });
-        r1.append(nm, am.w, rm);
-        const r2 = el('div', 'pay-r2');
-        const fq = el('button', 'pay-fq', FREQ_LABEL[bill.every] + ' ⌄'); fq.type = 'button';
-        fq.addEventListener('click', () => { bill.every = P.BILL_EVERY[(P.BILL_EVERY.indexOf(bill.every) + 1) % P.BILL_EVERY.length]; fq.textContent = FREQ_LABEL[bill.every] + ' ⌄'; perEl.textContent = per(bill); });
-        r2.append(fq, perEl);
-        const more = el('div', 'pay-more'); more.hidden = !bill.ap;
-        const lab = el('label', 'pay-opt'); const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!bill.ap;
-        cb.addEventListener('change', () => { bill.ap = cb.checked; perEl.textContent = per(bill); });
-        lab.append(cb, document.createTextNode(' I pay this with Apple Pay (it counts when I pay it, not up front)')); more.append(lab);
-        const tg = el('button', 'pay-tg', bill.ap ? 'Less' : 'More'); tg.type = 'button';
-        tg.addEventListener('click', () => { more.hidden = !more.hidden; tg.textContent = more.hidden ? 'More' : 'Less'; });
-        r.append(r1, r2, more, tg); list.append(r);
-      });
-      b.append(list);
-      const chips = el('div', 'pay-chips');
-      ['Insurance', 'Car', 'Gym', 'Transit pass', 'Internet', 'Phone'].filter((n) => !draft.bills.some((x) => x.name === n)).slice(0, 4).forEach((n) => {
-        const c = el('button', '', '+ ' + n); c.type = 'button'; c.addEventListener('click', () => { draft.bills.push({ name: n, amount: '', every: 'month', ap: false }); drawSetup(); }); chips.append(c);
-      });
-      const own = el('button', 'own', '+ Add your own'); own.type = 'button';
-      own.addEventListener('click', () => { draft.bills.push({ name: '', amount: '', every: 'month', ap: false }); drawSetup(); const all = setup.body.querySelectorAll('.pay-nm'); if (all.length) all[all.length - 1].focus(); });
-      chips.append(own);
-      b.append(chips, el('p', 'pay-hint', 'Tap the frequency to change it. Bills are spread over your paychecks, so your daily number stays steady.'), el('p', 'pay-hint', 'Already paid a bill with Apple Pay? Leave it out, or turn on "I pay this with Apple Pay" under More. Your Bills & Utilities purchases are counted for you, so it is never taken off twice.'), err);
-      const next = el('button', 'primary', 'Next'); next.type = 'button';
-      next.addEventListener('click', () => { const bad = checkBills(); if (bad) return fail(bad); step = 3; drawSetup(); setup.sheet.scrollTop = 0; });
-      const back = el('button', 'link', 'Back'); back.type = 'button'; back.addEventListener('click', () => { step = 1; drawSetup(); });
-      b.append(next, back);
-    } else {
-      const c = P.clean({ amount: draft.amount, every: draft.every, start: draft.start, bills: draft.bills }, todayKey());
-      b.append(el('h2', '', plan ? 'Save your changes' : 'That is it'), el('p', 'sub', 'Here is what you have each pay period.'));
-      if (c.error) { b.append(el('p', 'pay-err', c.error)); } else {
-        const free = c.plan.amount - P.fixedTotal(c.plan);
-        const days = Math.max(1, P.daysBetween(c.plan.start, P.nextPayday(c.plan.start, c.plan.every)));
-        const sum = el('div', 'pay-sum');
-        sum.append(el('div', '', 'Free to spend each pay period'), el('div', 'pay-sumbig', money(free)), el('div', '', 'about ' + money(Math.max(0, free) / days) + ' a day'));
-        b.append(sum);
-        if (free <= 0) b.append(el('p', 'pay-err', 'Your bills are more than your paycheck. Go back and check them.'));
-      }
-      b.append(err);
-      const save = el('button', 'primary', plan ? 'Save' : 'Done'); save.type = 'button';
-      save.addEventListener('click', async () => {
-        if (c.error) return;
-        save.disabled = true; save.textContent = 'Saving…';
-        try {
-          const r = await window.spendApi('PUT', 'pay', { amount: draft.amount, every: draft.every, start: draft.start, bills: draft.bills });
-          store.set('spend.payHide', '0'); apply(r); close();
-          if (window.spendToast) window.spendToast('Saved. ' + money(r.state.left) + ' free to spend until payday', null);
-        } catch (x) { save.disabled = false; save.textContent = plan ? 'Save' : 'Done'; fail(x && x.message ? x.message : 'Could not save. Check your connection.'); }
-      });
-      const back = el('button', 'link', 'Back'); back.type = 'button'; back.addEventListener('click', () => { step = 2; drawSetup(); });
-      b.append(save, back);
-      if (plan) {
-        const rm = el('button', 'danger-plain', 'Remove my paycheck plan'); rm.type = 'button'; let armed = false;
-        rm.addEventListener('click', async () => {
-          if (!armed) { armed = true; rm.textContent = 'Tap again to remove it'; return; }
-          try { await window.spendApi('DELETE', 'pay'); apply({ plan: null, state: null }); store.set('spend.payHide', '0'); close(); } catch (x) { fail('Could not remove it. Try again.'); }
-        });
-        b.append(rm);
-      }
+      b.append(rm);
     }
-  };
-  const checkBills = () => {
-    for (const bill of draft.bills) {
-      const blank = !String(bill.name).trim() && (bill.amount === '' || !num(bill.amount));
-      if (blank) continue;
-      if (!String(bill.name).trim()) return 'Give each bill a name';
-      if (num(bill.amount) === null) return 'Check the amount of ' + bill.name;
-    }
-    return '';
   };
 
   // ---- got paid ----
