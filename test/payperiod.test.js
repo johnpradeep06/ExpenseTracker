@@ -55,6 +55,11 @@ eq([s.due, s.daysLeft, s.spent], [true, 0, 640], 'days after payday it still ask
 s = P.stateOf(plan, [{ day: '2026-11-06', amount: 10 }, { day: '2026-11-07', amount: -4 }], '2026-11-06');
 eq([s.spent, s.elapsed], [6, 1], 'a refund takes money back off, and the first day counts as day 1');
 
+// the part of spending that is already a bill
+s = P.stateOf(plan, rows.concat([{ day: '2026-11-08', amount: 120, category: 'Bills & Utilities' }, { day: '2026-11-03', amount: 99, category: 'Bills & Utilities' }, { day: '2026-11-09', amount: 10, category: 'Groceries' }]), '2026-11-15');
+eq([s.billsPaid, s.otherSpent, s.spent], [120, 650, 770], 'Bills & Utilities purchases since payday are shown on their own (not the one before payday), and the rest is "other spending"');
+eq(P.stateOf(plan, rows, '2026-11-15').billsPaid, 0, 'with none, the bills part is zero');
+
 // bills paid with Apple Pay are not taken off up front
 const ap = { ...plan, bills: [{ name: 'Rent', amount: 1400, every: 'month', ap: true }, { name: 'Hydro', amount: 90, every: 'month', ap: false }] };
 eq(P.fixedTotal(ap), 41.54, 'a bill paid with Apple Pay is left out of the up-front total');

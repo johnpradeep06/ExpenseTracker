@@ -67,8 +67,11 @@
       const rows = el('div', 'pay-rows');
       const row = (a, b, cls) => { const d = el('div', cls || ''); d.append(el('span', '', a), el('span', '', b)); rows.append(d); };
       row('Paycheck', money(state.amount));
-      row('Fixed bills', '−' + money(state.fixed));
-      row('Spent since ' + dayName(state.start), '−' + money(state.spent));
+      row('Bills still to pay', '−' + money(state.fixed));
+      if (state.billsPaid > 0) {
+        row('Bills & utilities you paid', '−' + money(state.billsPaid));
+        row('Other spending since ' + dayName(state.start), '−' + money(state.otherSpent));
+      } else row('Spent since ' + dayName(state.start), '−' + money(state.spent));
       row('Free to spend', money(state.left), 'tot');
       const edit = el('button', 'btn-plain pay-edit', 'Edit paycheck & bills'); edit.type = 'button';
       edit.addEventListener('click', (e) => { e.stopPropagation(); openSetup(); });
@@ -201,7 +204,7 @@
       const own = el('button', 'own', '+ Add your own'); own.type = 'button';
       own.addEventListener('click', () => { draft.bills.push({ name: '', amount: '', every: 'month', ap: false }); drawSetup(); const all = setup.body.querySelectorAll('.pay-nm'); if (all.length) all[all.length - 1].focus(); });
       chips.append(own);
-      b.append(chips, el('p', 'pay-hint', 'Tap the frequency to change it. Bills are spread over your paychecks, so your daily number stays steady.'), err);
+      b.append(chips, el('p', 'pay-hint', 'Tap the frequency to change it. Bills are spread over your paychecks, so your daily number stays steady.'), el('p', 'pay-hint', 'Already paid a bill with Apple Pay? Leave it out, or turn on "I pay this with Apple Pay" under More. Your Bills & Utilities purchases are counted for you, so it is never taken off twice.'), err);
       const next = el('button', 'primary', 'Next'); next.type = 'button';
       next.addEventListener('click', () => { const bad = checkBills(); if (bad) return fail(bad); step = 3; drawSetup(); setup.sheet.scrollTop = 0; });
       const back = el('button', 'link', 'Back'); back.type = 'button'; back.addEventListener('click', () => { step = 1; drawSetup(); });

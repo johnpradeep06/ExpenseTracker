@@ -7,9 +7,9 @@ post = lambda path, body: json.loads(u.urlopen(u.Request(BASE + path, data=json.
 now = datetime.datetime.now(datetime.timezone.utc)
 day = lambda n: (now - datetime.timedelta(days=n)).strftime('%Y-%m-%d')
 issues = []
-for n, m, a in [(2, 'Metro', 80.00), (4, 'Tim Hortons', 12.50), (7, 'SAQ', 31.00)]:
+for n, m, a, c in [(2, 'Metro', 80.00, 'Groceries'), (4, 'Tim Hortons', 12.50, 'Groceries'), (7, 'SAQ', 31.00, 'Groceries'), (3, 'Hydro-Quebec', 90.00, 'Bills & Utilities')]:
     t = (now - datetime.timedelta(days=n)).replace(hour=15, minute=0, second=0).strftime('%Y-%m-%dT%H:%M:%SZ')
-    issues.append({"title": f"Spending - ${a}", "body": f"Date: {t}\nMerchant: {m}\nAmount: ${a}\nCard: Visa\nCategory: Groceries", "state": "open", "created_at": t})
+    issues.append({"title": f"Spending - ${a}", "body": f"Date: {t}\nMerchant: {m}\nAmount: ${a}\nCard: Visa\nCategory: {c}", "state": "open", "created_at": t})
 res, errs = [], []
 
 
@@ -77,13 +77,14 @@ with sync_playwright() as P:
 
     # ---- the card ----
     spent = 80 + 12.5  # SAQ was 7 days ago, before the payday 10 days ago? no: 7 days ago is after it, so it counts
-    spent = 80 + 12.5 + 31
+    spent = 80 + 12.5 + 31 + 90
     left = free - spent
     ok(('$%s' % format(left, ',.2f')) in txt('#pay .pay-big') or ('$%s' % format(left, ',.2f')) in txt('#pay'), 'it shows what is left: %.2f (free %.2f minus %.2f spent)' % (left, free, spent))
     ok('a day' in low('#pay') and 'to payday' in low('#pay'), 'with the days to payday and an amount per day')
     ok(not vis('#pay .pay-rows'), 'the sums are hidden until you tap')
     pg.click('#pay .pay-big'); pg.wait_for_timeout(300)
-    ok(vis('#pay .pay-rows') and 'paycheck' in low('#pay') and 'fixed bills' in low('#pay') and 'spent since' in low('#pay'), 'tapping the card opens the four lines of sums')
+    ok(vis('#pay .pay-rows') and 'paycheck' in low('#pay') and 'bills still to pay' in low('#pay') and 'spending since' in low('#pay'), 'tapping the card opens the four lines of sums')
+    ok('bills & utilities you paid' in low('#pay') and 'other spending since' in low('#pay'), 'a Hydro payment shows as a bill you paid, apart from other spending')
     pg.click('#pay .pay-edit'); pg.wait_for_timeout(500)
     ok(vis('#pay-setup') and pg.locator('#pay-setup .money-input input').first.input_value() == '1850', 'Edit opens the setup with your numbers in it')
     pg.keyboard.press('Escape'); pg.wait_for_timeout(300)

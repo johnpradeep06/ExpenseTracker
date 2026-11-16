@@ -12,6 +12,7 @@
   const PERIODS_PER_YEAR = { week: 52, '2 weeks': 26, month: 12 };
   const BILLS_PER_YEAR = { week: 52, '2 weeks': 26, month: 12, year: 1 };
   const DAY = 86400000;
+  const BILLS_CATEGORY = 'Bills & Utilities';
   const r2 = (n) => Math.round(n * 100) / 100;
   const p2 = (n) => (n < 10 ? '0' : '') + n;
 
@@ -47,6 +48,8 @@
     const daysLeft = due ? 0 : daysBetween(today, next);
     const elapsed = Math.max(1, daysBetween(plan.start, today) + 1);
     const spent = spentBetween(rows, plan.start);
+    // Of what was spent, the part that is already a bill (a Bills & Utilities purchase: hydro, phone, internet...).
+    const billsPaid = spentBetween((rows || []).filter((r) => r && r.category === BILLS_CATEGORY), plan.start);
     const fixed = fixedTotal(plan);
     const free = r2((Number(plan.amount) || 0) - fixed);
     const left = r2(free - spent);
@@ -58,7 +61,7 @@
     const last = (plan.history || [])[(plan.history || []).length - 1] || null;
     return {
       start: plan.start, next, due, daysLeft, elapsed, length: daysBetween(plan.start, next),
-      amount: r2(Number(plan.amount) || 0), fixed, free, spent, left, perDay, usual,
+      amount: r2(Number(plan.amount) || 0), fixed, free, spent, billsPaid, otherSpent: r2(spent - billsPaid), left, perDay, usual,
       pct: free > 0 ? Math.max(0, Math.min(100, Math.round(spent / free * 100))) : 100,
       runsOutIn: usual > 0 && left > 0 ? Math.round(left / usual * 10) / 10 : null,
       level, last: last ? { start: last.start, end: last.end, left: last.left } : null

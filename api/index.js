@@ -380,8 +380,7 @@ const payState = async (u, plan) => {
   const today = todayOf(u);
   const back = Math.min(400, Math.max(3, payperiod.daysBetween(plan.start, today) + 3));
   const issues = await recentIssues(u.id, back);
-  const daily = compute.summary(issues, [], u.tz, Date.now(), false, true).daily || {};
-  const rows = Object.keys(daily).map((day) => ({ day, amount: daily[day] }));
+  const rows = (compute.summary(issues, [], u.tz, Date.now(), true, false).rows || []).map((r) => ({ day: r.day, amount: r.amount, category: r.category }));
   return { state: payperiod.stateOf(plan, rows, today), rows, today };
 };
 
