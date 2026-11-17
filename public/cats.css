@@ -60,3 +60,8 @@ html.retro .ai-note { border-radius: 0; }
 .ai-line.dim { color: var(--muted) !important; }
 .ai-line.bad { color: var(--up) !important; font-weight: 700; }
 html.retro .ai-line { font-size: 18px; }
+
+.cat-sub-h { margin: 14px 0 0; font-size: 13px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+.cat-rule { cursor: default; }
+.cat-forget { border: 0; background: var(--track); color: var(--muted); border-radius: 99px; padding: 7px 12px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+html.retro .cat-forget { border-radius: 0; font-family: var(--pixel); font-size: 8px; }

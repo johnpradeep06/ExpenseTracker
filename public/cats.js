@@ -11,7 +11,8 @@
   const KINDS = [['need', 'Necessary'], ['unk', 'Not sure'], ['fun', 'Unnecessary']];
   const KIND_COLOR = { need: '#3BA776', fun: '#E8833A', unk: '#8C8C8C' };
   const MAX = 20;
-  let custom = { cats: [], rules: {} };
+  const keyOf = (name) => (window.spendMerchant ? window.spendMerchant.keyOf(name) : '');
+  let custom = { cats: [], rules: {}, ruleNames: {} };
   let loaded = false;
   let lastFetch = 0;
   let inflight = null;
@@ -22,7 +23,7 @@
   // ---- loading and saving ----
   const sameAs = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const apply = (r) => {
-    const next = { cats: (r && r.cats) || [], rules: (r && r.rules) || {}, ai: (r && r.ai) || {}, learn: (r && r.learn) || { stores: {}, cats: {}, marks: 0 } };
+    const next = { cats: (r && r.cats) || [], rules: (r && r.rules) || {}, ruleNames: (r && r.ruleNames) || {}, ai: (r && r.ai) || {}, learn: (r && r.learn) || { stores: {}, cats: {}, marks: 0 } };
     const changed = !sameAs(next, custom) || !loaded;
     custom = next; window.spendCustom = custom;
     const first = !loaded; loaded = true;
@@ -37,10 +38,23 @@
     inflight = window.spendApi('GET', 'categories').then(apply).catch(() => { /* not signed in yet, or offline */ }).then(() => { inflight = null; });
     return inflight;
   };
-  const save = async (cats, rules) => {
-    const r = await window.spendApi('PUT', 'categories', { cats, rules });
+  const save = async (cats, rules, ruleNames) => {
+    const r = await window.spendApi('PUT', 'categories', { cats, rules, ruleNames: ruleNames || custom.ruleNames || {} });
     apply(r); lastFetch = Date.now();
     return r;
+  };
+  // "Remember this store": the category picked for a payment becomes the category of every payment at that store, from now
+  // on and for the ones before (not for a payment picked by hand). An empty category forgets the store. Returns true when it changed.
+  window.spendRememberStore = async (store, category) => {
+    const name = String(store || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+    if (!loaded || !name || !window.spendMerchant) return false;
+    const key = keyOf(name);
+    if (!key) return false;
+    const rules = { ...custom.rules }; const names = { ...(custom.ruleNames || {}) };
+    if (category && category !== 'Other') { if (rules[key] === category) return false; rules[key] = category; names[key] = name; }
+    else { if (!(key in rules)) return false; delete rules[key]; delete names[key]; }
+    await save(custom.cats, rules, names);
+    return true;
   };
 
   // ---- the picker on the Edit payment sheet ----
@@ -128,7 +142,9 @@
       const cats = existing ? custom.cats.map((c) => (c.name === name ? { name, icon: d.icon, kind: d.kind } : c)) : custom.cats.concat([{ name, icon: d.icon, kind: d.kind }]);
       const rules = { ...custom.rules };
       if (d.always && o.store && window.spendMerchant) rules[window.spendMerchant.keyOf(o.store)] = name;
-      try { await save(cats, rules); closeSheet(); if (o.onDone) o.onDone(name); if (window.spendToast) window.spendToast(existing ? 'Saved ' + name : 'Made the category ' + name, null); }
+      const rnames = { ...(custom.ruleNames || {}) };
+      if (d.always && o.store && window.spendMerchant) rnames[window.spendMerchant.keyOf(o.store)] = String(o.store).slice(0, 60);
+      try { await save(cats, rules, rnames); closeSheet(); if (o.onDone) o.onDone(name); if (window.spendToast) window.spendToast(existing ? 'Saved ' + name : 'Made the category ' + name, null); }
       catch (x) { go.disabled = false; go.textContent = existing ? 'Save' : 'Create'; fail(x && x.message ? x.message : 'Could not save. Check your connection.'); }
     });
     const cancel = el('button', 'link', 'Cancel'); cancel.type = 'button'; cancel.addEventListener('click', closeSheet);
@@ -139,7 +155,7 @@
         if (!armed) { armed = true; del.textContent = 'Tap again. Its payments go back to the app\'s usual guess'; return; }
         const cats = custom.cats.filter((c) => c.name !== existing.name);
         const rules = {}; Object.keys(custom.rules).forEach((k) => { if (custom.rules[k] !== existing.name) rules[k] = custom.rules[k]; });
-        try { await save(cats, rules); closeSheet(); if (window.spendToast) window.spendToast('Deleted ' + existing.name + '. No payment was lost', null); } catch (x) { fail('Could not delete it. Try again.'); }
+        try { await save(cats, rules, custom.ruleNames); closeSheet(); if (window.spendToast) window.spendToast('Deleted ' + existing.name + '. No payment was lost', null); } catch (x) { fail('Could not delete it. Try again.'); }
       });
       b.append(del);
     }
@@ -170,6 +186,23 @@
     b.append(add);
     if (custom.cats.length >= MAX) b.append(el('p', 'sub', 'That is the most (' + MAX + ').'));
     b.append(el('p', 'cat-hint', 'Tap one to change its icon, whether it is necessary, or to delete it. Deleting never deletes a payment.'));
+    const keys = Object.keys(custom.rules || {});
+    if (keys.length) {
+      b.append(el('h3', 'cat-sub-h', 'Stores it remembers'));
+      const box = el('div', 'cat-rows');
+      keys.forEach((k) => {
+        const r = el('div', 'cat-row cat-rule');
+        const mid = el('span', 'cat-mid'); mid.append(el('b', '', (custom.ruleNames && custom.ruleNames[k]) || k), el('span', '', '→ ' + custom.rules[k]));
+        const x = el('button', 'cat-forget', 'Forget'); x.type = 'button';
+        x.addEventListener('click', async () => {
+          const rules = { ...custom.rules }; const names = { ...(custom.ruleNames || {}) }; delete rules[k]; delete names[k];
+          x.disabled = true;
+          try { await save(custom.cats, rules, names); } catch (e) { x.disabled = false; }
+        });
+        r.append(mid, x); box.append(r);
+      });
+      b.append(box, el('p', 'cat-hint', 'When you pick a category on a payment, every payment at that store goes there from then on. Forget a store to go back to the app\'s own guess.'));
+    }
   };
   const openBtn = $('#cats-open');
   if (openBtn) openBtn.addEventListener('click', () => { drawList(); list.hidden = false; backdrop.hidden = false; list.scrollTop = 0; refresh(true); });

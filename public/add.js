@@ -159,8 +159,15 @@
         await patch(number, { title, body });
         for (const d of dups) await patch(d, { state: 'closed' });
         const ops = [{ n: number, body: { title: old.title, body: old.body || '' } }].concat(dups.map((d) => ({ n: d, body: { state: 'open' } })));
+        // A category picked by hand is remembered for the store (and an empty "Pick for me" forgets it).
+        let extra = '';
+        try {
+          if (window.spendRememberStore && ((picked && picked !== editing.category) || (!picked && editing.how === 'rule'))) {
+            if (await window.spendRememberStore(name, picked)) extra = picked ? '. ' + name + ' will go to ' + picked + ' from now on' : '. Forgot ' + name;
+          }
+        } catch (e) { /* the payment is saved; remembering the store can wait */ }
         closeSheet();
-        showToast('Saved changes to ' + name, ops);
+        showToast('Saved changes to ' + name + extra, ops);
       } else {
         let made;
         try {

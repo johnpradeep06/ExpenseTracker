@@ -1029,6 +1029,17 @@ VISA ****4242            63,58`;
     ok(x && x.category === 'Fun money' && x.leak === 'unk', 'a "not sure" category stays not sure');
     r = await hist(cTok, 'range=month');
     ok(r.data.categories.some((c) => c.category === 'Rent' && c.amount === 750), 'and Rent is in the categories total');
+    // a store can be remembered for one of the app's OWN categories too (pick it once, it sticks)
+    const SA = require('../public/merchants.js').keyOf('Station Axia');
+    await add('Station Axia', 12, 'Other', false);
+    r = await call('PUT', 'categories', { auth: cTok, body: { cats: [{ name: 'Rent', icon: '🏠', kind: 'need' }, { name: 'Phone', icon: '📱', kind: 'need' }], rules: { rogers: 'Phone', [SA]: 'Dining & Coffee', beausoir: 'Other', nope: 'Not A Category' }, ruleNames: { [SA]: '  Station   Axia ', rogers: 'Rogers', gone: 'Gone' } } });
+    ok(r.status === 200 && r.data.rules[SA] === 'Dining & Coffee' && r.data.rules.beausoir === undefined && r.data.rules.nope === undefined, 'a store can be sent to one of the app\'s own categories (a rule for "Other" or for a category that does not exist is dropped)');
+    ok(r.data.ruleNames[SA] === 'Station Axia' && r.data.ruleNames.gone === undefined, 'the store\'s name is kept for showing, tidied, and only for stores that have a rule');
+    x = await by('Station Axia');
+    ok(x && x.category === 'Dining & Coffee', 'its payments are now Dining & Coffee, the earlier ones too: ' + (x && x.category));
+    r = await call('PUT', 'categories', { auth: cTok, body: { cats: [], rules: {}, ruleNames: {} } });
+    x = await by('Station Axia');
+    ok(x && x.category !== 'Dining & Coffee', 'forgetting the store sends it back to the app\'s own guess');
     // payments typed with a category the person does not have stay with the app's own guess
     await add('Mystery', 9, 'Ghost', true);
     x = await by('Mystery');

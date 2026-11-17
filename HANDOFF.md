@@ -84,6 +84,9 @@ or unnecessary. They can also say "use it for this store every time" (a store ru
   `compute.withCustom(custom, fn)` sets it around each calculation, so alerts, history and Free to spend agree.
 - UI: `public/cats.js` + `public/cats.css` (picker entries on the Edit payment sheet, "+ New category", the sheet,
   Settings > My categories). Deleting a category never deletes a payment: they go back to the app's usual guess.
+- Remembered stores: picking a category on a payment (Edit payment) remembers it for that store (`rules` + `ruleNames`, built-in
+  categories allowed): every payment at that store goes there, earlier ones too, but never one picked by hand. Shown as "· remembered";
+  listed under Settings > My categories > "Stores it remembers" with Forget. Beats the AI's guess.
 - Not built: renaming (delete and make again), a monthly limit per category.
 - Tests: server tests ("your own categories"), `python3 test/cats_e2e.py`.
 

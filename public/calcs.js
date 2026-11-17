@@ -121,7 +121,7 @@ dash.calc('spend', {
     return kept
       .map((it) => {
         const ruled = !it.manual && window.spendMerchant && custom.rules[window.spendMerchant.keyOf(it.merchant)];
-        let c = it.manual && (CATS.includes(it.phone) || customBy[it.phone]) ? { cat: it.phone, how: 'manual' } : ruled && customBy[ruled] ? { cat: ruled, how: 'rule' } : catOf(it.merchant, it.phone);
+        let c = it.manual && (CATS.includes(it.phone) || customBy[it.phone]) ? { cat: it.phone, how: 'manual' } : ruled && (customBy[ruled] || CATS.includes(ruled)) ? { cat: ruled, how: 'rule' } : catOf(it.merchant, it.phone);
         // A store nothing else could place: use the AI's answer for it, if this person has AI categories and it gave one.
         if (c.how === 'none' && !it.manual && window.spendMerchant) {
           const guess = ai[window.spendMerchant.keyOf(it.merchant)];
