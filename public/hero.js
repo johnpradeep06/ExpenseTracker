@@ -467,6 +467,54 @@
   // Free to spend can ask to be taken off the home screen (the cross on its sign-up card).
   window.spendHero = { hide: (k) => { const on = readPages().filter((x) => x !== k); if (on.length) { writePages(on); if (built) applyPages(true); else syncPick(); } } };
 
+  // ---- the glass swipe: while the pages move, each one frosts over, shrinks a little and fades the further it is from the
+  // centre, and a soft highlight sweeps across the card with the finger. It only runs while the pages are moving (the
+  // heavy compositing hints are on only then), is smooth at the centre so nothing changes right at rest, and is off for
+  // anyone who has Reduce Motion on. ------------------------------------------------------------------------------
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let sheen = null;
+  let glassRaf = 0;
+  let glassIdle = 0;
+  let moving = false;
+  const glassOff = () => {
+    moving = false;
+    headline.classList.remove('hero-moving');
+    PAGE_KEYS.forEach((k) => { const e = pageEl(k); if (e) { e.style.filter = ''; e.style.opacity = ''; e.style.transform = ''; } });
+    if (sheen) sheen.style.opacity = '0';
+  };
+  const glassFrame = () => {
+    glassRaf = 0;
+    if (!built || calm.matches) return;
+    const vis = visibleKeys();
+    const p = pager.scrollLeft / (pager.clientWidth || 1);
+    vis.forEach((k, i) => {
+      const e = pageEl(k);
+      if (!e) return;
+      const d = Math.min(1, Math.abs(p - i));
+      const x = d * d * (3 - 2 * d);                                       // smooth: nothing happens right at the centre
+      e.style.filter = d > 0.02 ? 'blur(' + (x * 9).toFixed(1) + 'px)' : '';
+      e.style.opacity = (1 - x * 0.55).toFixed(2);
+      e.style.transform = 'scale(' + (1 - x * 0.05).toFixed(3) + ')';
+    });
+    if (sheen) {
+      const frac = p - Math.floor(p);
+      sheen.style.opacity = Math.sin(Math.PI * frac).toFixed(2);
+      if (sheenIn) sheenIn.style.transform = 'translateX(' + ((frac - 0.5) * 60).toFixed(0) + '%)';
+    }
+  };
+  let touching = false;      // a finger is on the pager: the effect holds, even if it pauses and no scrolling happens
+  const settleSoon = () => { clearTimeout(glassIdle); glassIdle = setTimeout(() => { if (!touching) glassOff(); }, 170); };
+  const onGlass = () => {
+    if (calm.matches) return;
+    if (!moving) { moving = true; headline.classList.add('hero-moving'); }
+    if (!glassRaf) glassRaf = requestAnimationFrame(glassFrame);
+    settleSoon();
+  };
+  const touchDown = () => { touching = true; };
+  const touchUp = () => { touching = false; settleSoon(); };
+  let sheenIn = null;       // the highlight itself; the box around it clips it to the card
+  const buildSheen = () => { sheen = el('div', 'hero-sheen'); sheen.setAttribute('aria-hidden', 'true'); sheenIn = el('i'); sheen.append(sheenIn); headline.append(sheen); };
+
   // ---- build, teardown (theme can change without a reload) --------------------------------------------------------
   // The switch, dots and empty skeleton are harmless to build right away. The actual numbers are not fetched until
   // the app has real data to show (i.e. signed in and loaded) - fetching before that only ever produced "Please sign
@@ -481,6 +529,11 @@
     buildPayPage();
     applyPages(false);
     pager.addEventListener('scroll', onPagerScroll, { passive: true });
+    buildSheen();
+    pager.addEventListener('scroll', onGlass, { passive: true });
+    pager.addEventListener('touchstart', touchDown, { passive: true });
+    pager.addEventListener('touchend', touchUp, { passive: true });
+    pager.addEventListener('touchcancel', touchUp, { passive: true });
     onPagerScroll();
     syncTodayStrip();
     loadIfReady();
@@ -495,6 +548,13 @@
     rngEl = trendEl = calEl = dotsEl = pop = scrim = todayHost = null;
     pgMain.style.display = '';
     pager.removeEventListener('scroll', onPagerScroll);
+    pager.removeEventListener('scroll', onGlass);
+    pager.removeEventListener('touchstart', touchDown);
+    pager.removeEventListener('touchend', touchUp);
+    pager.removeEventListener('touchcancel', touchUp);
+    touching = false;
+    clearTimeout(glassIdle); glassOff();
+    if (sheen) { sheen.remove(); sheen = null; sheenIn = null; }
     pager.scrollLeft = 0;
     hero14.hidden = false;
   };

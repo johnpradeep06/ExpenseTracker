@@ -148,3 +148,6 @@ sent for anyone who does not have it.
 - Open question for John: a weekly spending cap, either one total or one per category, Monday to Sunday.
 - The old version is a GitHub Pages app (`Cyril-praveen/spend-app`, branch `main`). Do not change it.
 - Delete this file once the work is done.
+
+## Hero swipe glass (Clean look only)
+While swiping between hero pages (trend / calendar / pay), public/hero.js drives a "glass" effect from the scroll position: the pages blur, fade and shrink slightly as they leave, and a soft highlight sweeps across the card (`.hero-sheen`, clipped by its wrapper so it never causes sideways scroll). GPU hints (`will-change`) are added only while moving (`.hero-moving`). It holds while a finger is down and clears ~170ms after the page settles. Reduce Motion turns it off. Fresh/Arcade are untouched. Test: test/hero_glass_e2e.py. If it stutters on a real phone, fall back to blur-only or depth-only by trimming `glassFrame`.
