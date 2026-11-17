@@ -65,6 +65,12 @@ with sync_playwright() as P:
     ok(not fr.locator('#people-open').is_visible(), 'and they have no People screen')
     fr.click('#settings-close'); fr.wait_for_timeout(300)
 
+    # a photo of a bill goes to an AI company, so a friend without AI only gets the Shortcut
+    row(fr, 'Beau Soir').scroll_into_view_if_needed(); row(fr, 'Beau Soir').click(); fr.wait_for_timeout(700)
+    fr.click('#add-scan'); fr.wait_for_timeout(900)
+    ok(vis(fr, '#bill-sheet') and 'Scan with Shortcut' in fr.inner_text('#bill-sheet') and 'Take a photo' not in fr.inner_text('#bill-sheet'), 'a friend without AI is offered only the Shortcut for a bill, never the AI photo reader')
+    fr.click('#bill-sheet .link'); fr.wait_for_timeout(300)
+
     # ---- the owner switches it on for the friend ----
     own.click('#settings-open'); own.wait_for_timeout(400); own.click('#people-open'); own.wait_for_timeout(1500)
     btn = own.locator('#people-list .person', has_text='friend-ai-e2e@example.com').locator('button', has_text='AI')
@@ -81,6 +87,11 @@ with sync_playwright() as P:
     fr.click('#settings-open'); fr.wait_for_timeout(500)
     ok(vis(fr, '#ai-note'), 'and Settings now explains it to them')
     fr.click('#settings-close'); fr.wait_for_timeout(300)
+
+    row(fr, 'Beau Soir').scroll_into_view_if_needed(); row(fr, 'Beau Soir').click(); fr.wait_for_timeout(700)
+    fr.click('#add-scan'); fr.wait_for_timeout(900)
+    ok('Take a photo' in fr.inner_text('#bill-sheet'), 'once the owner switches AI on, the friend can scan a bill with a photo')
+    fr.click('#bill-sheet .link'); fr.wait_for_timeout(300)
 
     # ---- and off again ----
     btn.click(); own.wait_for_timeout(1500)

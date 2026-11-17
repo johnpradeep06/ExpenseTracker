@@ -6,10 +6,13 @@
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
   const money = (n) => (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2);
 
+  // The AI photo reader is for the people the owner switched AI on for (it sends the photo to an AI company). Everyone else
+  // uses the Shortcut, which reads the bill on the phone. The answer comes with "me", which the app asks for when it opens.
   let enabled = null;
+  window.addEventListener('spend:me', (e) => { enabled = !!(e.detail && e.detail.ai && e.detail.ai.bills); });
   const aiOn = async () => {
     if (enabled === null) {
-      try { enabled = !!(await window.spendApi('GET', 'config')).billScan; } catch (e) { return false; }
+      try { const me = await window.spendApi('GET', 'me'); enabled = !!(me && me.ai && me.ai.bills); } catch (e) { return false; }
     }
     return enabled;
   };

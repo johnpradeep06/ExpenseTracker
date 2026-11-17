@@ -32,7 +32,7 @@ with sync_playwright() as P:
     pg = ctx.new_page()
     pg.on('pageerror', lambda e: errs.append(str(e)))
     vis = lambda s: pg.locator(s).is_visible()
-    em = 'bill-e2e@example.com'
+    em = 'ana@example.com'   # the owner (OWNER_EMAIL in the local copy) always has AI
     pg.goto(BASE + '/?invite=' + post('/api/admin/invites', {})['code']); pg.wait_for_timeout(500)
     pg.fill('#auth-email', em); pg.fill('#auth-password', 'bill-e2e-password-1'); pg.click('#auth-submit'); pg.wait_for_timeout(1000)
     post('/api/admin/import', {"email": em, "issues": issues, "dailyLimit": 0})

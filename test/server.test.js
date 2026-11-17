@@ -686,6 +686,7 @@ const assert = require('assert');
     const bTok = r.data.session;
     r = await call('POST', 'auth/signup', { body: { email: 'bill2@example.com', password: 'bill2-password-123', invite: await invite('Bill2', 7) } });
     const b2Tok = r.data.session;
+    await pg.query("update users set ai_access = true where email in ('bill@example.com', 'bill2@example.com')");   // the owner chose these two for AI
     const photo = 'A'.repeat(4000);          // looks like base64; the pretend reader never looks at it
     const scan = (tok, extra) => call('POST', 'bills/scan', { auth: tok, body: { image: photo, mime: 'image/jpeg', store: 'Metro', amount: '90.61', ...(extra || {}) } });
     const FRENCH = { store: 'METRO PLUS #204', date: '2026-11-15', subtotal: '84,40', tax: 6.21, total: '90,61', items: [
@@ -706,6 +707,15 @@ const assert = require('assert');
     api._test.setBillReader(async () => FRENCH);
     r = await call('GET', 'config');
     ok(r.data.billScan === true, 'with a key set the app says bill scanning is on');
+    r = await call('POST', 'auth/signup', { body: { email: 'bill3@example.com', password: 'bill3-password-123', invite: await invite('Bill3', 7) } });
+    const b3Tok = r.data.session;
+    r = await scan(b3Tok);
+    ok(r.status === 403 && /Shortcut/.test(r.data.error) && !/boom|stack/i.test(r.data.error), 'a person the owner has NOT switched AI on for cannot send a bill photo to the AI: ' + r.data.error);
+    r = await call('GET', 'me', { auth: b3Tok });
+    ok(r.data.ai.bills === false, 'and their account says AI bill scanning is off');
+    r = await call('GET', 'me', { auth: bTok });
+    ok(r.data.ai.bills === true, 'while a person the owner chose is on');
+    await call('DELETE', 'account', { auth: b3Tok });
     r = await call('POST', 'bills/scan', { body: { image: photo, mime: 'image/jpeg' } });
     ok(r.status === 401, 'scanning needs a sign-in');
     r = await call('POST', 'bills/scan', { auth: bTok, body: { image: photo, mime: 'application/pdf' } });

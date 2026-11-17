@@ -103,6 +103,8 @@ sent for anyone who does not have it.
 - Server: `POST ai/categorize` (403 unless switched on, 429 past the allowances), `POST owner/people/:id/ai-on|ai-off`,
   `GET me` carries `ai: { enabled }` and the person's answers come inside `categories.ai`. Calculations read them via
   `window.spendCustom.ai` (`public/calcs.js`); `public/ai.js` asks for the unplaced stores once the app has data.
+- The AI **bill photo reader** (POST bills/scan) follows the same per-person switch: a photo goes to an AI company, so people without AI
+  get only the Shortcut route (the bill is read on their phone). `GET me` carries `ai.bills`; `GET config` no longer decides who sees it.
 - A purchase categorized by the AI says "AI guess" in its line. Tests: server tests ("AI categories"), `python3 test/ai_e2e.py`.
 
 ## Encryption of purchase text

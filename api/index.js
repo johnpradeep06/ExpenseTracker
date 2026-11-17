@@ -390,7 +390,9 @@ const savePlan = (u, plan) => q(`insert into pay_plans (user_id, data) values ($
   on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'pay', JSON.stringify(plan))]);
 // ---- a person's own categories ---------------------------------------------------------------------------------
 // AI categories are for the people the owner has switched them on for (the owner always has them), and only while a Gemini key is set.
-const aiOn = (u) => storeai.configured() && (isOwner(u) || u.ai_access === true);
+const aiAllowed = (u) => isOwner(u) || u.ai_access === true;    // the owner's per-person choice: store lookups AND bill photos
+const aiOn = (u) => storeai.configured() && aiAllowed(u);
+const billAiOn = (u) => vision.configured() && aiAllowed(u);
 const loadGuesses = async (userId) => {
   const r = (await q('select data from user_ai where user_id = $1', [userId]))[0];
   return r ? JSON.parse(vault.open(userId, 'ai', r.data)) : {};
@@ -547,7 +549,7 @@ const routes = {
     const u = await signedIn(req);
     const devices = await q('select count(*)::int as n from devices where user_id = $1', [u.id]);
     // The person's own categories ride along, so opening the app does not need a call just for them.
-    return { email: u.email, name: u.name, isOwner: isOwner(u), dailyLimit: limitOf(u), tz: u.tz, hasCode: !!u.key_hash, devices: devices[0] ? devices[0].n : 0, vapidPublicKey: env('VAPID_PUBLIC_KEY'), categories: await loadCustom(u), ai: { enabled: aiOn(u) } };
+    return { email: u.email, name: u.name, isOwner: isOwner(u), dailyLimit: limitOf(u), tz: u.tz, hasCode: !!u.key_hash, devices: devices[0] ? devices[0].n : 0, vapidPublicKey: env('VAPID_PUBLIC_KEY'), categories: await loadCustom(u), ai: { enabled: aiOn(u), bills: billAiOn(u) } };
   },
 
   'PUT me': async (req) => {
@@ -685,6 +687,8 @@ const routes = {
   'POST bills/scan': async (req) => {
     const u = await signedIn(req);
     if (!vision.configured()) fail(503, 'Bill scanning is not switched on yet. Ask the person who runs the app.');
+    // A photo of a bill goes to an AI company, so it follows the same switch as everything else AI: only people the owner chose.
+    if (!aiAllowed(u)) fail(403, 'AI bill scanning is not switched on for your account. Use the Shortcut, which reads the bill on your phone.');
     const b = await readBody(req, 4 * 1024 * 1024);
     const mime = String(b.mime || '');
     const image = String(b.image || '').replace(/^data:[^,]*,/, '');
