@@ -91,6 +91,9 @@ or unnecessary. They can also say "use it for this store every time" (a store ru
 Stores the app's own rules cannot place (`how === 'none'`) are sent to Google's Gemini, and the answer is remembered. It
 is a feature the **owner switches on per person** (People & invites > "AI: on/off"); the owner always has it. Nothing is
 sent for anyone who does not have it.
+- Models: `lib/gemini.js` is the one place that calls Gemini. Cheapest first (Flash-Lite: free tier, fewest tokens); when a name answers 404 (Google retires
+  names) the next is tried, and if all are gone it asks Google's model list and uses the newest stable `gemini-N-flash-lite`. `CATEGORY_MODEL` /
+  `BILL_MODEL` pin one model instead.
 - Switched on by `GEMINI_API_KEY` on the server (the same key can read bills). Optional: `CATEGORY_MODEL` (default
   `gemini-2.5-flash-lite`), `AI_DAILY_LIMIT` (stores per person per day, default 40), `AI_GLOBAL_DAILY` (whole app, default 300).
   Set them in Vercel's environment settings; never in chat or code.

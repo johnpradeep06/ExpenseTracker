@@ -1254,7 +1254,7 @@ VISA ****4242            63,58`;
       return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"Beau Soir":"Groceries"}' }] } }] }) };
     };
     let out2 = await storeai.categorize(['Beau Soir']);
-    ok(out2['Beau Soir'] === 'Groceries' && tried.join() === 'gemini-3.5-flash-lite,gemini-3.5-flash', 'a model Google has retired (404) is skipped and the next one answers: ' + tried.join());
+    ok(out2['Beau Soir'] === 'Groceries' && tried.join() === 'gemini-3.5-flash-lite,gemini-3.1-flash-lite', 'a model Google has retired (404) is skipped and the next one answers: ' + tried.join());
     tried.length = 0;
     global.fetch = async (url) => { tried.push(String(url)); return { ok: false, status: 429, json: async () => ({ error: { message: 'Quota exceeded' } }) }; };
     let err3 = null; try { await storeai.categorize(['Beau Soir']); } catch (e) { err3 = e; }
@@ -1271,12 +1271,25 @@ VISA ****4242            63,58`;
     vision.setReader(null); tried.length = 0; let sentParts = null;
     global.fetch = async (url, init) => {
       const model = decodeURIComponent(String(url).split('/models/')[1].split(':')[0]); tried.push(model); sentParts = JSON.parse(init.body).contents[0].parts;
-      if (model === 'gemini-3.5-flash') return { ok: false, status: 404, json: async () => ({}) };
+      if (model === 'gemini-3.5-flash-lite') return { ok: false, status: 404, json: async () => ({}) };
       return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"store":"Metro","items":[{"name":"LAIT","price":5.49}],"total":5.49}' }] } }] }) };
     };
     const bill = await vision.readBill({ image: 'QUJD', mime: 'image/jpeg', hint: { store: 'Metro', amount: 5.49 } });
-    ok(bill.store === 'Metro' && tried.join() === 'gemini-3.5-flash,gemini-3.5-flash-lite', 'the bill photo reader tries the current models in order too: ' + tried.join());
+    ok(bill.store === 'Metro' && tried.join() === 'gemini-3.5-flash-lite,gemini-3.1-flash-lite', 'the bill photo reader tries the cheap current models in order too: ' + tried.join());
     ok(sentParts[0].inline_data.mime_type === 'image/jpeg' && sentParts[0].inline_data.data === 'QUJD', 'and sends the photo as an inline image');
+    // every name gone: the app asks Google which models exist and uses the newest stable Flash-Lite
+    tried.length = 0;
+    global.fetch = async (url) => {
+      const u = String(url);
+      if (/\/v1beta\/models\?/.test(u)) return { ok: true, json: async () => ({ models: [
+        { name: 'models/gemini-9.9-flash-lite-preview-01-2030', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-4.0-flash-lite', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-3.8-flash', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-4.1-flash-lite', supportedGenerationMethods: ['embedContent'] }] }) };
+      const model = decodeURIComponent(u.split('/models/')[1].split(':')[0]); tried.push(model);
+      if (model === 'gemini-4.0-flash-lite') return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"store":"Metro","items":[{"name":"LAIT","price":5.49}],"total":5.49}' }] } }] }) };
+      return { ok: false, status: 404, json: async () => ({ error: { message: 'gone' } }) };
+    };
+    const bill2 = await vision.readBill({ image: 'QUJD', mime: 'image/jpeg', hint: {} });
+    ok(bill2.store === 'Metro' && tried[tried.length - 1] === 'gemini-4.0-flash-lite' && !tried.some((n) => /preview|9\.9|4\.1/.test(n)), 'when every name is gone it asks Google what exists and picks the newest stable Flash-Lite that can answer (not a preview, not one that cannot): ' + tried.join());
     global.fetch = realFetch;
     if (savedAnthropic) process.env.ANTHROPIC_API_KEY = savedAnthropic;
     delete process.env.GEMINI_API_KEY;
