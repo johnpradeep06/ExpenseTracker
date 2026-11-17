@@ -53,6 +53,9 @@ with sync_playwright() as P:
     own.click('#settings-open'); own.wait_for_timeout(500)
     ok(vis(own, '#ai-note') and 'Only the store name is sent' in own.inner_text('#ai-note'), 'Settings tells the owner what AI categories do, and what is sent')
     ok('2 stores have' in own.inner_text('#ai-count'), 'and how many stores it sorted: ' + own.inner_text('#ai-count'))
+    own.click('#ai-run'); own.wait_for_timeout(2500)
+    res_text = own.inner_text('#ai-result')
+    ok('Nothing to sort' in res_text or 'Gemini answered' in res_text, 'the Sort my stores now button runs and reports: ' + res_text.replace('\n', ' | '))
     own.click('#settings-close'); own.wait_for_timeout(300)
 
     # ---- a friend: nothing, until the owner says so ----

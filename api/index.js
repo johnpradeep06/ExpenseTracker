@@ -830,13 +830,17 @@ const routes = {
     await q('insert into ai_usage (user_id, day, n) values ($1, $2, $3) on conflict (user_id, day) do update set n = ai_usage.n + excluded.n', [u.id, day, fresh.length]);
     await q('delete from ai_usage where day < $1', [new Date(Date.now() - 4 * DAY).toISOString().slice(0, 10)]);
     let answer;
-    try { answer = await storeai.categorize(fresh); } catch (e) { console.error('ai categorize failed:', e && e.message); fail(502, 'The AI helper could not answer right now. Try again later.'); }
+    try { answer = await storeai.categorize(fresh); } catch (e) {
+      console.error('ai categorize failed:', e && (e.detail || e.message));
+      // The owner sees Google's own reason (a wrong model name, a bad key, no quota) so it can be fixed; everyone else a plain line.
+      fail(502, isOwner(u) && e && e.detail ? 'The AI helper could not answer. ' + e.detail : 'The AI helper could not answer right now. Try again later.');
+    }
     fresh.forEach((n) => { have[merchants.keyOf(n)] = answer[n] || 'Other'; });
     const keys = Object.keys(have);
     if (keys.length > 2000) keys.slice(0, keys.length - 2000).forEach((k) => { delete have[k]; });
     await q(`insert into user_ai (user_id, data) values ($1, $2)
       on conflict (user_id) do update set data = excluded.data, updated_at = now()`, [u.id, vault.seal(u.id, 'ai', JSON.stringify(have))]);
-    return { asked: fresh.length, guesses: have };
+    return { asked: fresh.length, guesses: have, answers: Object.fromEntries(fresh.map((n) => [n, answer[n] || 'Other'])) };
   },
 
   // ---- your own categories (Rent, Phone...) ------------------------------------------------------------------------

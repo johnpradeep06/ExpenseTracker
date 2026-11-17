@@ -52,3 +52,11 @@ html.retro .cat-dot { border-radius: 0; }
 .btn-plain.mini.ai-on { background: color-mix(in srgb, var(--accent) 16%, var(--track)); color: var(--accent); }
 html.retro .ai-note, html.retro .ai-note p { font-size: 19px; }
 html.retro .ai-note { border-radius: 0; }
+
+#ai-run { margin-top: 10px; }
+#ai-result { margin-top: 8px; }
+.ai-line { margin: 3px 0 !important; font-size: 13.5px; overflow-wrap: anywhere; }
+.ai-line.ok { color: var(--fg) !important; }
+.ai-line.dim { color: var(--muted) !important; }
+.ai-line.bad { color: var(--up) !important; font-weight: 700; }
+html.retro .ai-line { font-size: 18px; }
