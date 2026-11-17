@@ -200,9 +200,6 @@ html .tx-swipe .tx.learned.k-need::before { background: repeating-linear-gradien
 html .tx-swipe .tx.learned.k-fun::before { background: repeating-linear-gradient(to bottom, var(--fun) 0 5px, transparent 5px 8px); }
 html .tx-swipe .tx.learned.k-unk::before { background: repeating-linear-gradient(to bottom, var(--unk) 0 5px, transparent 5px 8px); }
 
-/* The glass swipe (hero.js): the compositing hints are on only while the pages are moving, so the card is plain and crisp at rest. */
-html:not(.candy):not(.retro) .hero-moving .hero-pg { will-change: transform, filter, opacity; transform-origin: 50% 50%; }
-html:not(.candy):not(.retro) .hero-sheen { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; border-radius: inherit; overflow: hidden; }
-html:not(.candy):not(.retro) .hero-sheen i { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, .16) 48%, transparent 76%); mix-blend-mode: soft-light; }
-@media (prefers-color-scheme: light) { html:not(.candy):not(.retro) .hero-sheen i { background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, .55) 48%, transparent 76%); mix-blend-mode: normal; } }
-@media (prefers-reduced-motion: reduce) { html:not(.candy):not(.retro) .hero-sheen { display: none; } }
+/* The cover-flow swipe (hero.js): perspective and compositing hints are on only while the pages are moving, so the card is plain and crisp at rest. */
+html:not(.candy):not(.retro) .hero-moving .hero-pager { perspective: 900px; }
+html:not(.candy):not(.retro) .hero-moving .hero-pg { will-change: transform, opacity; transform-origin: 50% 50%; }

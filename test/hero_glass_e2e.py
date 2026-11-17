@@ -29,8 +29,8 @@ def boot(P, b, email, reduce=False):
 
 MID = "(() => { const p = document.querySelector('#hero-pager'); p.style.scrollSnapType = 'none'; p.scrollTo({ left: 1.5 * p.clientWidth, behavior: 'instant' }); })()"
 STATE = """() => { const out = {}; const pager = document.querySelector('#hero-pager'); const pages = [...pager.querySelectorAll('.hero-pg')].filter((e) => e.style.display !== 'none');
-  out.filters = pages.map((e) => e.style.filter); out.opac = pages.map((e) => Number(e.style.opacity || 1)); out.scale = pages.map((e) => e.style.transform);
-  const sh = document.querySelector('.hero-sheen'); out.sheen = sh ? Number(sh.style.opacity || 0) : -1; out.moving = document.querySelector('#headline').classList.contains('hero-moving');
+  out.filters = pages.map((e) => e.style.filter); out.pers = getComputedStyle(pager).perspective; out.opac = pages.map((e) => Number(e.style.opacity || 1)); out.scale = pages.map((e) => e.style.transform);
+  out.sheen = 0; out.moving = document.querySelector('#headline').classList.contains('hero-moving');
   out.will = pages.length ? getComputedStyle(pages[0]).willChange : ''; return out; }"""
 
 with sync_playwright() as P:
@@ -38,18 +38,17 @@ with sync_playwright() as P:
     ctx, pg = boot(P, b, 'glass-e2e@example.com')
     pg.evaluate("async () => { await window.spendApi('PUT','pay',{amount:1850,every:'2 weeks',start:new Date(Date.now()-5*864e5).toISOString().slice(0,10),bills:[]}); await window.spendPayRefresh(); }"); pg.wait_for_timeout(1000)
     st = pg.evaluate(STATE)
-    ok(all(f == '' for f in st['filters']) and st['sheen'] == 0 and not st['moving'], 'at rest the hero is plain and crisp: no blur, no highlight, no compositing hints (%s)' % st['will'])
+    ok(all(f == '' for f in st['filters']) and all(s == '' for s in st['scale']) and st['pers'] == 'none' and not st['moving'], 'at rest the hero is plain and flat: no tilt, no perspective, no compositing hints (%s)' % st['will'])
     pg.evaluate(MID); pg.wait_for_timeout(120)
     st = pg.evaluate(STATE)
-    ok(st['moving'] and 'will-change' != '' and 'filter' in st['will'], 'while the pages move the compositing hints are on: ' + st['will'])
-    ok(sum(1 for f in st['filters'] if f.startswith('blur(')) >= 2, 'halfway between two pages both frost over: %s' % st['filters'])
+    ok(st['moving'] and 'transform' in st['will'] and st['pers'] == '900px', 'while the pages move the compositing hints and perspective are on: ' + st['will'])
+    ok(sum(1 for s in st['scale'] if 'rotateY' in s) >= 2 and not any(st['filters']), 'halfway between two pages both tilt in 3D, with no blur: %s' % st['scale'])
     ok(all(o < 1 for o in st['opac'][:3]) and min(st['opac']) < 0.8, 'and fade (%s)' % st['opac'])
-    ok(any(s.startswith('scale(0.9') for s in st['scale']), 'and shrink a little (%s)' % st['scale'])
-    ok(st['sheen'] > 0.5, 'and a highlight sweeps across the card (%.2f)' % st['sheen'])
+    ok(any('translateZ(-' in s for s in st['scale']), 'and sink back a little (%s)' % st['scale'])
     pg.screenshot(path='/tmp/claude-0/glass-mid.png', clip={'x': 0, 'y': 60, 'width': 390, 'height': 520})
     pg.wait_for_timeout(500)
     st = pg.evaluate(STATE)
-    ok(all(f == '' for f in st['filters']) and all(s == '' for s in st['scale']) and all(o == 1 for o in st['opac']) and st['sheen'] == 0 and not st['moving'], 'a moment after the swipe stops everything is cleared again, crisp (%s)' % st['filters'])
+    ok(all(f == '' for f in st['filters']) and all(s == '' for s in st['scale']) and all(o == 1 for o in st['opac']) and st['pers'] == 'none' and not st['moving'], 'a moment after the swipe stops everything is cleared again, flat')
     ok(pg.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1"), 'nothing sticks out sideways')
     pg.evaluate("document.querySelector('#hero-pager').style.scrollSnapType = ''")
 
@@ -61,26 +60,26 @@ with sync_playwright() as P:
         cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [{'x': 330 - k * 22, 'y': y}]}); pg.wait_for_timeout(16)
     pg.wait_for_timeout(500)      # the finger rests: no scrolling for half a second
     st = pg.evaluate(STATE)
-    ok(st['moving'] and any(f.startswith('blur(') for f in st['filters']), 'while the finger rests mid-swipe the glass effect stays (%s)' % st['filters'])
+    ok(st['moving'] and any('rotateY' in s for s in st['scale']), 'while the finger rests mid-swipe the tilt stays (%s)' % st['scale'])
     cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []}); pg.wait_for_timeout(1200)
     st = pg.evaluate(STATE)
-    ok(all(f == '' for f in st['filters']) and not st['moving'] and st['sheen'] == 0, 'once the finger lets go and the page settles, it is crisp again')
+    ok(all(s == '' for s in st['scale']) and not st['moving'], 'once the finger lets go and the page settles, it is flat again')
     ctx.close()
 
     # Reduce Motion: no effect at all
     ctx, pg = boot(P, b, 'glass-calm@example.com', reduce=True)
     pg.evaluate(MID); pg.wait_for_timeout(150)
     st = pg.evaluate(STATE)
-    ok(all(f == '' for f in st['filters']) and all(s == '' for s in st['scale']) and st['sheen'] <= 0 and not st['moving'], 'with Reduce Motion on, there is no blur, shrink or highlight at all')
+    ok(all(f == '' for f in st['filters']) and all(s == '' for s in st['scale']) and not st['moving'], 'with Reduce Motion on, there is no tilt or fade at all')
     ctx.close()
 
     # Fresh and Arcade have no swipeable hero: nothing is added there
     ctx, pg = boot(P, b, 'glass-look@example.com')
     for look in ('candy', 'retro'):
         pg.evaluate("l => { document.documentElement.classList.add(l); window.dispatchEvent(new CustomEvent('spend:theme', {detail: l})); }", look); pg.wait_for_timeout(600)
-        ok(pg.locator('.hero-sheen').count() == 0, '%s look: no highlight element is left behind' % look)
+        pg.evaluate(MID); pg.wait_for_timeout(150)
+        ok(pg.evaluate("[...document.querySelectorAll('.hero-pg')].every((e) => !e.style.transform.includes('rotateY'))"), '%s look: nothing is tilted' % look)
         pg.evaluate("l => { document.documentElement.classList.remove(l); window.dispatchEvent(new CustomEvent('spend:theme', {detail: 'clean'})); }", look); pg.wait_for_timeout(600)
-    ok(pg.locator('.hero-sheen').count() == 1, 'back in Clean it comes back (once)')
     ctx.close()
     ok(not errs, 'no page errors' + ('' if not errs else ': ' + '; '.join(errs[:3])))
     b.close()
