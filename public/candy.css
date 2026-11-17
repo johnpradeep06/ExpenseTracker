@@ -306,7 +306,7 @@ html.candy .pet[data-outfit="gold"] svg { filter: drop-shadow(0 0 7px rgba(255, 
 html.candy { --fun: #ff9600; --unk: #afafaf; --on-accent: #fff; }
 @media (prefers-color-scheme: dark) { html.candy { --unk: #6b7f89; } }
 html.candy .tx-swipe .tx::before { width: 5px; border-radius: 5px; }
-html.candy .tx-flip { font-family: var(--round); font-weight: 900; text-transform: uppercase; letter-spacing: .05em; font-size: 13px; }
+html.candy .tx-swipe .tx-flip { font-family: var(--round); font-weight: 900; text-transform: uppercase; letter-spacing: .02em; font-size: 11.5px; }
 html.candy .tx-flip.to-need { color: #fff; }
 html.candy #leaks .lk-amt { font-weight: 900; font-size: 38px; }
 html.candy .lk-pct, html.candy .lk-rank, html.candy .lk-a { font-weight: 900; }

@@ -42,6 +42,13 @@ class HttpError extends Error {
 }
 const fail = (status, message) => { throw new HttpError(status, message); };
 
+// Compares a secret someone sent with the real one without the time taken giving anything away.
+const secretIs = (given, real) => {
+  const a = crypto.createHash('sha256').update(String(given || '')).digest();
+  const b = crypto.createHash('sha256').update(String(real || '')).digest();
+  return !!real && crypto.timingSafeEqual(a, b);
+};
+
 const send = (res, status, obj) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -939,7 +946,7 @@ const routes = {
 
   // The morning and evening notes. Vercel calls this on a schedule with the cron secret.
   'GET cron': async (req) => {
-    if (!env('CRON_SECRET') || bearer(req) !== env('CRON_SECRET')) fail(401, 'Not allowed');
+    if (!env('CRON_SECRET') || !secretIs(bearer(req), env('CRON_SECRET'))) fail(401, 'Not allowed');
     const users = await q('select u.* from users u where not u.disabled and exists (select 1 from devices d where d.user_id = u.id)');
     let sent = 0;
     for (const u of users) {
@@ -1085,7 +1092,7 @@ const routes = {
 
   // For the owner of the server, with the admin secret: a reset code for anyone, including the owner if they are locked out.
   'POST admin/reset': async (req) => {
-    if (!env('ADMIN_SECRET') || bearer(req) !== env('ADMIN_SECRET')) fail(401, 'Not allowed');
+    if (!env('ADMIN_SECRET') || !secretIs(bearer(req), env('ADMIN_SECRET'))) fail(401, 'Not allowed');
     const b = await readBody(req);
     const u = (await q('select id, email from users where lower(email) = $1', [String(b.email || '').trim().toLowerCase()]))[0];
     if (!u) fail(404, 'No account with that email');
@@ -1094,14 +1101,14 @@ const routes = {
 
   // For the owner of the server, with the admin secret: make an invite without signing in (also used to start a new install).
   'POST admin/invites': async (req) => {
-    if (!env('ADMIN_SECRET') || bearer(req) !== env('ADMIN_SECRET')) fail(401, 'Not allowed');
+    if (!env('ADMIN_SECRET') || !secretIs(bearer(req), env('ADMIN_SECRET'))) fail(401, 'Not allowed');
     const b = await readBody(req);
     return makeInvite(b.note, b.days);
   },
 
   // One-time move of existing purchases into an account, by the owner of this server.
   'POST admin/import': async (req) => {
-    if (!env('ADMIN_SECRET') || bearer(req) !== env('ADMIN_SECRET')) fail(401, 'Not allowed');
+    if (!env('ADMIN_SECRET') || !secretIs(bearer(req), env('ADMIN_SECRET'))) fail(401, 'Not allowed');
     const b = await readBody(req, 512 * 1024);
     const users = await q('select * from users where lower(email) = lower($1)', [String(b.email || '')]);
     if (!users[0]) fail(404, 'No account with that email has been created yet');

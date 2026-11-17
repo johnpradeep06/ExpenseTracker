@@ -125,7 +125,7 @@ html.retro .toast .link { color: var(--accent); }
 /* ---- Necessary / unnecessary, leaks card and scanned bills (shared rules live in clean.css) ---- */
 html.retro { --fun: #ff9f43; --unk: #8b84c9; --on-accent: #0d0a1e; }
 html.retro .tx-swipe .tx::before { width: 4px; border-radius: 0; }
-html.retro .tx-flip { border-radius: 0 !important; font-family: var(--pixel); font-size: 9px; text-transform: uppercase; }
+html.retro .tx-swipe .tx-flip { border-radius: 0 !important; font-family: var(--pixel); font-size: 6.5px; letter-spacing: -.2px; text-transform: uppercase; }
 html.retro .tx-flip.to-need { color: #0d0a1e; }
 html.retro #leaks .lk-head h2 { font-size: 13px; }
 html.retro .lk-amt { font-family: var(--pixel); font-size: 24px; color: var(--gold); text-shadow: 3px 3px 0 #000; letter-spacing: 0; }
@@ -139,3 +139,8 @@ html.retro .bill-item::before { width: 4px; border-radius: 0; }
 html.retro .bill-x { border-radius: 0; }
 html.retro .bill-spin { border-radius: 0; animation-timing-function: steps(8); }
 html.retro .bill-top b { font-size: 21px; }
+
+/* Big amounts on a small phone: the pixel font is wide, so the number shrinks and the line may wrap instead of running off the screen. */
+html.retro .hero-amt { font-size: clamp(18px, 8vw, 34px); display: flex; flex-wrap: wrap; align-items: baseline; max-width: 100%; }
+html.retro .hero-amt .cents { font-size: clamp(11px, 4.4vw, 18px); }
+html.retro .lk-amt { font-size: clamp(16px, 6.4vw, 24px); }

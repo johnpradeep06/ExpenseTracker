@@ -532,8 +532,8 @@
   document.addEventListener('touchstart', (e) => {
     if (openSwipe && !openSwipe.wrap.contains(e.target)) openSwipe.close();
   }, { passive: true });
-  const FLIP_AT = 72;   // how far a swipe to the right must go to switch necessary / unnecessary
-  const FLIP_MAX = 132;
+  const FLIP_AT = 88;   // how far a swipe to the right must go to switch necessary / unnecessary
+  const FLIP_MAX = 150;
   const makeSwipe = (wrap, row, del, onOpenRow, onDelete, onFlip, onAsk) => {
     let x0 = 0;
     let y0 = 0;
@@ -548,6 +548,7 @@
         row.style.transition = '';
         row.style.transform = '';
         offset = 0;
+        wrap.classList.remove('armed');
         if (openSwipe === api) openSwipe = null;
         setTimeout(() => { if (offset === 0) wrap.classList.remove('swiping', 'swiping-r'); }, 250);
       }
@@ -556,6 +557,10 @@
       offset = v;
       if (v < 0) wrap.classList.add('swiping');
       if (v > 0) wrap.classList.add('swiping-r');
+      // The coloured label behind the row is exactly as wide as the gap, and its word only appears once the swipe is far
+      // enough to count (so a word is never cut off by the row, and seeing it means "let go now").
+      wrap.style.setProperty('--sx', Math.max(0, v) + 'px');
+      wrap.classList.toggle('armed', !!onFlip && v > FLIP_AT);
       row.style.transform = 'translateX(' + v + 'px)';
     };
     const remove = async () => {
@@ -674,7 +679,8 @@
         let onFlip = null;
         if (window.spendFlip) {
           const to = r.leak === 'fun' ? 'need' : 'fun';
-          const flip = h('div', 'tx-flip to-' + to, to === 'fun' ? 'Unnecessary' : 'Necessary');
+          const flip = h('div', 'tx-flip to-' + to);
+          flip.append(h('span', '', to === 'fun' ? 'Unnecessary' : 'Necessary'));
           flip.setAttribute('aria-hidden', 'true');
           wrap.prepend(flip);
           onFlip = () => window.spendFlip(r);

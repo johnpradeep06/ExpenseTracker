@@ -129,13 +129,16 @@ html .tx-swipe .tx::before { content: ""; position: absolute; left: 0; top: 10px
 html .tx-swipe .tx.k-need::before { background: var(--accent); }
 html .tx-swipe .tx.k-fun::before { background: var(--fun); }
 html .tx-flip { display: none; }
-html .tx-swipe .tx-flip { display: flex; position: absolute; z-index: 0; top: 0; bottom: 0; left: 0; width: 140px; align-items: center; padding-left: 16px; border-radius: 14px 0 0 14px; color: #fff; font-weight: 800; font-size: 14px; }
+html .tx-swipe .tx-flip { display: flex; position: absolute; z-index: 0; top: 0; bottom: 0; left: 0; width: var(--sx, 0px); min-width: 0; overflow: hidden; align-items: center; justify-content: center; border-radius: 14px 0 0 14px; color: #fff; font-weight: 800; font-size: 13px; white-space: nowrap; }
+html .tx-swipe .tx-flip span { opacity: 0; transform: scale(.85); transition: opacity .12s, transform .12s; }
+html .tx-swipe.armed .tx-flip span { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { html .tx-swipe .tx-flip span { transition: none; } }
 html .tx-flip.to-fun { background: var(--fun); }
 html .tx-flip.to-need { background: var(--accent); color: var(--on-accent); }
 html .tx-swipe:not(.swiping-r) .tx-flip { visibility: hidden; }
 html #leaks .lk-head h2 { margin: 0 0 2px; }
 html #leaks .lk-head .sub { margin: 0; }
-html .lk-big { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; }
+html .lk-big { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-top: 8px; }
 html .lk-amt { font-size: 34px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; color: var(--fun); font-variant-numeric: tabular-nums; }
 html .lk-pct { font-size: 14px; font-weight: 700; color: var(--muted); }
 html .lk-bar { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--track); margin: 12px 0 8px; }
