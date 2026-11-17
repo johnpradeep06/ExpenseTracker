@@ -706,8 +706,9 @@ const routes = {
     try {
       raw = await vision.readBill({ image, mime, hint: { store, amount } });
     } catch (e) {
-      console.error('bill read failed:', e && e.message);
-      fail(502, 'The bill could not be read right now. Try again in a moment.');
+      console.error('bill read failed:', e && (e.detail || e.message));
+      // The owner sees Google's own reason (a retired model, a bad key, no quota); everyone else a plain line.
+      fail(502, isOwner(u) && e && e.detail ? 'The bill could not be read. ' + e.detail : 'The bill could not be read right now. Try again in a moment.');
     }
     if (raw && raw.error && !(raw.items && raw.items.length)) fail(422, 'That does not look like a bill. Take the photo again with the whole bill in view.');
     const out = bills.normalize(raw, { store, amount, memory: await itemMemory(u.id) });

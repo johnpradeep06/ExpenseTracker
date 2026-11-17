@@ -1245,6 +1245,40 @@ VISA ****4242            63,58`;
     ok(/generativelanguage\.googleapis\.com/.test(seen.url) && seen.init.headers['x-goog-api-key'] === 'test-gemini-key' && !/key=/.test(seen.url), 'it goes to Google with the key in a header, never in the address');
     ok(sentText.includes('["Beau Soir","Zed"]') && !/\$|amount|card|@/i.test(sentText.replace(/Credit card/i, '')), 'the message holds the store names and the category list, nothing else');
     ok(body.generationConfig.temperature === 0 && body.generationConfig.responseMimeType === 'application/json', 'it asks for steady JSON');
+    // a retired model: the next one is tried, and Google's own words reach the owner when nothing works
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
+    const tried = [];
+    global.fetch = async (url) => {
+      const model = decodeURIComponent(String(url).split('/models/')[1].split(':')[0]); tried.push(model);
+      if (model === 'gemini-3.5-flash-lite') return { ok: false, status: 404, json: async () => ({ error: { message: 'This model is no longer available to new users.' } }) };
+      return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"Beau Soir":"Groceries"}' }] } }] }) };
+    };
+    let out2 = await storeai.categorize(['Beau Soir']);
+    ok(out2['Beau Soir'] === 'Groceries' && tried.join() === 'gemini-3.5-flash-lite,gemini-3.5-flash', 'a model Google has retired (404) is skipped and the next one answers: ' + tried.join());
+    tried.length = 0;
+    global.fetch = async (url) => { tried.push(String(url)); return { ok: false, status: 429, json: async () => ({ error: { message: 'Quota exceeded' } }) }; };
+    let err3 = null; try { await storeai.categorize(['Beau Soir']); } catch (e) { err3 = e; }
+    ok(err3 && err3.status === 429 && /Google answered 429: Quota exceeded/.test(err3.detail) && tried.length === 1, 'any other failure stops at once (another model would not help), with Google\'s reason');
+    process.env.CATEGORY_MODEL = 'my-own-model'; tried.length = 0;
+    global.fetch = async (url) => { tried.push(decodeURIComponent(String(url).split('/models/')[1].split(':')[0])); return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"Zed":"Shopping"}' }] } }] }) }; };
+    out2 = await storeai.categorize(['Zed']);
+    ok(tried.join() === 'my-own-model' && out2.Zed === 'Shopping', 'a model named in CATEGORY_MODEL is used on its own');
+    delete process.env.CATEGORY_MODEL;
+    global.fetch = realFetch;
+    // the bill photo reader uses the same Gemini helper (with its photo) and the same fallback
+    const vision = require('../lib/vision');
+    const savedAnthropic = process.env.ANTHROPIC_API_KEY; delete process.env.ANTHROPIC_API_KEY;
+    vision.setReader(null); tried.length = 0; let sentParts = null;
+    global.fetch = async (url, init) => {
+      const model = decodeURIComponent(String(url).split('/models/')[1].split(':')[0]); tried.push(model); sentParts = JSON.parse(init.body).contents[0].parts;
+      if (model === 'gemini-3.5-flash') return { ok: false, status: 404, json: async () => ({}) };
+      return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"store":"Metro","items":[{"name":"LAIT","price":5.49}],"total":5.49}' }] } }] }) };
+    };
+    const bill = await vision.readBill({ image: 'QUJD', mime: 'image/jpeg', hint: { store: 'Metro', amount: 5.49 } });
+    ok(bill.store === 'Metro' && tried.join() === 'gemini-3.5-flash,gemini-3.5-flash-lite', 'the bill photo reader tries the current models in order too: ' + tried.join());
+    ok(sentParts[0].inline_data.mime_type === 'image/jpeg' && sentParts[0].inline_data.data === 'QUJD', 'and sends the photo as an inline image');
+    global.fetch = realFetch;
+    if (savedAnthropic) process.env.ANTHROPIC_API_KEY = savedAnthropic;
     delete process.env.GEMINI_API_KEY;
     r = await call('POST', 'ai/categorize', { auth: ana, body: { stores: ['Store G'] } });
     ok(r.status === 403, 'with no Gemini key set, AI categories are off for everyone, the owner too');
