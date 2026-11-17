@@ -1235,6 +1235,7 @@ VISA ****4242            63,58`;
     // the real request to Gemini, with the network faked: what leaves the server
     const realFetch = global.fetch;
     let seen = null;
+    process.env.GEMINI_API_KEY = '  "test-gemini-key"\n';      // as it often arrives when pasted into a settings page
     global.fetch = async (url, init) => { seen = { url: String(url), init }; return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '```json\n{"Beau Soir":"Groceries","Zed":"Hacked"}\n```' }] } }] }) }; };
     const out = await storeai.categorize(['Beau Soir', 'Zed']);
     global.fetch = realFetch;
