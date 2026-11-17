@@ -4,6 +4,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const HEADERS = (JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8')).headers.find((h) => h.source === '/(.*)') || { headers: [] }).headers;
 (async () => {
   const { PGlite } = await import('@electric-sql/pglite');
   const pg = new PGlite();
@@ -41,6 +42,9 @@ const path = require('path');
     if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html');
     if (!fs.existsSync(f)) { res.statusCode = 404; res.end('not found'); return; }
     res.setHeader('Content-Type', types[path.extname(f)] || 'application/octet-stream');
+    // The same security headers as production (vercel.json), so a browser test fails here, not on a phone, when the
+    // Content-Security-Policy blocks something the app does.
+    for (const h of HEADERS) res.setHeader(h.key, h.value);
     fs.createReadStream(f).pipe(res);
   }).listen(Number(process.argv[2] || 8790), '127.0.0.1', () => console.log('dev server up'));
 })();

@@ -49,21 +49,27 @@
   const message = (text, isError) => el('p', 'bill-msg' + (isError ? ' bad' : ''), text);
 
   // ---- the photo ----
-  const shrink = (file) => new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const k = Math.min(1, 1700 / Math.max(img.width, img.height));
+  // The page's security policy does not allow blob: addresses, so the photo is decoded without one: straight from the file
+  // (createImageBitmap, which also respects the camera's rotation), or read as a data: address as a fallback.
+  const decode = async (file) => {
+    if (window.createImageBitmap) {
+      try { const bm = await createImageBitmap(file); return { src: bm, w: bm.width, h: bm.height, done: () => { if (bm.close) bm.close(); } }; } catch (e) { /* fall back below */ }
+    }
+    const url = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(new Error('photo')); r.readAsDataURL(file); });
+    const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => reject(new Error('photo')); i.src = url; });
+    return { src: img, w: img.width, h: img.height, done: () => {} };
+  };
+  const shrink = async (file) => {
+    const d = await decode(file);
+    try {
+      const k = Math.min(1, 1700 / Math.max(d.w, d.h));
       const c = document.createElement('canvas');
-      c.width = Math.max(1, Math.round(img.width * k));
-      c.height = Math.max(1, Math.round(img.height * k));
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url);
-      c.toBlob((b) => (b ? resolve(b) : reject(new Error('photo'))), 'image/jpeg', 0.82);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('photo')); };
-    img.src = url;
-  });
+      c.width = Math.max(1, Math.round(d.w * k));
+      c.height = Math.max(1, Math.round(d.h * k));
+      c.getContext('2d').drawImage(d.src, 0, 0, c.width, c.height);
+      return await new Promise((resolve, reject) => c.toBlob((x) => (x ? resolve(x) : reject(new Error('photo'))), 'image/jpeg', 0.82));
+    } finally { d.done(); }
+  };
   const base64 = (blob) => new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result).split(',')[1]);
