@@ -1,0 +1,69 @@
+/* "Stay conscious": the draining battery and the streak (stay.js), for all three looks. It only uses the app's own
+   colours; the Fresh and Arcade blocks at the bottom change fonts, edges and the bar to match each look. */
+.stay { --st-good: var(--accent); --st-warn: #d9822b; --st-bad: var(--up, #d8453b); --c: var(--st-good); }
+@media (prefers-color-scheme: dark) { .stay { --st-warn: #f0a050; } }
+.stay[data-level="warn"] { --c: var(--st-warn); }
+.stay[data-level="bad"] { --c: var(--st-bad); }
+.st-lab { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.st-of { text-transform: none; letter-spacing: 0; font-weight: 600; }
+.st-big { margin: 6px 0 4px; font-size: 40px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.st-bat { position: relative; height: 40px; border-radius: 14px; background: var(--track); border: 1px solid var(--line); overflow: hidden; margin: 10px 0 8px; }
+.st-bat i { position: absolute; inset: 0 auto 0 0; background: var(--c); border-radius: 0 12px 12px 0; transition: width .5s ease, background .4s; }
+.st-bat span { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .45); }
+.st-bat.low i { animation: st-pulse 1.4s ease-in-out infinite; }
+@keyframes st-pulse { 50% { opacity: .65; } }
+.st-say { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--c); }
+.st-streak { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.st-top { display: flex; align-items: center; gap: 12px; }
+.st-flame { font-size: 46px; line-height: 1; }
+.st-flame.pop { animation: st-pop .45s ease-out; }
+@keyframes st-pop { 0% { transform: scale(.6); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+.st-num b { display: block; font-size: 36px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.st-num span { color: var(--muted); font-size: 14px; }
+.st-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 14px 0 8px; }
+.st-d { text-align: center; font-size: 11px; color: var(--muted); }
+.st-d i { display: grid; place-items: center; height: 32px; margin-top: 4px; border-radius: 10px; background: var(--track); font-style: normal; font-size: 15px; font-weight: 800; color: #fff; }
+.st-d.ok i { background: var(--st-good); }
+.st-d.skip i { background: var(--st-warn); }
+.st-d.bad i { background: var(--st-bad); }
+.st-d.today i { background: transparent; outline: 2px solid var(--fg); outline-offset: -2px; }
+.st-note, .st-next { margin: 6px 0 0; font-size: 13.5px; color: var(--muted); }
+.st-lost { margin-top: 10px; padding: 10px 12px; border-radius: 12px; font-size: 14px; background: color-mix(in srgb, var(--st-bad) 13%, transparent); border: 1px solid color-mix(in srgb, var(--st-bad) 55%, transparent); }
+.st-cta { display: flex; align-items: center; gap: 10px; }
+.st-cta span { flex: 1; color: var(--muted); font-size: 14px; }
+.st-go { border: 0; border-radius: 12px; padding: 10px 16px; background: var(--accent); color: var(--on-accent, #fff); font: inherit; font-weight: 800; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .st-bat.low i, .st-flame.pop { animation: none; } .st-bat i { transition: none; } }
+
+/* ---- Fresh: bold rounded type, thick edges, a chunky bar ---- */
+html.candy .stay { --st-good: #58cc02; --st-warn: #ffc800; --st-bad: #ff4b4b; }
+html.candy .st-lab { font-weight: 800; }
+html.candy .st-big { font-weight: 900; font-size: 46px; letter-spacing: -.02em; }
+html.candy .st-bat { height: 46px; border-radius: 16px; border: 2px solid var(--edge); }
+html.candy .st-bat i { border-radius: 0 14px 14px 0; box-shadow: inset 0 -5px 0 rgba(0, 0, 0, .14); }
+html.candy .st-num b { font-weight: 900; font-size: 40px; }
+html.candy .st-d i { border-radius: 14px; font-weight: 900; border: 2px solid var(--edge); background: var(--track); }
+html.candy .st-d.ok i { background: #58cc02; border-color: #58a700; box-shadow: 0 3px 0 #58a700; }
+html.candy .st-d.skip i { background: #ffc800; border-color: #cca000; box-shadow: 0 3px 0 #cca000; }
+html.candy .st-d.bad i { background: #ff4b4b; border-color: #d63a3a; box-shadow: 0 3px 0 #d63a3a; }
+html.candy .st-d.today i { color: var(--fg); background: transparent; border-color: var(--fg); }
+html.candy .st-lost { border-width: 2px; border-radius: 16px; }
+html.candy .st-go { background: var(--accent); border-radius: 16px; text-transform: uppercase; letter-spacing: .06em; font-weight: 900; box-shadow: 0 4px 0 var(--accent-dark); }
+html.candy .st-streak { border-top-width: 2px; border-top-color: var(--edge); }
+
+/* ---- Arcade: pixel fonts, square boxes, a segmented health bar ---- */
+html.retro .stay { --st-good: #41ff94; --st-warn: #ffd23f; --st-bad: #ff5a76; }
+html.retro .st-lab { font-family: var(--pixel); font-size: 8px; line-height: 1.6; letter-spacing: .02em; }
+html.retro .st-of { font-family: inherit; font-size: 16px; }
+html.retro .st-big { font-family: var(--pixel); font-size: 26px; color: var(--gold); text-shadow: 3px 3px 0 #000; letter-spacing: 0; margin-top: 12px; }
+html.retro .st-bat { height: 26px; border-radius: 0; border: 2px solid #000; background: repeating-linear-gradient(90deg, #2c2358 0 10px, #120d26 10px 12px); }
+html.retro .st-bat i { border-radius: 0; background: repeating-linear-gradient(90deg, var(--c) 0 10px, transparent 10px 12px); }
+html.retro .st-bat span { font-family: var(--pixel); font-size: 9px; text-shadow: 2px 2px 0 #000; }
+html.retro .st-say, html.retro .st-note, html.retro .st-next, html.retro .st-cta span, html.retro .st-lost { font-size: 19px; font-weight: 400; }
+html.retro .st-num b { font-family: var(--pixel); font-size: 26px; color: var(--gold); text-shadow: 3px 3px 0 #000; letter-spacing: 0; }
+html.retro .st-num span { font-size: 18px; }
+html.retro .st-d { font-family: var(--pixel); font-size: 8px; }
+html.retro .st-d i { border-radius: 0; border: 2px solid #000; font-family: var(--pixel); font-size: 11px; color: #0d0a1e; box-shadow: inset -3px -3px 0 rgba(0, 0, 0, .3), inset 3px 3px 0 rgba(255, 255, 255, .15); }
+html.retro .st-d.today i { color: var(--fg); outline-color: var(--gold); box-shadow: none; }
+html.retro .st-lost { border-radius: 0; border-width: 2px; }
+html.retro .st-streak { border-top: 2px dashed color-mix(in srgb, var(--fg) 35%, transparent); }
+html.retro .st-go { border-radius: 0; font-family: var(--pixel); font-size: 10px; background: var(--accent); color: #0d0a1e; box-shadow: 0 0 0 2px #000, inset -3px -3px 0 rgba(0, 0, 0, .35), inset 3px 3px 0 rgba(255, 255, 255, .12); }

@@ -151,3 +151,9 @@ sent for anyone who does not have it.
 
 ## Hero swipe: cover flow (Clean look only)
 While swiping between hero pages (trend / calendar / pay), public/hero.js tilts each page in 3D from the scroll position (rotateY up to 38deg, sinks back 120px, fades), like turning a card. Perspective and `will-change` are added only while moving (`.hero-moving`), it holds while a finger is down and clears ~170ms after the page settles. Reduce Motion turns it off. Fresh/Arcade are untouched. An earlier blur+sheen "glass" version was tried and dropped (user did not like it). Test: test/hero_glass_e2e.py.
+
+## Stay conscious card: draining battery + streak (all three looks)
+New card `#stay` (index.html, between the hero and Free to spend), drawn by public/stay.js, styled by public/stay.css (Fresh and Arcade blocks at the bottom). No server call: everything is worked out on the phone from the 28 days of purchases the app already loads (`dash.data('spend')`).
+- **Battery:** "Left to spend today" = daily limit (or the 14-day average if no limit is set) minus today's spending. Green, amber under 40% left, red and pulsing under 15%, and a plain "over" message past zero. Reduce Motion stops the pulse.
+- **Streak** (rules in public/streak.js, tested in test/streak.test.js): a day counts when spending is at or under the daily limit (no purchases counts too). Today is only counted once it is over, but it can break the streak at once. The first over-limit day of each calendar week (Mon-Sun) is forgiven automatically (the "skip"); a second one in the same week ends the streak. Only days since the first purchase count, and the app only has 28 days, so a long run shows as "28+". Needs a daily limit; without one the card asks for it. Best streak is kept on the phone (`spend.streakBest`).
+- Test: test/stay_e2e.py (29 checks, all three looks). sw.js cache spend-v90.
