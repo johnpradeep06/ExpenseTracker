@@ -14,7 +14,7 @@
     { id: 'loki-pig', name: 'Loki Pig', power: 'illusion', say: 'Which one is real?', need: 2 },
     { id: 'gadget-penny', name: 'Gadget Penny', power: 'repulsor', say: 'Calculating…', need: 3 },
     { id: 'widow-sow', name: 'Widow Sow', power: 'stealth', say: 'Sneaky saver', need: 5 },
-    { id: 'panther-pig', name: 'Panther Pig', power: 'pounce', say: 'Pounce!', need: 7 },
+    { id: 'panther-pig', name: 'Panther Pig', power: 'pounce', say: 'Pounce!', need: 7, still: 'heroes/panther-pig-3d.webp', clip: 'heroes/panther-pig-power.webp', clipMs: 2000 },
     { id: 'doctor-swine', name: 'Doctor Swine', power: 'magic', say: 'Time to rewind', need: 10 },
     { id: 'thunder-pork', name: 'Thunder Pork', power: 'lightning', say: 'Thunder!', need: 14 },
     { id: 'hulk-hog', name: 'Hulk Hog', power: 'smash', say: 'SMASH!', need: 21 },
@@ -107,6 +107,8 @@
     const stage = el('div', 'hx-stage hx-clip');
     const pic = el('img', 'hx-clip-img'); pic.alt = ''; pic.src = url;
     const text = el('div', 'hx-say', label || h.say);
+    const total = (h.clipMs || 6000) + 400;      // the fade in and out follows the length of this clip
+    stage.style.animationDuration = total + 'ms'; text.style.animationDuration = total + 'ms';
     stage.append(pic, text);
     document.body.append(stage);
     setTimeout(() => { stage.remove(); URL.revokeObjectURL(url); busy = false; }, h.clipMs || 6000);
